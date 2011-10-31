@@ -1,20 +1,63 @@
 # encoding: UTF-8
 import sys
+import textwrap
 
 class Action(object):
-    def __init__(self, name, description, options, args):
+    def __init__(self, name, description, options, args = [], function = None):
         self.name = name
-        self.help = description
+        self.description = description
         self.options = options
         self.args = args    
+        self.help_args = {}
+        self.function = function
         
-    def set_help(self, desc):
-        self.help = desc
+    def set_help_arg(self, **kwargs):
+        self.help_args = kwargs
     
-    def get_help(self):
-        help_args = self.name + "".join([" $%s" % arg for arg in self.args])
+    def get_arg_help(self,arg):
+        if arg not in self.args: raise ValueError, "Argument not defined"
+        help = self.help_args.get(arg, "Undocumented")
+        return "%s - %s" % (arg, help)
         
-        return "%s - %s " % (help_args, self.help)
+        
+    def get_help_args(self):
+        return self.name + "".join([" $%s" % arg for arg in self.args])
+        
+    def get_help(self):
+        return "%s - %s" % (self.get_help_args(), self.description)
+
+    def help(self):
+        print "%s %s [shortopts] [options] [-- files]" % (
+            self.parse.name,
+            self.get_help_args(),
+            )
+        if self.description: 
+            tw1 = textwrap.TextWrapper(
+                initial_indent='  ',  
+                subsequent_indent='    ',  
+                )
+            print          
+            print tw1.fill(self.description)
+            
+	tw2 = textwrap.TextWrapper(
+	  initial_indent='  * ',  
+	  subsequent_indent=' '*12,  
+	  )
+        print
+        print " arguments:"
+        for arg in self.args:
+	    print tw2.fill( self.get_arg_help(arg) )
+        print
+        
+      
+    def parse(self, p, parse_count = 0):
+	self.parse = p
+        self.pcount = parse_count
+        if 'help' in self.parse.options:
+            self.help()
+            return
+        self.function(self.parse, self.pcount)
+        
 
 class Parse(object):
     def __init__(self):
@@ -24,17 +67,24 @@ class Parse(object):
         self.values = None
         self.actions = None
         self.files = None
+    def __str__(self):
+        import pprint
+        return pprint.pformat(self.__dict__)
 
 class ArgParser(object):
-    def __init__(self, debug = False):
+    def __init__(self, description = "", debug = False, function = None, cleanup_function = None):
         self.debug = debug
+        self.description = description
         self.default_actions = []
         self.actions = {}
         self.known_actions = []
+        self.function = function
+        self.cleanup_function = cleanup_function
     
     def declare_action(self, *args, **kwargs):
         action = Action(*args, **kwargs)
         self.insert_action(action)
+	return action
         
     def insert_action(self,action):
         name = action.name
@@ -43,21 +93,32 @@ class ArgParser(object):
     
     def help(self):
         print "%s action [shortopts] [options] [-- files]" % (self.parse.name)
+        if self.description: 
+            tw1 = textwrap.TextWrapper(
+                initial_indent='  ',  
+                subsequent_indent='    ',  
+                )
+            print          
+            print tw1.fill(self.description)
         print
         print " actions:"
+	tw2 = textwrap.TextWrapper(
+	  initial_indent='  * ',  
+	  subsequent_indent=' '*12,  
+	  )
         for name in self.known_actions:
             action = self.actions[name]
-            print "    ", action.get_help() 
+	    print tw2.fill(action.get_help() )
         print 
     
     def parse(self):
         self.parse = Parse()
         self.parse1()
-        self.parse2()
+        self.parse2(parse_count = 0)
         
     def parse1(self):
         p = parse_args()
-        if self.debug: print repr(p)
+        if self.debug: print str(self.parse)
         self.parse.name = p['name']
         self.parse.shortopts = p['short-options']
         self.parse.options = p['options']
@@ -65,18 +126,44 @@ class ArgParser(object):
         self.parse.actions = p['actions']
         self.parse.files = p['files']
     
-    def parse2(self):
+    def declare_option(self, **kwargs):
+        # TODO: ?????
+        return 
+    
+    def get_action(self, name = None):
+        if name is None:
+            name = self.parse.actions[self.parse_count]
+        if name not in self.known_actions:
+            print u"ERROR: Acción %s desconocida." % (repr(name))
+            return
+        action = self.actions[name]
+        return action
+    
+    def parse2(self, parse_count = 0):
+        self.parse_count = parse_count
+        if 'help' in self.parse.options:
+            if len(self.parse.actions) == self.parse_count:
+                help_value = self.parse.values['help']
+                if help_value:
+                    action = self.get_action(help_value)
+                    action.parse(self.parse, parse_count=self.parse_count+1)
+                else:
+                    self.help()
+            if len(self.parse.actions) == self.parse_count+1:
+                action = self.get_action()
+                action.parse(self.parse, parse_count=self.parse_count+1)
+            return     
+                           
         if len(self.parse.actions) == 0:
-            if 'help' in self.parse.options:
-                self.help()
-                return
             self.parse.actions = self.default_actions
             if len(self.default_actions) == 0:
                 print u"ERROR: No se ha pasado ninguna acción a realizar y se requiere una"
                 return
-        if self.parse.actions[0] not in self.known_actions:
-            print u"ERROR: Acción %s desconocida." % (repr(self.parse.actions[0]))
-            return
+        action = self.get_action()
+        if self.function: self.function(self.parse)
+	action.parse(self.parse, parse_count=self.parse_count+1)
+        if self.cleanup_function: self.cleanup_function(self.parse)
+        
 
 def parse_args(args = None):
     if args is None: args = list(sys.argv)
