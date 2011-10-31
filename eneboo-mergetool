@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+
+import enebootools as ebt
+import enebootools.parseargs as pa
+import enebootools.mergetool as mt
+
+import pprint
+
+parser = pa.ArgParser()
+
+parser.declare_action(
+            name = "diff",
+            args = ["type","base","final"],
+            description = "Genera un parche de fichero $type de la diferencia entre el fichero $base y $final",
+            options = ['output'],
+            )
+
+parser.declare_action(
+            name = "patch",
+            args = ["type","patch","base"],
+            description = "Aplica un parche de fichero $type especificado por $patch al fichero $base",
+            options = ['output'],
+            )
+
+
+parser.parse()
+
+
+
