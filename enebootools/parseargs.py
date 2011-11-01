@@ -146,11 +146,13 @@ class ArgParser(object):
                 help_value = self.parse.values['help']
                 if help_value:
                     action = self.get_action(help_value)
+                    if action is None: return
                     action.parse(self.parse, parse_count=self.parse_count+1)
                 else:
                     self.help()
             if len(self.parse.actions) == self.parse_count+1:
                 action = self.get_action()
+                if action is None: return
                 action.parse(self.parse, parse_count=self.parse_count+1)
             return     
                            
@@ -160,6 +162,7 @@ class ArgParser(object):
                 print u"ERROR: No se ha pasado ninguna acción a realizar y se requiere una"
                 return
         action = self.get_action()
+        if action is None: return
         if self.function: self.function(self.parse)
 	action.parse(self.parse, parse_count=self.parse_count+1)
         if self.cleanup_function: self.cleanup_function(self.parse)

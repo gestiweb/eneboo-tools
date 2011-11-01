@@ -41,6 +41,28 @@ parser = pa.ArgParser(
     propia interfaz la que configura el parser para que ejecute sus métodos.
     Esto, por supuesto sería activado opcionalmente desde los programas 
     ejecutables.
+    
+    Las acciones serán ejecutadas al final, y se les pasará los parámetros
+    indicados con kwargs, de modo que el orden de los parámetros en la función
+    es irrelevante, pero deben contar con el mismo nombre. Los parámetros pueden
+    llegar a ser omisibles?, en tal caso o se omiten los últimos o tiene que 
+    poder darles nombre o tiene que haber un argumento de exclusión como "-".
+    
+    Si los parámetros de la acción se consumen se podría entender que se inicia
+    otra acción o concatenar mediante un separador. Esto generaría problemas y
+    es posible que no sea práctico para ningún caso. Es posible reciclar 
+    opciones y parámetros de llamada entre acciones? (*Analizar más a fondo*)
+    
+    Las listas de ficheros. Se inicializan en el primer paso recibiendo el 
+    array de ficheros, probablemente con una llamada a set_file_list.
+    
+    Habrá que agregar un control de excepciones en las llamadas de cada función,
+    para intentar buscar errores en la propia llamada (funcion no existe, 
+    argumentos no válidos... etc)
+    
+    La ejecución de las acciones debería prepararse, pero tal vez relegarlas a
+    una segunda funcion execute_actions() para evitar sobrecargar la pila de
+    llamadas (y que cuando se lance un traceback sea lo más sencillo posible)
 """
 
 parser.declare_option(
@@ -60,27 +82,27 @@ parser.declare_option(
             # variable = None  # es omisible, porque None es por defecto.
             )
 
-diff_action = parser.declare_action(
-            name = "diff",
+file_diff_action = parser.declare_action(
+            name = "file-diff",
             args = ["ext","base","final"],
             description = "Genera un parche de fichero $ext de la diferencia entre el fichero $base y $final",
             options = ['output-file'],
             function = ctxdiff.execute,
             )
-diff_action.set_help_arg(
+file_diff_action.set_help_arg(
                 ext = "Tipo de fichero a procesar: QS / XML",
                 base = "Fichero original",
                 final = "Fichero final",
                 )
                 
-patch_action = parser.declare_action(
-            name = "patch",
+file_patch_action = parser.declare_action(
+            name = "file-patch",
             args = ["ext","patch","base"],
             description = "Aplica un parche de fichero $ext especificado por $patch al fichero $base",
             options = ['output-file'],
             function = ctxpatch.execute,
             )
-patch_action.set_help_arg(
+file_patch_action.set_help_arg(
                 ext = "Tipo de fichero a procesar: QS / XML",
                 base = "Fichero original",
                 patch = "Parche a aplicar sobre $base",

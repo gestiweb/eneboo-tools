@@ -1,5 +1,10 @@
 # encoding: UTF-8
 
+class Interface(object):
+    # TODO: Esta clase debería heredar de una genérica que contenga lo básico.
+    
+    pass
+
 
 def configure(parse):
     # leer parse.short_options y parse.options, y de las que se procesen aquí,
