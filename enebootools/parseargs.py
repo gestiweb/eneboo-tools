@@ -132,13 +132,13 @@ class ArgParser(object):
         
     def parse1(self, argv):
         p = parse_args(argv)
-        if self.debug: print str(self.parse)
         self.parse.name = p['name']
         self.parse.shortopts = p['short-options']
         self.parse.options = p['options']
         self.parse.values = p['values']
         self.parse.actions = p['actions']
         self.parse.files = p['files']
+        if self.debug or 'debug-parseargs' in self.parse.options: print str(self.parse)
     
     def declare_option(self, **kwargs):
         # TODO: ?????
