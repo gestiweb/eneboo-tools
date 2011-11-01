@@ -1,115 +1,16 @@
 #!/usr/bin/env python
 # encoding: UTF-8
-import enebootools as ebt
-import enebootools.parseargs as pa
-import enebootools.mergetool as mt
-import enebootools.mergetool.ctxdiff as ctxdiff
-import enebootools.mergetool.ctxpatch as ctxpatch
-
-import pprint
-
-parser = pa.ArgParser(
-        description = "Herramientas para la ayuda de resolución de conflictos de mezcla",
-        function = mt.configure,
-        cleanup_function = mt.cleanup_configure,
-        # debug=True
-        )
-
-"""
-    El receptor de las llamadas podría ser perfectamente una clase. Cada opción
-    activada, generaría una llamada en una función de la clase y así la iría 
-    configurando.
-    Esta clase podría estar a nivel de módulo (mergetool) y sería la interfaz
-    de conexión de un módulo a otro.
-    
-    Una opción --output-file generaría una llamada a una función miembro 
-    "self.set_output_file(value)", donde "value" sería el valor recibido por
-    la opción. Se ejecuta sin argumentos en caso de que la función no lleve valor.
-    
-    Las opciones cortas se configurarían unicamente como alias de opciones 
-    largas, de ese modo aprovechamos la configuración de unas cosas para otras.
-    Y además, forzamos a que toda opción corta tenga su correspondiente opción 
-    larga.
-    
-    Las funciones set_xxx pueden recibir parámetros extra, siempre con valores
-    por defecto inocuos. Esto tiene sentido para cuando se programa desde
-    otro módulo y se quieren ahorrar llamadas repetidas. Por ejemplo, configurar
-    set_verbose(self, level = None) para poder pasar un nivel numérico en vez de
-    llamar a la función N veces.
-    
-    Este mismo programa podría ser parte de la clase de interfaz, siendo la 
-    propia interfaz la que configura el parser para que ejecute sus métodos.
-    Esto, por supuesto sería activado opcionalmente desde los programas 
-    ejecutables.
-    
-    Las acciones serán ejecutadas al final, y se les pasará los parámetros
-    indicados con kwargs, de modo que el orden de los parámetros en la función
-    es irrelevante, pero deben contar con el mismo nombre. Los parámetros pueden
-    llegar a ser omisibles?, en tal caso o se omiten los últimos o tiene que 
-    poder darles nombre o tiene que haber un argumento de exclusión como "-".
-    
-    Si los parámetros de la acción se consumen se podría entender que se inicia
-    otra acción o concatenar mediante un separador. Esto generaría problemas y
-    es posible que no sea práctico para ningún caso. Es posible reciclar 
-    opciones y parámetros de llamada entre acciones? (*Analizar más a fondo*)
-    
-    Las listas de ficheros. Se inicializan en el primer paso recibiendo el 
-    array de ficheros, probablemente con una llamada a set_file_list.
-    
-    Habrá que agregar un control de excepciones en las llamadas de cada función,
-    para intentar buscar errores en la propia llamada (funcion no existe, 
-    argumentos no válidos... etc)
-    
-    La ejecución de las acciones debería prepararse, pero tal vez relegarlas a
-    una segunda funcion execute_actions() para evitar sobrecargar la pila de
-    llamadas (y que cuando se lance un traceback sea lo más sencillo posible)
-"""
-
-parser.declare_option(
-            name = "output-file",
-            aliases = [ "output" ], # sinonimos con los que llamar la opcion
-            description = "guarda la salida del programa en PATH",
-            level = "action", # ( action | parser )
-            variable = "PATH", # determina el nombre de la variable en la ayuda.
-                        # si es None, no hay variable. Esto fuerza también la sintaxis.
-            )
-
-parser.declare_option(
-            name = "verbose",
-            short = "vV", # opción corta relacionada (si se usa, no puede haber variable)
-            description = "Activa el modo charlatán",
-            level = "parser", # ( action | parser )
-            # variable = None  # es omisible, porque None es por defecto.
-            )
-
-file_diff_action = parser.declare_action(
-            name = "file-diff",
-            args = ["ext","base","final"],
-            description = "Genera un parche de fichero $ext de la diferencia entre el fichero $base y $final",
-            options = ['output-file'],
-            function = ctxdiff.execute,
-            )
-file_diff_action.set_help_arg(
-                ext = "Tipo de fichero a procesar: QS / XML",
-                base = "Fichero original",
-                final = "Fichero final",
-                )
-                
-file_patch_action = parser.declare_action(
-            name = "file-patch",
-            args = ["ext","patch","base"],
-            description = "Aplica un parche de fichero $ext especificado por $patch al fichero $base",
-            options = ['output-file'],
-            function = ctxpatch.execute,
-            )
-file_patch_action.set_help_arg(
-                ext = "Tipo de fichero a procesar: QS / XML",
-                base = "Fichero original",
-                patch = "Parche a aplicar sobre $base",
-                )
+from enebootools.mergetool import MergeToolInterface
 
 
-parser.parse()
+iface = MergeToolInterface()
+
+if iface.parse_args(): # parsea los argumentos de entrada de consola
+    # Si el parseo no devuelve error,
+    iface.execute_actions() # ejecuta las acciones detectadas.
+
+
+
 
 
 

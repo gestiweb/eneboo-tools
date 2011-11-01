@@ -3,13 +3,13 @@ import sys
 import textwrap
 
 class Action(object):
-    def __init__(self, name, description, options, args = [], function = None):
+    def __init__(self, name, description, options, args = [], call_function = None):
         self.name = name
         self.description = description
         self.options = options
         self.args = args    
         self.help_args = {}
-        self.function = function
+        self.call_function = call_function
         
     def set_help_arg(self, **kwargs):
         self.help_args = kwargs
@@ -56,7 +56,22 @@ class Action(object):
         if 'help' in self.parse.options:
             self.help()
             return
-        self.function(self.parse, self.pcount)
+        args = []
+        kwargs = {}
+        refargs = self.args[:]
+        if len(self.parse.actions[parse_count:]) != len(refargs):
+            print u"ERROR: La acción %s espera %d argumentos y se han recibido %d" % (
+                self.name,
+                len(self.parse.actions[parse_count:]),
+                len(refargs)
+            )
+            return
+        for action in self.parse.actions[parse_count:]:
+            argname = refargs.pop(0)
+            value = action
+            print argname, value
+            kwargs[argname] = value
+        return (self.call_function, args, kwargs)
         
 
 class Parse(object):
@@ -72,14 +87,12 @@ class Parse(object):
         return pprint.pformat(self.__dict__)
 
 class ArgParser(object):
-    def __init__(self, description = "", debug = False, function = None, cleanup_function = None):
+    def __init__(self, description = "", debug = False):
         self.debug = debug
         self.description = description
         self.default_actions = []
         self.actions = {}
         self.known_actions = []
-        self.function = function
-        self.cleanup_function = cleanup_function
     
     def declare_action(self, *args, **kwargs):
         action = Action(*args, **kwargs)
@@ -111,13 +124,14 @@ class ArgParser(object):
 	    print tw2.fill(action.get_help() )
         print 
     
-    def parse(self):
+    def parse(self, argv = None):
         self.parse = Parse()
-        self.parse1()
-        self.parse2(parse_count = 0)
+        self.parse1(argv)
+        action_list = self.parse2(parse_count = 0)
+        return action_list
         
-    def parse1(self):
-        p = parse_args()
+    def parse1(self, argv):
+        p = parse_args(argv)
         if self.debug: print str(self.parse)
         self.parse.name = p['name']
         self.parse.shortopts = p['short-options']
@@ -156,16 +170,17 @@ class ArgParser(object):
                 action.parse(self.parse, parse_count=self.parse_count+1)
             return     
                            
-        if len(self.parse.actions) == 0:
-            self.parse.actions = self.default_actions
-            if len(self.default_actions) == 0:
-                print u"ERROR: No se ha pasado ninguna acción a realizar y se requiere una"
-                return
+        if len(self.parse.actions) == self.parse_count:
+            print u"ERROR: No se ha indicado  ninguna acción a realizar y se requiere una"
+            return
+        action_list = []
         action = self.get_action()
         if action is None: return
-        if self.function: self.function(self.parse)
-	action.parse(self.parse, parse_count=self.parse_count+1)
-        if self.cleanup_function: self.cleanup_function(self.parse)
+        
+	call_action = action.parse(self.parse, parse_count=self.parse_count+1)
+        if not call_action: return
+        action_list.append(call_action)
+        return action_list
         
 
 def parse_args(args = None):
