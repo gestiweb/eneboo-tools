@@ -2,7 +2,9 @@
 import enebootools
 from enebootools import EnebooToolsInterface
 import enebootools.parseargs as pa
-import sys
+import sys, traceback
+
+from enebootools.mergetool import flpatchqs
 
 """
     El receptor de las llamadas del parser es una clase. Cada opción
@@ -148,6 +150,7 @@ class MergeToolInterface(EnebooToolsInterface):
                 
     def set_output_file(self, filename):
         self.output_file_name = filename
+        self.output = open(filename, "w")
     
     def set_verbose(self):
         self.verbosity += 1
@@ -155,8 +158,65 @@ class MergeToolInterface(EnebooToolsInterface):
     def set_quiet(self):
         self.verbosity -= 1
     
+    def debug2r(self, variable = None, **kwargs):
+        if self.verbosity < 4: return
+        from pprint import pformat
+        if variable is None:
+            for arg, var in sorted(kwargs.items()):
+                print "DEBUG+: %s =" % arg, pformat(var)
+        else:
+            print "DEBUG+:", pformat(variable)
+
+    def debug2(self, text):
+        if self.verbosity < 4: return
+        print "DEBUG+:", text    
+
+    def debug(self, text):
+        if self.verbosity < 3: return
+        print "DEBUG:", text    
+    
+    def info2(self, text):
+        if self.verbosity < 2: return
+        print "INFO:", text    
+    
+    def info(self, text):
+        if self.verbosity < 1: return
+        print ":", text    
+    
+    def msg(self, text):
+        if self.verbosity < 0: return
+        print text    
+    
+    def warn(self, text):
+        if self.verbosity < -1: return
+        print "WARN:", text    
+    
+    def error(self, text):
+        if self.verbosity < -2: return
+        print "ERROR:", text    
+        
+    def critical(self, text):
+        if self.verbosity < -3: return
+        print "CRITICAL:", text    
+        
+    def exception(self, errtype, text=""):
+        if self.verbosity < -3: return
+        print
+        print "UNEXPECTED ERROR %s:" % errtype, text    
+        print traceback.format_exc()
+    
+    # :::: ACTIONS ::::
+    
     def do_file_diff(self, ext, base, final):
-        print "Diffing", ext, base, final
+        try:
+            ext = str(ext).upper()
+            if ext == 'QS': return flpatchqs.diff_qs(self,base,final)
+            print "Unknown $ext %s" % (repr(ext))
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
 
     def do_file_patch(self, ext, base, patch):
-        print "Patching", ext, base, patch
+        try:
+            print "Patching", ext, base, patch
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
