@@ -2,6 +2,24 @@
 u"""
     Módulo de cálculo y aplicación de parches emulando flpatch.
 """
+"""
+    -----
+    Hay que anotar de algún modo cuando parcheamos una clase, qué clase 
+    estábamos buscando. Esto servirá para que la próxima clase que busque esa
+    misma, en su lugar herede de la nuestra y así preservar el correcto orden
+    de aplicación.
+    
+    Ejemplo:
+    
+    class jasper extends num_serie /** %from: oficial */ {
+    
+    
+    Aunque pueda parecer información excesiva, es normal, porque genera un 
+    arbol 1->N y da la información exacta de la extensión/mezcla al usuario
+    final.
+    
+"""
+
 import re, os.path
 
 def qsclass_reader(iface, file_name, file_lines):
@@ -9,7 +27,7 @@ def qsclass_reader(iface, file_name, file_lines):
     classes = []
     declidx = {}
     defidx = {}
-    
+    iface = None
     for n,line in enumerate(file_lines):
         m = re.search("/\*\*\s*@(\w+)\s+(\w+)?\s*\*/", line)
         if m:
@@ -29,22 +47,45 @@ def qsclass_reader(iface, file_name, file_lines):
                 pass 
             else:
                 iface.warn(u"Tipo de identificador doxygen no reconocido %s (file: %s)" % (repr(dtype),file_name))
+                continue
                 
             found = [ dtype , cname, n ]
             if len(linelist): 
                 linelist[-1].append(n) 
             linelist.append(found)
+            
+        m = re.search("const var iface .. ", line) # TODO: Completar REGEX.
+        if m:
+            iface = {
+                'block' : len(linelist) - 1,
+                'classname' : m.group('classname'),
+                'line' : n,
+            }
 
     linelist[-1].append(len(file_lines)) 
     classlist = {
         "decl" : declidx,
         "def" : defidx,
         "classes" : classes,
-        "list" : linelist
+        "list" : linelist,
+        "iface" : iface
         }
     return classlist
-        
     
+        
+def extract_class_decl_info(iface,text_lines):
+    linelist = []
+    for n,line in enumerate(file_lines):
+        m = re.search("class\s+(?P<cname>\w+)(\s+extends\s+(?P<cbase>\w+))?(\s+/\*\*\s+%from:\s+(?P<cfrom>\w+)\s+\*/)?")
+        if m:
+            match = m.group(0)
+            class_name = m.group("cname")
+            class_basename = m.group("cbase")
+            class_fromname = m.group("cfrom")
+            linelist.append( [match, class_name, class_basename, class_fromname, n] )
+            
+    iface.debug2r(classinfo=linelist)
+    return linelist
 
     
 
@@ -59,11 +100,11 @@ def file_reader(filename):
     
 
 def diff_qs(iface, base, final):
-    iface.debug(u"Procesando Diff $base:%s -> $final:%s" % (base, final))
+    iface.debug(u"Procesando Diff QS $base:%s -> $final:%s" % (base, final))
     nbase, flbase = file_reader(base)
     nfinal, flfinal = file_reader(final)
     if flbase is None or flfinal is None:
-        iface.info(u"Abortando Diff por error al abrir los ficheros")
+        iface.info(u"Abortando Diff QS por error al abrir los ficheros")
         return
     clbase = qsclass_reader(iface, base, flbase)
     clfinal = qsclass_reader(iface, final, flfinal)
@@ -106,6 +147,13 @@ def diff_qs(iface, base, final):
     
     
     
+def patch_qs(iface, base, patch):
+    iface.debug(u"Procesando Patch QS $base:%s + $patch:%s" % (base, patch))
+    nbase, flbase = file_reader(base)
+    npatch, flpatch = file_reader(patch)
+    if flbase is None or flpatch is None:
+        iface.info(u"Abortando Patch QS por error al abrir los ficheros")
+        return
     
     
     

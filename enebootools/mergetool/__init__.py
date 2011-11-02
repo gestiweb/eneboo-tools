@@ -217,6 +217,8 @@ class MergeToolInterface(EnebooToolsInterface):
 
     def do_file_patch(self, ext, base, patch):
         try:
-            print "Patching", ext, base, patch
+            ext = str(ext).upper()
+            if ext == 'QS': return flpatchqs.diff_qs(self,base,patch)
+            print "Unknown $ext %s" % (repr(ext))
         except Exception,e:
             self.exception(type(e).__name__,str(e))
