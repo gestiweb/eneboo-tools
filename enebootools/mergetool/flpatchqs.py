@@ -75,17 +75,19 @@ def qsclass_reader(iface, file_name, file_lines):
     
         
 def extract_class_decl_info(iface,text_lines):
-    linelist = []
+    classdict = {}
     for n,line in enumerate(text_lines):
         m = re.search("class\s+(?P<cname>\w+)(\s+extends\s+(?P<cbase>\w+))?(\s+/\*\*\s+%from:\s+(?P<cfrom>\w+)\s+\*/)?",line)
         if m:
-            match = m.group(0)
-            class_name = m.group("cname")
-            class_basename = m.group("cbase")
-            class_fromname = m.group("cfrom")
-            linelist.append( [match, class_name, class_basename, class_fromname, n] )
-            
-    return linelist
+            cname = m.group("cname")
+            classdict[cname] = {
+                'name' : cname,
+                'extends' : m.group("cbase"),
+                'from' : m.group("cfrom"),
+                'text': m.group(0),
+                'line' : n,
+                }
+    return classdict
 
     
 
@@ -154,8 +156,53 @@ def check_qs_classes(iface, base):
         iface.info(u"Abortando comprobación por error al abrir los ficheros")
         return
     clbase = qsclass_reader(iface, base, flbase)
-    clbase['classinfo'] = extract_class_decl_info(iface, flbase)
+    classdict = extract_class_decl_info(iface, flbase)
     
+    if not clbase['iface']:
+        iface.error(u"No encontramos declaración de iface.")
+        return
+    iface_clname = clbase['iface']['classname']
+    iface.debug(u"Se encontró declaración iface de la clase %s" % (repr(iface_clname)))
+    # Buscar clases duplicadas primero. 
+    # Los tests no se ejecutaran bien si tienen clases duplicadas.
+    for clname in set(clbase['classes']):
+        count = clbase['classes'].count(clname)
+        if count > 1:
+            iface.error("La clase %s se encontró %d veces" % (clname,count))            
+            return
+    
+    not_used_classes = clbase['classes'][:]
+    iface_class_hierarchy = []
+    current_class = iface_clname
+    prev_class = "<no-class>"
+    while True:
+        if current_class not in not_used_classes:
+            if current_class in clbase['classes']:
+                iface.error("La clase %s es parte de una "
+                            "referencia circular (desde: %s)" % 
+                            (current_class, prev_class))
+            else:
+                iface.error("La clase %s no está "
+                            "definida (desde: %s)" % 
+                            (current_class, prev_class))
+            return
+        not_used_classes.remove(current_class)
+        iface_class_hierarchy.insert(0, current_class)
+        parent = classdict[current_class]['extends']        
+        if parent is None: break
+        if classdict[current_class]['line'] < classdict[parent]['line']:
+            iface.error("La clase %s hereda de una clase %s que está"
+                        " definida más abajo en el código" % (current_class, parent))
+            return
+        current_class = parent
+
+    # De las clases sobrantes, ninguna puede heredar de alguna que hayamos usado
+    for clname in not_used_classes:
+        parent = classdict[clname]['extends']        
+        if parent in iface_class_hierarchy:
+            iface.error("La clase %s no la heredó iface, y sin embargo,"
+                        " hereda de la clase %s que sí la heredó." % (clname, parent))
+            return
     iface.debug2r(clbase=clbase)
     
     
