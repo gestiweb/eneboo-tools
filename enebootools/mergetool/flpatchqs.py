@@ -297,6 +297,15 @@ def patch_qs(iface, base, patch):
         # Habrá que insertar el bloque entre dos bloques: parent_class y child_class.
         # Vamos a asumir que estos bloques están juntos y que child_class heredaba de parent_class.
         parent_class = clbase['decl'][extending]
+        # Dónde guardar el código de definición: (después de la clase que extendimos)
+        try:
+            child_def_block = clbase['def'][extending] + 1 
+        except KeyError:
+            iface.warn(u"No hemos encontrado el bloque de código para las "
+                       u"definiciones de la clase %s, pondremos las nuevas al"
+                       u" final del fichero." % (extending))
+            child_def_block = max(clbase['def'].values()) + 1 
+           
         assert(clbase['list'][parent_class][1] == extending) # <- este calculo deberia ser correcto. 
         
         child_class = -1 # Supuestamente es el siguiente bloque de tipo "class_declaration".
@@ -315,6 +324,73 @@ def patch_qs(iface, base, patch):
                 continue                    
             else:
                 iface.debug(u"La clase %s hereda de %s, pasará a heredar %s" % (prev_child_cname,extending,newclass))
+                # TODO: Configurar herencia de $prev_child_name
+        else:
+            # Si no había clase posterior, entonces marcamos como posición
+            # de inserción el próximo bloque.
+            child_class = parent_class + 1
+            
+        # Si la clase que vamos a heredar es la que está en el iface, entonces 
+        #   en el iface habrá que cambiarlo por la nuestra.
+        if clbase['iface']: # -> primero comprobar que tenemos iface.
+            iface.debug2r(iface=clbase['iface'])
+            if clbase['iface']['classname'] == extending:
+                iface.debug(u"La clase que estamos extendiendo (%s) es el "
+                        u"tipo de dato usado por iface, por lo tanto actualizamos"
+                        u" el tipo de dato usado por iface a %s" % (extending, classname))
+                # TODO: Actualizar iface.
+        else:
+            iface.warn("No existe declaración de iface en el código (aplicando patch para clase %s)" % newclass)
+                
+        # Si la clase del parche que estamos aplicando pasa a extender otra 
+        # clase con nombre distinto, actualizaremos también los constructores.
+        if cdpatch[newclass]['extends'] != extending:
+            iface.debug(u"La clase %s extendía %s en el parche, pasará a"
+                    u" heredar a la clase %s" % (classname, 
+                        cdpatch[newclass]['extends'], extending))
+            # TODO: Actualizar constructores del parche.
+            
+        # Bloques a insertar:
+        newblocklist = clbase['list'][:]
+        
+        from_def_block = clpatch['list'][clpatch['def'][newclass]]
+        # incrustamos en posicion $child_def_block
+        newblocklist.insert(child_def_block, from_def_block)
+        
+        # Se hace en orden inverso (primero abajo, luego arriba) para evitar
+        # descuadres, por tanto asumimos:
+        assert(child_def_block > child_class)
+        
+        
+        from_decl_block = clpatch['list'][clpatch['decl'][newclass]]
+        # incrustamos en posicion $child_class
+        newblocklist.insert(child_class, from_decl_block)
+        
+        newbase = [] # empezamos la creación del nuevo fichero
+        
+        # insertamos las líneas de cabecera (hasta el primer bloque)
+        idx1 = clbase['list'][0][2]
+        newbase += flbase[:idx1]
+        
+        # iteramos por la lista de bloques y vamos procesando.
+        for btype, bname, idx1, idx2 in newblocklist:
+            # ATENCION: Sabemos que un bloque viene del parche o de base porque
+            # .. tiene la clase $newclass que no está en base. Si esta condición
+            # .. no se cumple, entonces el algoritmo falla.
+            if bname == newclass: source = "patch"
+            else: source = "base"
+            
+            if source == "base":
+                newbase += flbase[idx1:idx2]
+            elif source == "patch":
+                newbase += flpatch[idx1:idx2]
+            else: raise AssertionError
+        
+        iface.debug2r(newblocklist=newblocklist)
+        # Ya tenemos el fichero montado:
+        
+        
+        #  -> clpatch[list][
             
         
         
