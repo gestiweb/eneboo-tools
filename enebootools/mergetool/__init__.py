@@ -84,7 +84,7 @@ class MergeToolInterface(EnebooToolsInterface):
             )
         self.parser.declare_option(
             name = "patch-qs-rewrite",
-            description = u"indica si al aplicar un parche de QS se debe sobreescribir o no las clases existentes ( predelete / yes / warn / no / abort ) ",
+            description = u"indica si al aplicar un parche de QS se debe sobreescribir o no las clases existentes ( reverse / predelete / yes / warn / no / abort ) ",
             level = "action",
             variable = "VALUE", 
             call_function = self.set_patch_qs_rewrite
@@ -183,7 +183,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.output = open(filename, "w")
         
     def set_patch_qs_rewrite(self, value):
-        if value not in ['predelete','yes','no','warn','abort']: raise ValueError
+        if value not in ['reverse','predelete','yes','no','warn','abort']: raise ValueError
         self.patch_qs_rewrite = value
     
     def set_verbose(self):

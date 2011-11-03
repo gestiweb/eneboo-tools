@@ -289,9 +289,12 @@ def patch_qs(iface, base, patch):
         todo = [] # Diferentes "arreglos" que ejecutar luego.
         clbase = qsclass_reader(iface, base, flbase) 
         cdbase = extract_class_decl_info(iface, flbase) 
-
-        iface.debug(u"Procediendo a la inserción de la clase %s" % newclass)
-        if newclass in clbase['classes'] and iface.patch_qs_rewrite == "predelete":
+        if iface.patch_qs_rewrite == "reverse":
+            iface.debug(u"Procediendo a la *eliminación* de la clase %s" % newclass)
+        else:
+            iface.debug(u"Procediendo a la inserción de la clase %s" % newclass)
+            
+        if newclass in clbase['classes'] and iface.patch_qs_rewrite in ['predelete','reverse']:
             iface.info2(u"La clase %s ya estaba insertada en el fichero, "
                         u"se procede a borrar la clase como se ha solicitado." % newclass)
             old_extends = cdbase[newclass]['extends']
@@ -344,7 +347,7 @@ def patch_qs(iface, base, patch):
             continue
         cfrom = cdpatch[newclass]['from']
         if cfrom: 
-            iface.info2(u"class %s: Se ha especificado un %from %s y "
+            iface.info2(u"class %s: Se ha especificado un %%from %s y "
                         u"tomará precedencia por encima del extends %s" % (
                         newclass, cfrom, extends) )
             extends = cfrom
@@ -368,90 +371,90 @@ def patch_qs(iface, base, patch):
                     iface.debug(u"La clase %s es la última que heredó de %s, pasamos a heredar de ésta." % (extending,extends))
                     break
         
-        # Habrá que insertar el bloque entre dos bloques: parent_class y child_class.
-        # Vamos a asumir que estos bloques están juntos y que child_class heredaba de parent_class.
-        parent_class = clbase['decl'][extending]
-        # Dónde guardar el código de definición: (después de la clase que extendimos)
-        try:
-            child_def_block = clbase['def'][extending] + 1 
-        except KeyError:
-            iface.warn(u"No hemos encontrado el bloque de código para las "
-                       u"definiciones de la clase %s, pondremos las nuevas al"
-                       u" final del fichero." % (extending))
-            child_def_block = max(clbase['def'].values()) + 1 
+        if iface.patch_qs_rewrite != "reverse":
+            # Habrá que insertar el bloque entre dos bloques: parent_class y child_class.
+            # Vamos a asumir que estos bloques están juntos y que child_class heredaba de parent_class.
+            parent_class = clbase['decl'][extending]
+            # Dónde guardar el código de definición: (después de la clase que extendimos)
+            try:
+                child_def_block = clbase['def'][extending] + 1 
+            except KeyError:
+                iface.warn(u"No hemos encontrado el bloque de código para las "
+                           u"definiciones de la clase %s, pondremos las nuevas al"
+                           u" final del fichero." % (extending))
+                child_def_block = max(clbase['def'].values()) + 1 
            
-        assert(clbase['list'][parent_class][1] == extending) # <- este calculo deberia ser correcto. 
+            assert(clbase['list'][parent_class][1] == extending) # <- este calculo deberia ser correcto. 
         
-        child_class = -1 # Supuestamente es el siguiente bloque de tipo "class_declaration".
-        for n, litem in enumerate(clbase['list'][parent_class:]):
-            if n == 0: continue
-            if litem[0] != "class_declaration": continue
-            child_class = parent_class + n
-            break
-        
-        if child_class >= 0 and not auth_overwrite_class:
-            prev_child_cname = clbase['list'][child_class][1]
-            # $prev_child_name debería estar heredando de $extending.
-            if cdbase[prev_child_cname]['extends'] != extending:
-                iface.error(u"Se esperaba que la clase %s heredara de "
-                            u"%s, pero en cambio hereda de %s" % (prev_child_cname,extending,cdbase[prev_child_cname]['extends']))
-                continue                    
-            else:
-                iface.debug(u"La clase %s hereda de %s, pasará a heredar %s" % (prev_child_cname,extending,newclass))
-                todo.append('fix-class prev_child_cname')
-        else:
-            # Si no había clase posterior, entonces marcamos como posición
-            # de inserción el próximo bloque.
-            child_class = parent_class + 1
-            
-        # Si la clase que vamos a heredar es la que está en el iface, entonces 
-        #   en el iface habrá que cambiarlo por la nuestra.
-        if clbase['iface']: # -> primero comprobar que tenemos iface.
-            iface.debug2r(iface=clbase['iface'])
-            if clbase['iface']['classname'] == extending:
-                iface.debug(u"La clase que estamos extendiendo (%s) es el "
-                        u"tipo de dato usado por iface, por lo tanto actualizamos"
-                        u" el tipo de dato usado por iface a %s" % (extending, newclass))
-                todo.append('fix-iface newclass')
-        else:
-            iface.warn("No existe declaración de iface en el código (aplicando patch para clase %s)" % newclass)
-            todo.append('create-iface')
+            child_class = -1 # Supuestamente es el siguiente bloque de tipo "class_declaration".
+            for n, litem in enumerate(clbase['list'][parent_class:]):
+                if n == 0: continue
+                if litem[0] != "class_declaration": continue
+                child_class = parent_class + n
+                break
                 
-        # Si la clase del parche que estamos aplicando pasa a extender otra 
-        # clase con nombre distinto, actualizaremos también los constructores.
-        if cdpatch[newclass]['extends'] != extending:
-            iface.debug(u"La clase %s extendía %s en el parche, pasará a"
-                    u" heredar a la clase %s" % (newclass, 
-                        cdpatch[newclass]['extends'], extending))
-            todo.append('fix-class newclass')
+            if child_class >= 0 and not auth_overwrite_class:
+                prev_child_cname = clbase['list'][child_class][1]
+                # $prev_child_name debería estar heredando de $extending.
+                if cdbase[prev_child_cname]['extends'] != extending:
+                    iface.error(u"Se esperaba que la clase %s heredara de "
+                                u"%s, pero en cambio hereda de %s" % (prev_child_cname,extending,cdbase[prev_child_cname]['extends']))
+                    continue                    
+                else:
+                    iface.debug(u"La clase %s hereda de %s, pasará a heredar %s" % (prev_child_cname,extending,newclass))
+                    todo.append('fix-class prev_child_cname')
+            else:
+                # Si no había clase posterior, entonces marcamos como posición
+                # de inserción el próximo bloque.
+                child_class = parent_class + 1
+            
+            # Si la clase que vamos a heredar es la que está en el iface, entonces 
+            #   en el iface habrá que cambiarlo por la nuestra.
+            if clbase['iface']: # -> primero comprobar que tenemos iface.
+                iface.debug2r(iface=clbase['iface'])
+                if clbase['iface']['classname'] == extending:
+                    iface.debug(u"La clase que estamos extendiendo (%s) es el "
+                            u"tipo de dato usado por iface, por lo tanto actualizamos"
+                            u" el tipo de dato usado por iface a %s" % (extending, newclass))
+                    todo.append('fix-iface newclass')
+            else:
+                iface.warn("No existe declaración de iface en el código (aplicando patch para clase %s)" % newclass)
+                todo.append('create-iface')
+                
+            # Si la clase del parche que estamos aplicando pasa a extender otra 
+            # clase con nombre distinto, actualizaremos también los constructores.
+            if cdpatch[newclass]['extends'] != extending:
+                iface.debug(u"La clase %s extendía %s en el parche, pasará a"
+                        u" heredar a la clase %s" % (newclass, 
+                            cdpatch[newclass]['extends'], extending))
+                todo.append('fix-class newclass')
             
             
         # Bloques a insertar:
         newblocklist = clbase['list'][:]
-        try:
-            from_def_block = clpatch['list'][clpatch['def'][newclass]]
-            # incrustamos en posicion $child_def_block
+        if iface.patch_qs_rewrite != "reverse":
+            try:
+                from_def_block = clpatch['list'][clpatch['def'][newclass]]
+                # incrustamos en posicion $child_def_block
+                if newclass in clbase['classes']:
+                    # Sobreescribimos el bloque si ya existe la clase.
+                    assert(auth_overwrite_class)
+                    newblocklist[clbase['def'][newclass]] = from_def_block 
+                else: newblocklist.insert(child_def_block, from_def_block)
+            
+                # Se hace en orden inverso (primero abajo, luego arriba) para evitar
+                # descuadres, por tanto asumimos:
+                assert(child_def_block > child_class)
+            
+            except KeyError:
+                iface.info2(u"La clase %s carece de bloque de definición." % newclass)
+            
+            from_decl_block = clpatch['list'][clpatch['decl'][newclass]]
+            # incrustamos en posicion $child_class
             if newclass in clbase['classes']:
-                # Sobreescribimos el bloque si ya existe la clase.
                 assert(auth_overwrite_class)
-                newblocklist[clbase['def'][newclass]] = from_def_block 
-            else: newblocklist.insert(child_def_block, from_def_block)
-            
-            # Se hace en orden inverso (primero abajo, luego arriba) para evitar
-            # descuadres, por tanto asumimos:
-            assert(child_def_block > child_class)
-            
-        except KeyError:
-            iface.info2(u"La clase %s carece de bloque de definición." % newclass)
-            
-        
-        
-        from_decl_block = clpatch['list'][clpatch['decl'][newclass]]
-        # incrustamos en posicion $child_class
-        if newclass in clbase['classes']:
-            assert(auth_overwrite_class)
-            newblocklist[clbase['decl'][newclass]] = from_decl_block
-        else: newblocklist.insert(child_class, from_decl_block)
+                newblocklist[clbase['decl'][newclass]] = from_decl_block
+            else: newblocklist.insert(child_class, from_decl_block)
         
         newbase = [] # empezamos la creación del nuevo fichero
         
@@ -484,17 +487,17 @@ def patch_qs(iface, base, patch):
         cdbase = extract_class_decl_info(iface, flbase) 
         
         # Procesar tareas (to-do)
-        
-        fix_class(iface, flbase, clbase, cdbase, newclass, set_extends = extending, set_from = extends)
-        if 'fix-class newclass' in todo:
-            # Esta tarea se realiza en la linea anterior incondicionalmente. 
-            todo.remove('fix-class newclass')
+        if iface.patch_qs_rewrite != "reverse":
+            fix_class(iface, flbase, clbase, cdbase, newclass, set_extends = extending, set_from = extends)
+            if 'fix-class newclass' in todo:
+                # Esta tarea se realiza en la linea anterior incondicionalmente. 
+                todo.remove('fix-class newclass')
             
-        if 'fix-class prev_child_cname' in todo:
-            iface.debug2r(prev_child_cname)
-            fix_class(iface, flbase, clbase, cdbase, prev_child_cname, set_extends = newclass)
-            # Al terminar, borramos la tarea.
-            todo.remove('fix-class prev_child_cname')
+            if 'fix-class prev_child_cname' in todo:
+                iface.debug2r(prev_child_cname)
+                fix_class(iface, flbase, clbase, cdbase, prev_child_cname, set_extends = newclass)
+                # Al terminar, borramos la tarea.
+                todo.remove('fix-class prev_child_cname')
             
         for task in todo:
             iface.warn("La tarea %s no se ejecutó o se desconoce cómo hacerlo." % repr(task))

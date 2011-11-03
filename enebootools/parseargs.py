@@ -357,9 +357,9 @@ def parse_args(args = None):
                 mode = "options-value"
                 continue
             else:
-                if len(options):
-                    print u"ERROR: Las opciones cortas deben ser indicadas entre las acciones y las opciones largas."
-                    return None
+                #if len(options):
+                #    print u"ERROR: Las opciones cortas deben ser indicadas entre las acciones y las opciones largas."
+                #    return None
                 short_options += list(arg[1:])
                 continue
         if mode == "files":
