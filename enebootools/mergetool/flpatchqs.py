@@ -257,15 +257,30 @@ def patch_qs(iface, base, patch):
     #       Además, probablemente haya que bajar la definición de iface.
     
     for newclass in clpatch['classes']:
+        auth_overwrite_class = False
         todo = [] # Diferentes "arreglos" que ejecutar luego.
         clbase = qsclass_reader(iface, base, flbase) 
         cdbase = extract_class_decl_info(iface, flbase) 
 
         iface.debug(u"Procediendo a la inserción de la clase %s" % newclass)
         if newclass in clbase['classes']:
-            iface.warn(u"La clase %s ya estaba insertada en el fichero, "
-                        u"omitimos el parcheo de esta clase." % newclass)
-            continue
+            if iface.patch_qs_rewrite == "abort":
+                iface.error(u"La clase %s ya estaba insertada en el fichero, "
+                            u"abortamos la operación." % newclass)
+                return
+            if iface.patch_qs_rewrite == "no":
+                iface.warn(u"La clase %s ya estaba insertada en el fichero, "
+                            u"omitimos el parcheo de esta clase." % newclass)
+                continue
+            if iface.patch_qs_rewrite == "yes":
+                iface.info(u"La clase %s ya estaba insertada en el fichero, "
+                            u"se sobreescribirá la clase." % newclass)
+            
+            if iface.patch_qs_rewrite == "warn":
+                iface.warn(u"La clase %s ya estaba insertada en el fichero, "
+                            u"se sobreescribirá la clase." % newclass)
+            auth_overwrite_class = True
+                            
         # debería heredar de su extends, o su from (si existe). 
         # si carece de extends es un error y se omite.
         extends = cdpatch[newclass]['extends']
@@ -286,14 +301,18 @@ def patch_qs(iface, base, patch):
         iface.debug(u"La clase %s deberá heredar de %s" % (newclass,extends))
         
         # Buscar la clase más inferior que heredó originalmente de "extends"
-        extending = extends
-        for classname in reversed(clbase['classes']):
-            # Buscamos del revés para encontrar el último.
-            cdict = cdbase[classname]
-            if cdict['from'] == extends:
-                extending = cdict['name']
-                iface.debug(u"La clase %s es la última que heredó de %s, pasamos a heredar de ésta." % (extending,extends))
-                break
+        if auth_overwrite_class:
+            extends = cdbase[newclass]['from']
+            extending = cdbase[newclass]['extends']
+        else:
+            extending = extends
+            for classname in reversed(clbase['classes']):
+                # Buscamos del revés para encontrar el último.
+                cdict = cdbase[classname]
+                if cdict['from'] == extends:
+                    extending = cdict['name']
+                    iface.debug(u"La clase %s es la última que heredó de %s, pasamos a heredar de ésta." % (extending,extends))
+                    break
         
         # Habrá que insertar el bloque entre dos bloques: parent_class y child_class.
         # Vamos a asumir que estos bloques están juntos y que child_class heredaba de parent_class.
@@ -316,7 +335,7 @@ def patch_qs(iface, base, patch):
             child_class = parent_class + n
             break
         
-        if child_class >= 0:
+        if child_class >= 0 and not auth_overwrite_class:
             prev_child_cname = clbase['list'][child_class][1]
             # $prev_child_name debería estar heredando de $extending.
             if cdbase[prev_child_cname]['extends'] != extending:
@@ -358,7 +377,11 @@ def patch_qs(iface, base, patch):
         try:
             from_def_block = clpatch['list'][clpatch['def'][newclass]]
             # incrustamos en posicion $child_def_block
-            newblocklist.insert(child_def_block, from_def_block)
+            if newclass in clbase['classes']:
+                # Sobreescribimos el bloque si ya existe la clase.
+                assert(auth_overwrite_class)
+                newblocklist[clbase['def'][newclass]] = from_def_block 
+            else: newblocklist.insert(child_def_block, from_def_block)
             
             # Se hace en orden inverso (primero abajo, luego arriba) para evitar
             # descuadres, por tanto asumimos:
@@ -371,7 +394,10 @@ def patch_qs(iface, base, patch):
         
         from_decl_block = clpatch['list'][clpatch['decl'][newclass]]
         # incrustamos en posicion $child_class
-        newblocklist.insert(child_class, from_decl_block)
+        if newclass in clbase['classes']:
+            assert(auth_overwrite_class)
+            newblocklist[clbase['decl'][newclass]] = from_decl_block
+        else: newblocklist.insert(child_class, from_decl_block)
         
         newbase = [] # empezamos la creación del nuevo fichero
         
@@ -467,6 +493,9 @@ def fix_class(iface, flbase, clbase, cdbase, classname, **updates):
                 old = m.group(0)
                 new = str(m.group(0)).replace(cdbase[classname]['extends'],extends,1)
                 flbase[n] = line.replace(old,new,1)
+                # iface.debug2r(line = line)
+                # iface.debug2r(new_line = flbase[n])
+                
             
         
         

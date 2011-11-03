@@ -66,6 +66,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.verbosity = 0
         self.output_file_name = "STDOUT"
         self.output = sys.stdout
+        self.patch_qs_rewrite = "abort"
         if setup_parser: self.setup_parser()
         
     def setup_parser(self):
@@ -80,6 +81,13 @@ class MergeToolInterface(EnebooToolsInterface):
             variable = "PATH", # determina el nombre de la variable en la ayuda.
                         # si es None, no hay variable. Esto fuerza también la sintaxis.
             call_function = self.set_output_file
+            )
+        self.parser.declare_option(
+            name = "patch-qs-rewrite",
+            description = u"indica si al aplicar un parche de QS se debe sobreescribir o no las clases existentes ( yes / warn / no / abort ) ",
+            level = "action",
+            variable = "VALUE", 
+            call_function = self.set_patch_qs_rewrite
             )
         self.parser.declare_option(
             name = "verbose",
@@ -116,7 +124,7 @@ class MergeToolInterface(EnebooToolsInterface):
             name = "file-patch",
             args = ["ext","patch","base"],
             description = u"Aplica un parche de fichero $ext especificado por $patch al fichero $base",
-            options = ['output-file'],
+            options = ['output-file','patch-qs-rewrite'],
             call_function = self.do_file_patch,
             )
         self.file_patch_action.set_help_arg(
@@ -162,6 +170,10 @@ class MergeToolInterface(EnebooToolsInterface):
     def set_output_file(self, filename):
         self.output_file_name = filename
         self.output = open(filename, "w")
+        
+    def set_patch_qs_rewrite(self, value):
+        if value not in ['yes','no','warn','abort']: raise ValueError
+        self.patch_qs_rewrite = value
     
     def set_verbose(self):
         self.verbosity += 1
