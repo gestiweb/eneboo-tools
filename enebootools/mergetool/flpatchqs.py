@@ -355,14 +355,18 @@ def patch_qs(iface, base, patch):
             
         # Bloques a insertar:
         newblocklist = clbase['list'][:]
-        
-        from_def_block = clpatch['list'][clpatch['def'][newclass]]
-        # incrustamos en posicion $child_def_block
-        newblocklist.insert(child_def_block, from_def_block)
-        
-        # Se hace en orden inverso (primero abajo, luego arriba) para evitar
-        # descuadres, por tanto asumimos:
-        assert(child_def_block > child_class)
+        try:
+            from_def_block = clpatch['list'][clpatch['def'][newclass]]
+            # incrustamos en posicion $child_def_block
+            newblocklist.insert(child_def_block, from_def_block)
+            
+            # Se hace en orden inverso (primero abajo, luego arriba) para evitar
+            # descuadres, por tanto asumimos:
+            assert(child_def_block > child_class)
+            
+        except KeyError:
+            iface.info2(u"La clase %s carece de bloque de definición." % newclass)
+            
         
         
         from_decl_block = clpatch['list'][clpatch['decl'][newclass]]
