@@ -53,13 +53,14 @@ def qsclass_reader(iface, file_name, file_lines):
             if len(linelist): 
                 linelist[-1].append(n) 
             linelist.append(found)
-            
-        m = re.search("const var iface .. ", line) # TODO: Completar REGEX.
+        # const iface = new ifaceCtx( this );
+        m = re.search("(const|var)\s+iface\s*=\s*new\s*(?P<classname>\w+)\(\s*this\s*\);?", line) 
         if m:
             iface = {
                 'block' : len(linelist) - 1,
                 'classname' : m.group('classname'),
                 'line' : n,
+                'text' : m.group(0),
             }
 
     linelist[-1].append(len(file_lines)) 
@@ -75,8 +76,8 @@ def qsclass_reader(iface, file_name, file_lines):
         
 def extract_class_decl_info(iface,text_lines):
     linelist = []
-    for n,line in enumerate(file_lines):
-        m = re.search("class\s+(?P<cname>\w+)(\s+extends\s+(?P<cbase>\w+))?(\s+/\*\*\s+%from:\s+(?P<cfrom>\w+)\s+\*/)?")
+    for n,line in enumerate(text_lines):
+        m = re.search("class\s+(?P<cname>\w+)(\s+extends\s+(?P<cbase>\w+))?(\s+/\*\*\s+%from:\s+(?P<cfrom>\w+)\s+\*/)?",line)
         if m:
             match = m.group(0)
             class_name = m.group("cname")
@@ -84,7 +85,6 @@ def extract_class_decl_info(iface,text_lines):
             class_fromname = m.group("cfrom")
             linelist.append( [match, class_name, class_basename, class_fromname, n] )
             
-    iface.debug2r(classinfo=linelist)
     return linelist
 
     
@@ -108,8 +108,10 @@ def diff_qs(iface, base, final):
         return
     clbase = qsclass_reader(iface, base, flbase)
     clfinal = qsclass_reader(iface, final, flfinal)
-    created_classes = list(set(clfinal['classes']) - set(clbase['classes']))
+    created_classes_s = list(set(clfinal['classes']) - set(clbase['classes']))
     deleted_classes = list(set(clbase['classes']) - set(clfinal['classes']))
+    # Mantener el orden en que se encontraron:
+    created_classes = [ clname for clname in clfinal['classes'] if clname in created_classes_s ]
     
     if len(created_classes) == 0:
         iface.warn(u"No se han detectado clases nuevas. El parche quedará vacío. ($final:%s)" % (final))
@@ -144,6 +146,19 @@ def diff_qs(iface, base, final):
         text = "\n".join(lines) 
         iface.output.write(text)
         
+
+def check_qs_classes(iface, base):
+    iface.debug(u"Comprobando clases del fichero QS $filename:%s" % (base))
+    nbase, flbase = file_reader(base)
+    if flbase is None:
+        iface.info(u"Abortando comprobación por error al abrir los ficheros")
+        return
+    clbase = qsclass_reader(iface, base, flbase)
+    clbase['classinfo'] = extract_class_decl_info(iface, flbase)
+    
+    iface.debug2r(clbase=clbase)
+    
+    
     
     
     
@@ -154,6 +169,7 @@ def patch_qs(iface, base, patch):
     if flbase is None or flpatch is None:
         iface.info(u"Abortando Patch QS por error al abrir los ficheros")
         return
+    
     
     
     

@@ -124,6 +124,17 @@ class MergeToolInterface(EnebooToolsInterface):
             base = "Fichero original",
             patch = "Parche a aplicar sobre $base",
             )
+        self.file_check_action = self.parser.declare_action( 
+            name = "file-check",
+            args = ["check","filename"],
+            description = u"Analiza un fichero $filename en busca de errores usando el algoritmo de comprobación $check",
+            options = [],
+            call_function = self.do_file_check,
+            )
+        self.file_check_action.set_help_arg(
+            ext = "Tipo de análisis a realizar: qs-classes / ...",
+            filename = "Fichero a analizar",
+            )
                 
     def parse_args(self, argv = None):
         self.action_chain = self.parser.parse_args(argv)
@@ -218,7 +229,15 @@ class MergeToolInterface(EnebooToolsInterface):
     def do_file_patch(self, ext, base, patch):
         try:
             ext = str(ext).upper()
-            if ext == 'QS': return flpatchqs.diff_qs(self,base,patch)
+            if ext == 'QS': return flpatchqs.patch_qs(self,base,patch)
             print "Unknown $ext %s" % (repr(ext))
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_file_check(self, check, filename):
+        try:
+            check = str(check).lower() 
+            if check == 'qs-classes': return flpatchqs.check_qs_classes(self,filename)
+            print "Unknown $check %s" % (repr(check))
         except Exception,e:
             self.exception(type(e).__name__,str(e))
