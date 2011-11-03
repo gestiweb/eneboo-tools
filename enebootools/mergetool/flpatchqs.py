@@ -122,12 +122,29 @@ def diff_qs(iface, base, final):
         iface.warn(u"Se han borrado clases. Este cambio no se registrará en el parche. ($final:%s)" % (final))
         
     iface.debug2r(created = created_classes, deleted = deleted_classes)
-    iface.output.write("\n")
+    return extract_classes(iface,clfinal,flfinal,created_classes)
+
+def extract_classes_qs(iface, final, classlist):
+    if isinstance(classlist, basestring):
+        classlist = classlist.split(",")
+    iface.debug(u"Extrayendo clases QS $final:%s $classlist:%s" % (final,",".join(classlist)))
+    nfinal, flfinal = file_reader(final)
+    if flfinal is None:
+        iface.info(u"Abortando por error al abrir los ficheros")
+        return
+    clfinal = qsclass_reader(iface, final, flfinal)
+
+    if len(classlist) == 0:
+        iface.warn(u"No se han pasado clases. El parche quedará vacío. ($final:%s)" % (final))
+        
+    return extract_classes(iface,clfinal,flfinal,classlist)
+
+
+def extract_classes(iface,clfinal,flfinal,classes2extract):    
     iface_line = -1
     if clfinal['iface']:
         iface_line = clfinal['iface']['line']
-    
-    for clname in created_classes:
+    for clname in classes2extract:
         block_decl = clfinal['decl'].get(clname,None)
         if block_decl is None:
             iface.error(u"Se esperaba una declaración de clase para %s." % clname)
@@ -142,12 +159,16 @@ def diff_qs(iface, base, final):
             from_text = clfinal['iface']['text']
             assert( lines[rel_line].find(from_text) != -1 )
             lines[rel_line] = lines[rel_line].replace(from_text,"")
+        while lines[0].strip() == "": del lines[0]
+        while lines[-1].strip() == "": del lines[-1]
+
         text = "\n".join(lines) 
+        iface.output.write("\n")
         iface.output.write(text)
+        iface.output.write("\n")
         
-    iface.output.write("\n")
     
-    for clname in created_classes:
+    for clname in classes2extract:
         block_def = clfinal['def'].get(clname,None)
         if block_def is None:
             iface.warn(u"Se esperaba una definición de clase para %s." % clname)
@@ -155,8 +176,15 @@ def diff_qs(iface, base, final):
         dtype, clname, idx1, idx2 = clfinal['list'][block_def]
         iface.debug2r(exported_block=clfinal['list'][block_def])
         lines = flfinal[idx1:idx2]
+        while lines[0].strip() == "": del lines[0]
+        while lines[-1].strip() == "": del lines[-1]
+
         text = "\n".join(lines) 
+        iface.output.write("\n")
         iface.output.write(text)
+        iface.output.write("\n")
+        
+    iface.output.write("\n")
         
 
 def check_qs_classes(iface, base):

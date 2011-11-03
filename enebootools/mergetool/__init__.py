@@ -143,6 +143,17 @@ class MergeToolInterface(EnebooToolsInterface):
             ext = "Tipo de análisis a realizar: qs-classes / ...",
             filename = "Fichero a analizar",
             )
+        self.qs_extract_action = self.parser.declare_action(
+            name = "qs-extract",
+            args = ["final","classlist"],
+            description = u"Extrae del fichero $final las clases indicadas en $classlist",
+            options = ['output-file'],
+            call_function = self.do_qs_extract,
+            )
+        self.qs_extract_action.set_help_arg(
+            final = "Fichero QS que contiene las clases a extraer",
+            classlist = "Lista de clases a extraer, separadas por coma y sin espacios: class1,class2,...",
+            )                
                 
     def parse_args(self, argv = None):
         self.action_chain = self.parser.parse_args(argv)
@@ -255,5 +266,11 @@ class MergeToolInterface(EnebooToolsInterface):
             check = str(check).lower() 
             if check == 'qs-classes': return flpatchqs.check_qs_classes(self,filename)
             print "Unknown $check %s" % (repr(check))
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+            
+    def do_qs_extract(self, final, classlist):
+        try:
+            return flpatchqs.extract_classes_qs(self,final, classlist)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
