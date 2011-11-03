@@ -243,8 +243,8 @@ def patch_qs(iface, base, patch):
         iface.error(u"El parche contiene una definición de iface. No se puede aplicar.")
         return
     
-    iface.debug2r(clpatch=clpatch)
-    iface.debug2r(cdpatch=cdpatch)
+    #iface.debug2r(clpatch=clpatch)
+    #iface.debug2r(cdpatch=cdpatch)
     
     # Hallar el trabajo a realizar:
     #  - Hay que insertar en "base" las clases especificadas por clpatch['classes']
@@ -257,9 +257,10 @@ def patch_qs(iface, base, patch):
     #       Además, probablemente haya que bajar la definición de iface.
     
     for newclass in clpatch['classes']:
+        todo = [] # Diferentes "arreglos" que ejecutar luego.
         clbase = qsclass_reader(iface, base, flbase) 
         cdbase = extract_class_decl_info(iface, flbase) 
-        # TODO: const iface = .... puede no existir en base.
+
         iface.debug(u"Procediendo a la inserción de la clase %s" % newclass)
         if newclass in clbase['classes']:
             iface.warn(u"La clase %s ya estaba insertada en el fichero, "
@@ -324,7 +325,7 @@ def patch_qs(iface, base, patch):
                 continue                    
             else:
                 iface.debug(u"La clase %s hereda de %s, pasará a heredar %s" % (prev_child_cname,extending,newclass))
-                # TODO: Configurar herencia de $prev_child_name
+                todo.append('fix-class prev_child_cname')
         else:
             # Si no había clase posterior, entonces marcamos como posición
             # de inserción el próximo bloque.
@@ -337,18 +338,20 @@ def patch_qs(iface, base, patch):
             if clbase['iface']['classname'] == extending:
                 iface.debug(u"La clase que estamos extendiendo (%s) es el "
                         u"tipo de dato usado por iface, por lo tanto actualizamos"
-                        u" el tipo de dato usado por iface a %s" % (extending, classname))
-                # TODO: Actualizar iface.
+                        u" el tipo de dato usado por iface a %s" % (extending, newclass))
+                todo.append('fix-iface newclass')
         else:
             iface.warn("No existe declaración de iface en el código (aplicando patch para clase %s)" % newclass)
+            todo.append('create-iface')
                 
         # Si la clase del parche que estamos aplicando pasa a extender otra 
         # clase con nombre distinto, actualizaremos también los constructores.
         if cdpatch[newclass]['extends'] != extending:
             iface.debug(u"La clase %s extendía %s en el parche, pasará a"
-                    u" heredar a la clase %s" % (classname, 
+                    u" heredar a la clase %s" % (newclass, 
                         cdpatch[newclass]['extends'], extending))
-            # TODO: Actualizar constructores del parche.
+            todo.append('fix-class newclass')
+            
             
         # Bloques a insertar:
         newblocklist = clbase['list'][:]
@@ -381,16 +384,88 @@ def patch_qs(iface, base, patch):
             else: source = "base"
             
             if source == "base":
-                newbase += flbase[idx1:idx2]
+                block = flbase[idx1:idx2]
             elif source == "patch":
-                newbase += flpatch[idx1:idx2]
+                block = flpatch[idx1:idx2]
             else: raise AssertionError
+            while block[0] == "": del block[0]
+            while block[-1] == "": del block[-1]
+            block.append("")
+            newbase += block
         
-        iface.debug2r(newblocklist=newblocklist)
         # Ya tenemos el fichero montado:
+        flbase = newbase
+        # Recalculamos:
+        clbase = qsclass_reader(iface, base, flbase) 
+        cdbase = extract_class_decl_info(iface, flbase) 
         
+        # Procesar tareas (to-do)
         
-        #  -> clpatch[list][
+        fix_class(iface, flbase, clbase, cdbase, newclass, set_extends = extending, set_from = extends)
+        if 'fix-class newclass' in todo:
+            # Esta tarea se realiza en la linea anterior incondicionalmente. 
+            todo.remove('fix-class newclass')
+            
+        if 'fix-class prev_child_cname' in todo:
+            iface.debug2r(prev_child_cname)
+            fix_class(iface, flbase, clbase, cdbase, prev_child_cname, set_extends = newclass)
+            # Al terminar, borramos la tarea.
+            todo.remove('fix-class prev_child_cname')
+            
+        for task in todo:
+            iface.warn("La tarea %s no se ejecutó o se desconoce cómo hacerlo." % repr(task))
+    
+    for line in flbase:
+        iface.output.write(line)
+        iface.output.write("\n")
+        
+    if line:
+        iface.output.write("\n")
+        
+def fix_class(iface, flbase, clbase, cdbase, classname, **updates):
+    """
+        Busca en $base la clase $class_name y modifica el código según los
+        cambios en $**updates.
+        Updates puede contener los siguientes tipos de argumentos:
+        
+        set_extends = actualiza la herencia de la clase
+        set_from = actualiza la sentencia from
+    """
+    #iface.debug2r(clbase=clbase)
+    #iface.debug2r(cdbase=cdbase)
+    set_extends = updates.get("set_extends",-1)
+    set_from = updates.get("set_from",-1)
+    if set_extends == -1 and set_from == -1: raise ValueError
+    
+    if set_extends != -1: extends = set_extends
+    else: extends = cdbase[classname]['extends']
+    
+    if set_from != -1: cfrom = set_from
+    else: cfrom = cdbase[classname]['from']
+
+    # Reescribir sentencia class:
+    line_no = cdbase[classname]['line']
+    old_expr = cdbase[classname]['text']
+    new_expr = "class %s" % classname
+    if extends: new_expr += " extends %s" % extends
+    if cfrom: new_expr += " /** %%from: %s */" % cfrom
+
+    flbase[line_no] = flbase[line_no].replace(old_expr, new_expr)
+
+    if cdbase[classname]['extends'] != extends:
+        # Si se ha cambiado la herencia
+        decl_block_no = clbase['decl'][classname]
+        end_line = clbase['list'][decl_block_no][3]
+        for n,line in enumerate(flbase[line_no:end_line],line_no):
+            m_it = re.finditer("(?P<fname>\w+)\s*\(\s*context\s*\);?", line)
+            for m in m_it:
+                if m.group("fname") != cdbase[classname]['extends']: continue
+                old = m.group(0)
+                new = str(m.group(0)).replace(cdbase[classname]['extends'],extends,1)
+                flbase[n] = line.replace(old,new,1)
             
         
         
+    cdbase[classname]['extends'] = extends
+    cdbase[classname]['from'] = cfrom
+
