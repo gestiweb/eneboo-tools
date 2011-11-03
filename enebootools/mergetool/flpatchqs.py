@@ -123,6 +123,9 @@ def diff_qs(iface, base, final):
         
     iface.debug2r(created = created_classes, deleted = deleted_classes)
     iface.output.write("\n")
+    iface_line = -1
+    if clfinal['iface']:
+        iface_line = clfinal['iface']['line']
     
     for clname in created_classes:
         block_decl = clfinal['decl'].get(clname,None)
@@ -131,7 +134,14 @@ def diff_qs(iface, base, final):
             continue
         dtype, clname, idx1, idx2 = clfinal['list'][block_decl]
         iface.debug2r(exported_block=clfinal['list'][block_decl])
+        
         lines = flfinal[idx1:idx2]
+        if iface_line >= idx1 and iface_line < idx2:
+            # Excluir la definición "iface" del parche, en caso de que estuviese dentro
+            rel_line = iface_line - idx1
+            from_text = clfinal['iface']['text']
+            assert( lines[rel_line].find(from_text) != -1 )
+            lines[rel_line] = lines[rel_line].replace(from_text,"")
         text = "\n".join(lines) 
         iface.output.write(text)
         
@@ -171,10 +181,17 @@ def check_qs_classes(iface, base):
             iface.error("La clase %s se encontró %d veces" % (clname,count))            
             return
     
+    if iface_clname not in classdict:
+        iface.error("La declaración de iface requiere una clase %s"
+                    " que no existe." % (iface_clname))
+        return
     not_used_classes = clbase['classes'][:]
     iface_class_hierarchy = []
     current_class = iface_clname
     prev_class = "<no-class>"
+    if clbase['iface']['line'] < classdict[current_class]['line']:
+        iface.warn("La declaración de iface requiere una clase %s"
+                    " que está definida más abajo en el código" % (current_class))
     while True:
         if current_class not in not_used_classes:
             if current_class in clbase['classes']:
@@ -203,8 +220,9 @@ def check_qs_classes(iface, base):
             iface.error("La clase %s no la heredó iface, y sin embargo,"
                         " hereda de la clase %s que sí la heredó." % (clname, parent))
             return
-    iface.debug2r(clbase=clbase)
-    
+    iface.debug2r(classes=iface_class_hierarchy)
+    iface.info2(u"La comprobación se completó sin errores.")
+    return True
     
     
     
@@ -216,8 +234,87 @@ def patch_qs(iface, base, patch):
     if flbase is None or flpatch is None:
         iface.info(u"Abortando Patch QS por error al abrir los ficheros")
         return
+    # classlist
+    clpatch = qsclass_reader(iface, patch, flpatch) 
+    # classdict
+    cdpatch = extract_class_decl_info(iface, flpatch) 
     
+    if clpatch['iface']:
+        iface.error(u"El parche contiene una definición de iface. No se puede aplicar.")
+        return
     
+    iface.debug2r(clpatch=clpatch)
+    iface.debug2r(cdpatch=cdpatch)
     
+    # Hallar el trabajo a realizar:
+    #  - Hay que insertar en "base" las clases especificadas por clpatch['classes']
+    #       en el mismo orden en el que aparecen.
+    #  - Al insertar la clase agregamos en el extends un /** %from: clname */
+    #       que indicará qué clase estábamos buscando.
+    #  - Cuando insertemos una nueva clase, hay que ajustar las llamadas a la
+    #       clase padre de la clase insertada y de la nueva clase hija
+    #  - En caso de no haber nueva clase hija, entonces "iface" cambia de tipo.
+    #       Además, probablemente haya que bajar la definición de iface.
     
-
+    for newclass in clpatch['classes']:
+        clbase = qsclass_reader(iface, base, flbase) 
+        cdbase = extract_class_decl_info(iface, flbase) 
+        # TODO: const iface = .... puede no existir en base.
+        iface.debug(u"Procediendo a la inserción de la clase %s" % newclass)
+        if newclass in clbase['classes']:
+            iface.warn(u"La clase %s ya estaba insertada en el fichero, "
+                        u"omitimos el parcheo de esta clase." % newclass)
+            continue
+        # debería heredar de su extends, o su from (si existe). 
+        # si carece de extends es un error y se omite.
+        extends = cdpatch[newclass]['extends']
+        if extends is None:
+            iface.error(u"La clase %s carece de extends y no es insertable como"
+                        u" un parche." % newclass)
+            continue
+        cfrom = cdpatch[newclass]['from']
+        if cfrom: 
+            iface.info2(u"class %s: Se ha especificado un %from %s y "
+                        u"tomará precedencia por encima del extends %s" % (
+                        newclass, cfrom, extends) )
+            extends = cfrom
+        if extends not in clbase['classes']:
+            iface.error(u"La clase %s debía heredar de %s, pero no "
+                        u"la encontramos en el fichero base." % (newclass,extends))
+            continue
+        iface.debug(u"La clase %s deberá heredar de %s" % (newclass,extends))
+        
+        # Buscar la clase más inferior que heredó originalmente de "extends"
+        extending = extends
+        for classname in reversed(clbase['classes']):
+            # Buscamos del revés para encontrar el último.
+            cdict = cdbase[classname]
+            if cdict['from'] == extends:
+                extending = cdict['name']
+                iface.debug(u"La clase %s es la última que heredó de %s, pasamos a heredar de ésta." % (extending,extends))
+                break
+        
+        # Habrá que insertar el bloque entre dos bloques: parent_class y child_class.
+        # Vamos a asumir que estos bloques están juntos y que child_class heredaba de parent_class.
+        parent_class = clbase['decl'][extending]
+        assert(clbase['list'][parent_class][1] == extending) # <- este calculo deberia ser correcto. 
+        
+        child_class = -1 # Supuestamente es el siguiente bloque de tipo "class_declaration".
+        for n, litem in enumerate(clbase['list'][parent_class:]):
+            if n == 0: continue
+            if litem[0] != "class_declaration": continue
+            child_class = parent_class + n
+            break
+        
+        if child_class >= 0:
+            prev_child_cname = clbase['list'][child_class][1]
+            # $prev_child_name debería estar heredando de $extending.
+            if cdbase[prev_child_cname]['extends'] != extending:
+                iface.error(u"Se esperaba que la clase %s heredara de "
+                            u"%s, pero en cambio hereda de %s" % (prev_child_cname,extending,cdbase[prev_child_cname]['extends']))
+                continue                    
+            else:
+                iface.debug(u"La clase %s hereda de %s, pasará a heredar %s" % (prev_child_cname,extending,newclass))
+            
+        
+        
