@@ -263,6 +263,32 @@ def patch_qs(iface, base, patch):
         cdbase = extract_class_decl_info(iface, flbase) 
 
         iface.debug(u"Procediendo a la inserción de la clase %s" % newclass)
+        if newclass in clbase['classes'] and iface.patch_qs_rewrite == "predelete":
+            iface.info2(u"La clase %s ya estaba insertada en el fichero, "
+                        u"se procede a borrar la clase como se ha solicitado." % newclass)
+            old_extends = cdbase[newclass]['extends']
+            for clname, cdict in cdbase.items():
+                # Si alguna clase extendía esta, ahora extenderá $old_extends
+                if cdict['extends'] == newclass:
+                    fix_class(iface, flbase, clbase, cdbase, clname, set_extends = old_extends)
+            
+            # TODO: Si iface era de tipo $newclass, ahora será de tipo $old_extends.
+                    
+            remove_lines = []
+            if newclass in clbase['decl']:
+                remove_lines.append(clbase['decl'][newclass])
+                del clbase['decl'][newclass]
+            
+            if newclass in clbase['def']:
+                remove_lines.append(clbase['def'][newclass])
+                del clbase['def'][newclass]
+            
+            for n in reversed(sorted(remove_lines)):
+                del clbase['list'][n]
+            
+            clbase['classes'].remove(newclass)
+            del cdbase[newclass]
+            
         if newclass in clbase['classes']:
             if iface.patch_qs_rewrite == "abort":
                 iface.error(u"La clase %s ya estaba insertada en el fichero, "
@@ -273,7 +299,7 @@ def patch_qs(iface, base, patch):
                             u"omitimos el parcheo de esta clase." % newclass)
                 continue
             if iface.patch_qs_rewrite == "yes":
-                iface.info(u"La clase %s ya estaba insertada en el fichero, "
+                iface.info2(u"La clase %s ya estaba insertada en el fichero, "
                             u"se sobreescribirá la clase." % newclass)
             
             if iface.patch_qs_rewrite == "warn":
