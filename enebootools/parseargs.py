@@ -14,6 +14,7 @@ class Action(object):
         self.min_file_list = min_file_list # Mínima cantidad de ficheros a entregar
         self.max_file_list = max_file_list # Máxima cantidad de ficheros. -1 significa sin límnite.
         self.min_argcount = min_argcount # Mínima cantidad de argumentos a pedir, -1 significa pedirlos todos.
+        self.parent = None
         if self.min_argcount == -1: self.min_argcount = len(self.args)
         assert(self.min_argcount <= len(self.args))
         assert(self.min_argcount > 0)
@@ -78,6 +79,18 @@ class Action(object):
         for arg in self.args:
 	    print tw2.fill( self.get_arg_help(arg) )
         print
+        if not self.parent: return
+        tw2.initial_indent = '    '
+        print " options:"
+        for name in self.options:
+            option = self.parent.options[name]
+            if option.level != "action": continue
+            text_parts = ["-%s" % c for c in option.short] + ["--%s" % c for c in option.aliases]
+            text_parts.append(option.get_help())
+            print tw2.fill(", ".join(text_parts))
+        print
+
+        
         
       
     def parse(self, p, parse_count = 0):
@@ -177,7 +190,15 @@ class Option(object):
                 return False
             if self.call_function is None: return True
             return self.call_function(value)
-            
+        
+    def get_help_args(self):
+        if self.variable:
+            return self.name + " " + self.variable
+        else:
+            return self.name 
+        
+    def get_help(self):
+        return "--%s - %s" % (self.get_help_args(), self.description)
         
     
         
@@ -217,11 +238,12 @@ class ArgParser(object):
         
     def insert_action(self,action):
         name = action.name
+        action.parent = self
         self.known_actions.append(name) # para conservar orden
         self.actions[name] = action
     
     def help(self):
-        print "%s action [shortopts] [options] [-- files]" % (self.parse.name)
+        print "%s action [options] [-- files]" % (self.parse.name)
         if self.description: 
             tw1 = textwrap.TextWrapper(
                 initial_indent='  ',  
@@ -239,6 +261,16 @@ class ArgParser(object):
             action = self.actions[name]
             print tw2.fill(action.get_help() )
         print 
+        tw2.initial_indent = '    '
+        print " options:"
+        for name in self.known_options:
+            option = self.options[name]
+            if option.level != "parser": continue
+            text_parts = ["-%s" % c for c in option.short] + ["--%s" % c for c in option.aliases]
+            text_parts.append(option.get_help())
+            print tw2.fill(", ".join(text_parts))
+
+        print
     
     def parse_args(self, argv = None):
         self.parse = Parse()

@@ -92,7 +92,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.parser.declare_option(
             name = "verbose",
             short = "vV", # opción corta relacionada (si se usa, no puede haber variable)
-            description = u"Activa el modo charlatán",
+            description = u"Aumenta la cantidad de mensajes",
             level = "parser", # ( action | parser )
             # variable = None  # es omisible, porque None es por defecto.
             call_function = self.set_verbose
@@ -100,7 +100,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.parser.declare_option(
             name = "quiet",
             short = "q", 
-            description = u"Disminuye la cantidad de avisos",
+            description = u"Disminuye la cantidad de mensajes",
             level = "parser",
             call_function = self.set_quiet
             )
