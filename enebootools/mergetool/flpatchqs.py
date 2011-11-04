@@ -1,6 +1,6 @@
 # encoding: UTF-8
 u"""
-    Módulo de cálculo y aplicación de parches emulando flpatch.
+    Módulo de cálculo y aplicación de parches QS emulando flpatch.
 """
 """
     -----

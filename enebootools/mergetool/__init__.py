@@ -4,7 +4,7 @@ from enebootools import EnebooToolsInterface
 import enebootools.parseargs as pa
 import sys, traceback
 
-from enebootools.mergetool import flpatchqs
+from enebootools.mergetool import flpatchqs, flpatchxml
 
 """
     El receptor de las llamadas del parser es una clase. Cada opción
@@ -249,6 +249,7 @@ class MergeToolInterface(EnebooToolsInterface):
         try:
             ext = str(ext).upper()
             if ext == 'QS': return flpatchqs.diff_qs(self,base,final)
+            if ext == 'XML': return flpatchxml.diff_xml(self,base,final)
             print "Unknown $ext %s" % (repr(ext))
         except Exception,e:
             self.exception(type(e).__name__,str(e))
