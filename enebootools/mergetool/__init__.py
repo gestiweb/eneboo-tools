@@ -196,13 +196,16 @@ class MergeToolInterface(EnebooToolsInterface):
         if self.verbosity < 4: return
         from pprint import pformat
         if variable is not None: kwargs['var'] = variable
-        
+        print "DEBUG+",
         for arg, var in sorted(kwargs.items()):
-            prefix = "DEBUG+: %s =" % arg
+            prefix = ": %s =" % arg
             print prefix, 
-            for n,line in enumerate(pformat(var).splitlines()):
+            lines = pformat(var).splitlines()
+            for n,line in enumerate(lines):
                 if n > 0: print " "*(len(prefix)+0), 
-                print line
+                print line,
+                if n < len(lines)-1: print
+        print
                 
 
     def debug2(self, text):
