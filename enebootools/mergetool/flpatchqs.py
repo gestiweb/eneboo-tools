@@ -27,7 +27,7 @@ def qsclass_reader(iface, file_name, file_lines):
     classes = []
     declidx = {}
     defidx = {}
-    iface = None
+    iface_n = None
     for n,line in enumerate(file_lines):
         m = re.search("/\*\*\s*@(\w+)\s+(\w+)?\s*\*/", line)
         if m:
@@ -36,12 +36,15 @@ def qsclass_reader(iface, file_name, file_lines):
             npos = len(linelist)
             if dtype == "class_declaration":
                 if cname in classes:
-                    iface.error(u"Redefinición de la clase %s (file: %s)" % (cname,file_name))
+                    iface.error(u"Hay dos bloques 'class_declaration' para la clase %s (file: %s)" % (cname,file_name))
                 else:
                     classes.append(cname)
                     declidx[cname] = npos
             elif dtype == "class_definition":
-                defidx[cname] = npos
+                if cname in defidx:
+                    iface.error(u"Hay dos bloques 'class_definition' para la clase %s (file: %s)" % (cname,file_name))
+                else:
+                    defidx[cname] = npos
             elif dtype == "file":
                 # el tipo @file no lo gestionamos
                 pass 
@@ -56,20 +59,21 @@ def qsclass_reader(iface, file_name, file_lines):
         # const iface = new ifaceCtx( this );
         m = re.search("(const|var)\s+iface\s*=\s*new\s*(?P<classname>\w+)\(\s*this\s*\);?", line) 
         if m:
-            iface = {
+            iface_n = {
                 'block' : len(linelist) - 1,
                 'classname' : m.group('classname'),
                 'line' : n,
                 'text' : m.group(0),
             }
-
-    linelist[-1].append(len(file_lines)) 
+    if linelist:
+        linelist[-1].append(len(file_lines)) 
+        
     classlist = {
         "decl" : declidx,
         "def" : defidx,
         "classes" : classes,
         "list" : linelist,
-        "iface" : iface
+        "iface" : iface_n
         }
     return classlist
     
@@ -210,34 +214,41 @@ def check_qs_classes(iface, base):
             return
     
     if iface_clname not in classdict:
-        iface.error("La declaración de iface requiere una clase %s"
-                    " que no existe." % (iface_clname))
+        iface.error(u"La declaración de iface requiere una clase %s"
+                    u" que no existe." % (iface_clname))
         return
     not_used_classes = clbase['classes'][:]
     iface_class_hierarchy = []
     current_class = iface_clname
     prev_class = "<no-class>"
     if clbase['iface']['line'] < classdict[current_class]['line']:
-        iface.warn("La declaración de iface requiere una clase %s"
-                    " que está definida más abajo en el código" % (current_class))
+        iface.warn(u"La declaración de iface requiere una clase %s"
+                   u" que está definida más abajo en el código" % (current_class))
     while True:
         if current_class not in not_used_classes:
             if current_class in clbase['classes']:
-                iface.error("La clase %s es parte de una "
-                            "referencia circular (desde: %s)" % 
+                iface.error(u"La clase %s es parte de una "
+                            u"referencia circular (desde: %s)" % 
                             (current_class, prev_class))
             else:
-                iface.error("La clase %s no está "
-                            "definida (desde: %s)" % 
+                iface.error(u"La clase %s no está "
+                            u"definida (desde: %s)" % 
                             (current_class, prev_class))
             return
         not_used_classes.remove(current_class)
         iface_class_hierarchy.insert(0, current_class)
         parent = classdict[current_class]['extends']        
         if parent is None: break
+        
+        if parent not in classdict or parent not in clbase['classes']:
+            iface.error(u"La clase %s no está "
+                        u"definida (extends de la clase %s, desde: %s)" % 
+                        (parent, current_class, prev_class))
+            return
+        
         if classdict[current_class]['line'] < classdict[parent]['line']:
-            iface.error("La clase %s hereda de una clase %s que está"
-                        " definida más abajo en el código" % (current_class, parent))
+            iface.error(u"La clase %s hereda de una clase %s que está"
+                        u" definida más abajo en el código" % (current_class, parent))
             return
         current_class = parent
 
@@ -245,8 +256,8 @@ def check_qs_classes(iface, base):
     for clname in not_used_classes:
         parent = classdict[clname]['extends']        
         if parent in iface_class_hierarchy:
-            iface.error("La clase %s no la heredó iface, y sin embargo,"
-                        " hereda de la clase %s que sí la heredó." % (clname, parent))
+            iface.error(u"La clase %s no la heredó iface, y sin embargo,"
+                        u" hereda de la clase %s que sí la heredó." % (clname, parent))
             return
     iface.debug2r(classes=iface_class_hierarchy)
     iface.info2(u"La comprobación se completó sin errores.")
