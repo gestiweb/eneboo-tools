@@ -115,16 +115,43 @@ class FLXMLParser(object):
                 value = self.elem_get_uiproperty(elem, "name")
                 if value == "unnamed" or value == "": return None
                 else: return value
+        elif self.xmltype == "KugarTemplate":
+            if re.search("KugarTemplate/\w+$",path): 
+                level = self.elem_find(elem, ".", "Level")
+                if level: return "Level%s" % (level)
+            if re.search("/Field$",path): return self.elem_find(elem, ".", "Field")
+                
         else:
             self.iface.debug("root desconocido: " + self.xmltype)
         
         return None
+        
+    def is_local_id(self, elem):
+        """
+            Indica si un id proporcionado a este elemento será local y por tanto
+            no sería único a lo largo del documento.
+            
+            ID local significa que puede servir únicamente para localizarlo entre
+            sus hermanos.
+        """
+        path = elem.tagpath
+        if self.xmltype == "TMD":
+            if re.search("/field/relation$",path): return True
+        elif self.xmltype == "UI":
+            if re.search("/tabstops/tabstop$",path): return True
+            if re.search("/property$",path): return True
+        elif self.xmltype == "KugarTemplate":
+            if re.search("/Field$",path): return True
+        else:
+            self.iface.debug("root desconocido: " + self.xmltype)
+        return False
     
     def setup_tree(self, elem = None, parent_path = "", number = None):
         if elem == None: elem = self.root
         elem.tagpath = parent_path+"/"+elem.tag
         elem.child_number = number
         elem.idelem = None
+        elem.global_id = None
         elem.prev_elem = None
         elem.next_elem = None
         elem.fltag = elem.tag
@@ -167,6 +194,13 @@ class FLXMLParser(object):
         path = "%s/%s" % (parent_path,elem.fltag)
         
         elem.idkey = idkey
+        if (elem.idelem and self.is_local_id(elem) == False) or parent_path == "":
+            elem.global_id = elem.fltag   # Puede ser indexado globalmente.
+        else:
+            if elem.parent_elem is not None and elem.global_id:
+                elem.global_id = elem.parent_elem.global_id + "/" + elem.fltag
+            else:
+                elem.global_id = None
         elem.flpath = path
         if elem.parent_elem is not None:
             elem.idpath = elem.parent_elem.idpath
@@ -240,12 +274,87 @@ def diff_xml(iface, base, final):
     
     recursive_compare(iface,tbase,tfinal)
     
+    
+    """
+        Las actualizaciones se pueden compartir en un estándar llamado XUpdate:
+        http://es.wikipedia.org/wiki/XUpdate
+        http://xmldb-org.sourceforge.net/xupdate/
+        http://xmldb-org.sourceforge.net/xupdate/xupdate-wd.html
+
+        Tutorial sobre XPath: 
+        http://www.zvon.org/xxl/XPathTutorial/General_spa/examples.html
+        
+        Sin embargo, debe proporcionarse una variante 'compatible' con otros 
+        parches ya existentes. Esta variante es más simplificada y difiere en
+        algunos puntos. 
+        
+        Contiene los siguientes comandos:
+        
+        xupdate:append-first - agregar XML como primer hijo del nodo seleccionado
+        xupdate:delete - borrar nodo seleccionado
+        xupdate:insert-after - agregar XML como hermano posterior del nodo seleccionado
+        xupdate:update - sobreescribir nodo seleccionado con el XML que se entrega
+        
+        Y teoricamente usa XPath, pero en relidad las rutas son una forma más
+        simplificada que contiene (a veces) id's semánticos.
+        
+        Cuando se agrega XML, puede ser texto plano o un valor de atributo según
+        la forma final de selección XPath: 
+            /text()[1] - indica texto
+            /#text[#text,1] - ??? 
+            
+        No existe forma de marcar como objetivo un atributo concreto,  por lo que
+        se usan updates de todo el nodo XML para reemplazar su contenido.
+        
+        Cuando se indica el XML o texto, es "tal cual". No hay más ordenes 
+        dentro de las ordenes. El XML se copia/pega en el objetivo y se 
+        tabula de acuerdo al depth.
+            
+        La versión 'compatible' es incapaz de reconocer o expresar cambios de 
+        nombre de id, así como cambiar un elemento con id de ubicación. Los 
+        controles UI que se reubiquen serán regenerados.
+        
+        Los nodos son indicados por el formato:
+            tagname[idname]
+        
+        donde:
+            tagname - será el nombre de la etiqueta <tagname>
+            idname - es el id semántico que recibe el nodo. Es una secuencia de
+                    argumentos separados por coma.
+                    
+                    Generalmente son dos, donde el primero es el nombre 
+                    de tag (o classname si existe) y el segundo es el nombre 
+                    de ese control. Si no tiene, es el número de tag al que 
+                    representa. Cuenta como 1 el primero y sólo cuenta los 
+                    hermanos de su mismo tagname.
+        
+        En algunos tagnames, el idname se especializa recibiendo otra cantidad o 
+        tipos de argumentos, como puede ser el caso de las conexiones,acciones,etc:
+        
+        connection[toolButtonDelete,clicked(),tdbTable,deleteRecord()]
+        action[transstock]
+                        
+        
+    """
+    
+def fix_replace_opcode(opcodes):
+    """
+        Convierte un replace en un delete+insert.
+    """
+    new_opcodes = []
+    for action, a1, a2 , b1, b2 in opcodes:
+        if action == "replace":
+            new_opcodes.append( ("delete", a1, a2 , b1, b1) )        
+            new_opcodes.append( ("insert", a2, a2 , b1, b2) )        
+            continue
+        new_opcodes.append( (action, a1, a2 , b1, b2) )
+    return new_opcodes
 
 def compare_subelems(iface, base_elem, final_elem):
     base = [ "%s:%s" % (subelem.tag,subelem.idelem) for subelem in base_elem ]
     final = [ "%s:%s" % (subelem.tag,subelem.idelem) for subelem in final_elem ]
     s = difflib.SequenceMatcher(None, base, final)
-    opcodes = s.get_opcodes()
+    opcodes = fix_replace_opcode(s.get_opcodes())
     insert_opcodes = [ (b1, b2) 
                         for action, a1, a2 , b1, b2 in opcodes
                             if action == "insert" ]
@@ -253,7 +362,7 @@ def compare_subelems(iface, base_elem, final_elem):
                         for action, a1, a2 , b1, b2 in opcodes
                             if action == "delete" ]
                             
-    accept_move_ratio = 0.7 # 70% igual que original para aceptar move.
+    accept_move_ratio = 0.3 # 30% igual que original para aceptar move.
     
     for a1, a2 in delete_opcodes:
         # Para cada borrado, intentar encontrar un buen insert equivalente.
@@ -261,18 +370,20 @@ def compare_subelems(iface, base_elem, final_elem):
         for b1, b2 in insert_opcodes:
             s_list.append((difflib.SequenceMatcher(None, base[a1:a2], final[b1:b2]),(b1,b2)))
         
-        # Descartemos rápidamente los que estarán por debajo de move_ratio
-        s_list = [ (s1,b12) for s1,b12 in s_list if s1.quick_ratio() > accept_move_ratio]
+        # Descartemos rápidamente los que no tienen nada en comun
+        s_list = [ (s1,b12) for s1,b12 in s_list if s1.quick_ratio() > 0.05]
         if not s_list: continue
         # Calculemos todos los ratios:
         s_ratios = [ s1[0].ratio() for s1 in s_list ]
         max_ratio = max(s_ratios)
-        if max_ratio < accept_move_ratio: continue
+        if max_ratio < accept_move_ratio: 
+            iface.debug2("Abortado posible move: ratio %.3f < %.3f" % (max_ratio, accept_move_ratio))
+            continue
         idx = s_ratios.index(max_ratio)
         s1 = s_list[idx][0]
         b1,b2 = s_list[idx][1]
         
-        new_opcodes = s1.get_opcodes()
+        new_opcodes = fix_replace_opcode(s1.get_opcodes())
         # Se acepta el move, procedemos a borrar los movimientos originales:
         insert_opcodes.remove( (b1,b2) ) # evitar que vuelva a salir.
         for action_, a1_, a2_, b1_, b2_ in opcodes[:]:
@@ -308,7 +419,10 @@ def get_elem_contents(iface, elem):
     if elem.text: text = elem.text
     else: text = ""
     textvalue = text.strip()
-    textnfixes = text.replace(textvalue, "*") # Nos deja algo como '\n\t*\n\t'
+    if textvalue:
+        textnfixes = text.replace(textvalue, "*") # Nos deja algo como '\n\t*\n\t'
+    else:
+        textnfixes = text
     textdepth = "" # -> para indicar el string de prefijo común por linea.
     items = {}
     items["#t"] = textvalue
@@ -326,7 +440,8 @@ def compare_elems(iface, base_elem, final_elem):
     final = get_elem_contents(iface, final_elem)
     if base == final: return True
     for k, v in base.items()[:]:
-        if final[k] == v: 
+        if k not in final: final[k] = None
+        if final.get(k, None) == v: 
             del final[k]
             del base[k]
     iface.debug2r(_=shpath(base_elem), base = base, final = final)
@@ -356,9 +471,14 @@ def _compare_subelems(iface, base_elem, final_elem):
     
     return equal, d
         
+def find_global_id_path(elem):
+    if elem == None: return ""
+    if elem.global_id: return elem.global_id
+    return find_global_id_path(elem.parent_elem) + "/" + elem.fltag
 
 def shpath(elem):
-    path = elem.flpath
+    path = find_global_id_path(elem)
+    # path = elem.flpath
     path = path.replace(":00","")
     size = 64
     if len(path) > size:
@@ -371,23 +491,38 @@ def shpath(elem):
 
 def recursive_compare(iface, base_elem, final_elem, depth = 0):
     compare_elems(iface, base_elem, final_elem)
+    if len(base_elem) == 0 and len(base_elem) == 0: return
+    #iface.debug2(" < :" + shpath(base_elem)  + " >")
+    
     
     ratio, opcodes = compare_subelems(iface, base_elem, final_elem)
     #if base_elem.idelem:
     #    iface.debug2("%s {%s} => %s" % (base_elem.flpath, ", ".join([ "%s=%s" % (k,repr(v)) for k,v in sorted(base_elem.items())]) ,repr(base_elem.text_value)))
     # if ratio < 1.0: iface.debug2(">> %s .. %.1f%%" % (base_elem.flpath, ratio*100.0))
-            
+    if len(opcodes) == 0:
+        # Imposible. Error al comparar subelementos.
+        iface.debug2r(ratio=ratio,opcodes=opcodes)
+        iface.debug2r(base_elem=base_elem)
+        iface.debug2r(final_elem=final_elem)
+        raise AssertionError
+        
     for action, a1, a2 , b1, b2 in opcodes:
-        if action == "move": 
-            iface.debug2r(_=shpath(base_elem), move=final_elem[b1:b2], zdelta = b1 - a1)
-        if action == "insert" :
+        if action == "equal": 
+            if a2-a1-b2+b1 != 0:
+                iface.debug2r(_=shpath(base_elem), equal=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
+        elif action == "move": 
+            iface.debug2r(_=shpath(base_elem), move=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
+        elif action == "insert" :
             iface.debug2r(_=shpath(base_elem), insert=final_elem[b1:b2], zpos = b1)
-        if action == "delete":
+        elif action == "delete":
             iface.debug2r(_=shpath(base_elem), delete=base_elem[a1:a2], zpos = a1)
-
+        else:
+            iface.error("Acción %s desconocida" % action)
+            raise ValueError
         if action == "equal" or action == "move":
             for base_subelem, final_subelem in zip(base_elem[a1:a2], final_elem[b1:b2]):
                 recursive_compare(iface, base_subelem, final_subelem, depth + 1)
                 
 
     # if ratio < 1.0: iface.debug2("<< %s .. %.1f%%" % (base_elem.flpath, ratio*100.0))
+    #iface.debug2(" </ :" + shpath(base_elem)  + " >")
