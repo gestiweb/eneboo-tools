@@ -168,7 +168,7 @@ class FLXMLParser(object):
         
         elem.idkey = idkey
         elem.flpath = path
-        if elem.parent_elem:
+        if elem.parent_elem is not None:
             elem.idpath = elem.parent_elem.idpath
         if elem.idelem:
             elem.idpath += "/" + elem.idelem
@@ -224,6 +224,19 @@ def diff_xml(iface, base, final):
     
     flxml_base = FLXMLParser(tbase, iface)
     flxml_final = FLXMLParser(tfinal, iface)
+    
+    """ TODO: Falta intentar manejar los movimientos de ID en la jerarquía. 
+        Por ejemplo, convertir un vbox en un grid. Parecerá que se borra <vbox>
+        con sus widgets y que se crea todo nuevo. Hay que intentar que rescate
+        los controles antiguos que coincidan por ID.
+        Pero para realizar esto, el patch deberá contener una referencia al ID,
+        no su contenido XML, y luego gestionar el patch para ese ID por otro lado. 
+        Hay que analizar si ensambla cubre esto.
+        
+        Otra acción que no sabemos si cubrir es la de cambio de tagName o idElem.
+        Un simple cambio de hbox por vbox podría ser detectada como un cambio en
+        el tagname.
+    """
     
     recursive_compare(iface,tbase,tfinal)
     
@@ -291,6 +304,34 @@ def compare_subelems(iface, base_elem, final_elem):
     ratio = s.ratio()
     return ratio, opcodes
 
+def get_elem_contents(iface, elem):
+    if elem.text: text = elem.text
+    else: text = ""
+    textvalue = text.strip()
+    textnfixes = text.replace(textvalue, "*") # Nos deja algo como '\n\t*\n\t'
+    textdepth = "" # -> para indicar el string de prefijo común por linea.
+    items = {}
+    items["#t"] = textvalue
+    items["#textnfixes"] = textnfixes
+    items["#textdepth"] = textdepth
+    for k,v in elem.attrib.items():
+        items["@%s" % k] = v
+    
+    return items
+    
+
+
+def compare_elems(iface, base_elem, final_elem):
+    base = get_elem_contents(iface, base_elem)
+    final = get_elem_contents(iface, final_elem)
+    if base == final: return True
+    for k, v in base.items()[:]:
+        if final[k] == v: 
+            del final[k]
+            del base[k]
+    iface.debug2r(_=shpath(base_elem), base = base, final = final)
+    return None
+
 def _compare_subelems(iface, base_elem, final_elem):
     base = [ "%s:%s" % (subelem.tag,subelem.idelem) for subelem in base_elem ]
     final = [ "%s:%s" % (subelem.tag,subelem.idelem) for subelem in final_elem ]
@@ -316,7 +357,21 @@ def _compare_subelems(iface, base_elem, final_elem):
     return equal, d
         
 
+def shpath(elem):
+    path = elem.flpath
+    path = path.replace(":00","")
+    size = 64
+    if len(path) > size:
+        path = path[-size:]
+        idx = path.find("/")
+        if idx >-1:
+            path = path[idx+1:]
+    return path
+            
+
 def recursive_compare(iface, base_elem, final_elem, depth = 0):
+    compare_elems(iface, base_elem, final_elem)
+    
     ratio, opcodes = compare_subelems(iface, base_elem, final_elem)
     #if base_elem.idelem:
     #    iface.debug2("%s {%s} => %s" % (base_elem.flpath, ", ".join([ "%s=%s" % (k,repr(v)) for k,v in sorted(base_elem.items())]) ,repr(base_elem.text_value)))
@@ -324,11 +379,11 @@ def recursive_compare(iface, base_elem, final_elem, depth = 0):
             
     for action, a1, a2 , b1, b2 in opcodes:
         if action == "move": 
-            iface.debug2r(_=base_elem.idpath, move=final_elem[b1:b2], zdelta = b1 - a1)
+            iface.debug2r(_=shpath(base_elem), move=final_elem[b1:b2], zdelta = b1 - a1)
         if action == "insert" :
-            iface.debug2r(_=base_elem.idpath, insert=final_elem[b1:b2], zpos = b1)
+            iface.debug2r(_=shpath(base_elem), insert=final_elem[b1:b2], zpos = b1)
         if action == "delete":
-            iface.debug2r(_=base_elem.idpath, delete=base_elem[a1:a2], zpos = a1)
+            iface.debug2r(_=shpath(base_elem), delete=base_elem[a1:a2], zpos = a1)
 
         if action == "equal" or action == "move":
             for base_subelem, final_subelem in zip(base_elem[a1:a2], final_elem[b1:b2]):
