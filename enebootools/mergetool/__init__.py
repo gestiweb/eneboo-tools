@@ -253,6 +253,7 @@ class MergeToolInterface(EnebooToolsInterface):
             ext = str(ext).upper()
             if ext == 'QS': return flpatchqs.diff_qs(self,base,final)
             if ext == 'XML': return flpatchxml.diff_xml(self,base,final)
+            if ext == 'LXML': return flpatchxml.test_lxml(self,base)
             print "Unknown $ext %s" % (repr(ext))
         except Exception,e:
             self.exception(type(e).__name__,str(e))

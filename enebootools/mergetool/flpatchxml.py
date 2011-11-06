@@ -7,8 +7,8 @@ import os.path, re
 from collections import defaultdict
 import difflib
 
-latin2_files = "mtd,kut,qry,mod".split(",")
-utf8_files = "ui,ts".split(",")
+latin2_files = ".mtd,.kut,.qry,.mod".split(",")
+utf8_files = ".ui,.ts".split(",")
 
 def auto_detect_encoding(text, mode = None):
     global latin2_files, utf8_files
@@ -19,7 +19,6 @@ def auto_detect_encoding(text, mode = None):
         try_encodings = ['UTF-8','ISO-8859-15']
     else:
         try_encodings = ['UTF-8','ISO-8859-15']
-        
     try_encoding = try_encodings.pop(0)
     try:
         utxt = unicode(text, try_encoding)
@@ -213,9 +212,101 @@ class FLXMLParser(object):
         for child in elem:
             self.analyze_tree(child, path)
             
+def _xf(x): #xml-format
+    from lxml import etree
+    return unicode(etree.tostring(x,pretty_print=True, encoding = "UTF8"), "UTF8")
         
+def test_lxml(iface, base):
+    iface.debug(u"Pruebas LXML $base:%s " % (base))
+    try:
+        from lxml import etree
+    except ImportError:
+        iface.exception("ImportError","Error al cargar python-lxml. ¿Está instalado?")
+        return
+    try:
+        file_base = open(base, "r")
+        fbase = file_base.read(200)
+        file_base.seek(0)
+    except IOError, e:
+        iface.error("Error al abrir el fichero base o final: " + str(e))
+        return
+    
+    root, ext1 = os.path.splitext(base)
+    encoding_base = auto_detect_encoding(fbase, ext1)
+    if encoding_base is None:
+        iface.error("La codificación del fichero base %s se desconoce" % base)
+        return
+    else:
+        iface.debug2("Se detectó codificación %s" % encoding_base)
+
+    parser = etree.XMLParser(
+                    ns_clean=True,
+                    encoding=encoding_base,
+                    recover=False, # .. recover funciona y parsea cuasi cualquier cosa.
+                    remove_blank_text=True,
+                    )
+    tree   = etree.parse(file_base, parser)    
+    known_entities = []
+    
+    known_entities.append( ("/KugarTemplate/*/Field", {
+        "ctx-xpath-id" : "@Field",
+        "ctx-scope" : "global",
+        "ctx-entity-type" : "object",
+        } ) )
         
+    known_entities.append( ("/UI//*[property]", {
+        "ctx-xpath-id" : "property[@name='name' and cstring/text()!='unnamed']/cstring/text()",
+        "ctx-scope" : "global",
+        "ctx-entity-type" : "object",
+        } ) )
+    known_entities.append( ("/UI/tabstops/tabstop", {
+        "ctx-xpath-id" : "text()",
+        "ctx-scope" : "local",
+        "ctx-entity-type" : "list-item",
+        } ) )
+    known_entities.append( ("/UI//property", {
+        "ctx-xpath-id" : "@name",
+        "ctx-scope" : "local",
+        "ctx-entity-type" : "set-item",
+        } ) )
+    
+    for xpath_to_nodes, attrs in known_entities:
+        for node in tree.xpath(xpath_to_nodes):
+            if attrs is None: continue
+            idlist = node.xpath(attrs['ctx-xpath-id'])
+            if len(idlist) > 1: 
+                iface.warn("Element %s found with %d valid identifiers: %s" % (node.tag,len(idlist),repr(idlist)))
+                continue
+            if idlist:
+                node_id = idlist[0]
+                node.set('ctx-id', node_id)
+                node.set('ctx-scope', attrs['ctx-scope'])
+            else:
+                node.set('ctx-scope', "unnamed")
+            
+            node.set('ctx-entity-type', attrs['ctx-entity-type'])
+            #print _xf(node)
+            
+    for node in tree.xpath("//*[@ctx-scope='global' or @ctx-scope='unnamed']"):
+        def print_node(node, prefix):
+            path = tree.getpath(node.getparent())
+            xlist = node.xpath("ancestor::*[@ctx-scope='global']")
+            if xlist:
+                lbo = xlist[-1]
+                path = path.replace(tree.getpath(lbo),"//%s[@ctx-id=%s]" % (lbo.tag,repr(lbo.get('ctx-id'))))
+
+            print prefix, node.get('ctx-scope'), node.get('ctx-entity-type'), node.tag ,path+"/%s[@ctx-id=%s]" %  (node.tag, node.get('ctx-id'))
+        print_node(node,"*")
+        for subnode in node.xpath("*"):
+            if subnode.get('ctx-scope') == "global": continue
+            if subnode.get('ctx-scope') == "unnamed": continue
+            # print_node(subnode,"    -")
+            print "    - ", subnode.get('ctx-scope'), subnode.get('ctx-entity-type'), subnode.tag, subnode.get('ctx-id')
+            for subsub in subnode.xpath("*"):
+                print "            ", etree.tostring(subsub)
+        print
         
+    
     
 
 def diff_xml(iface, base, final): 
