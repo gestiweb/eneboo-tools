@@ -110,6 +110,11 @@ class FLXMLParser(object):
         elif self.xmltype == "UI":
             if re.search("/tabstops/tabstop$",path): return self.elem_find(elem, ".", "#text")
             if re.search("/property$",path): return self.elem_find(elem, ".", "name")
+            if re.search("/connection$",path): return self.elem_find(elem, "sender", "#text")
+            if re.search("/image$",path): return self.elem_find(elem, ".", "name")
+            if re.search("/action$",path): 
+                name = self.elem_find(elem, ".", "name")
+                if name: return name
             if elem.find("property") is not None:
                 value = self.elem_get_uiproperty(elem, "name")
                 if value == "unnamed" or value == "": return None
@@ -139,6 +144,8 @@ class FLXMLParser(object):
         elif self.xmltype == "UI":
             if re.search("/tabstops/tabstop$",path): return True
             if re.search("/property$",path): return True
+            if re.search("/connection$",path): return True
+            if re.search("/action$",path): return True
         elif self.xmltype == "KugarTemplate":
             if re.search("/Field$",path): return True
         else:
@@ -446,15 +453,19 @@ def compare_subelems(iface, base_elem, final_elem):
     final = [ "%s:%s" % (subelem.tag,subelem.idelem) for subelem in final_elem ]
     s = difflib.SequenceMatcher(None, base, final)
     opcodes = fix_replace_opcode(s.get_opcodes())
-    insert_opcodes = [ (b1, b2) 
-                        for action, a1, a2 , b1, b2 in opcodes
-                            if action == "insert" ]
-    delete_opcodes = [ (a1, a2) 
-                        for action, a1, a2 , b1, b2 in opcodes
-                            if action == "delete" ]
+    if iface.diff_xml_search_move:
+        insert_opcodes = [ (b1, b2) 
+                            for action, a1, a2 , b1, b2 in opcodes
+                                if action == "insert" ]
+        delete_opcodes = [ (a1, a2) 
+                            for action, a1, a2 , b1, b2 in opcodes
+                                if action == "delete" ]
+        accept_move_ratio = 0.3 # 30% igual que original para aceptar move.
+    else:
+        insert_opcodes = [ ]
+        delete_opcodes = [ ]
+        accept_move_ratio = 2
                             
-    accept_move_ratio = 0.3 # 30% igual que original para aceptar move.
-    
     for a1, a2 in delete_opcodes:
         # Para cada borrado, intentar encontrar un buen insert equivalente.
         s_list = []
@@ -517,8 +528,8 @@ def get_elem_contents(iface, elem):
     textdepth = "" # -> para indicar el string de prefijo común por linea.
     items = {}
     items["#t"] = textvalue
-    items["#textnfixes"] = textnfixes
-    items["#textdepth"] = textdepth
+    #items["#textnfixes"] = textnfixes
+    #items["#textdepth"] = textdepth
     for k,v in elem.attrib.items():
         items["@%s" % k] = v
     

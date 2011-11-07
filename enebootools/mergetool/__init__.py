@@ -67,6 +67,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.output_file_name = "STDOUT"
         self.output = sys.stdout
         self.patch_qs_rewrite = "abort"
+        self.diff_xml_search_move = False
         if setup_parser: self.setup_parser()
         
     def setup_parser(self):
@@ -88,6 +89,12 @@ class MergeToolInterface(EnebooToolsInterface):
             level = "action",
             variable = "VALUE", 
             call_function = self.set_patch_qs_rewrite
+            )
+        self.parser.declare_option(
+            name = "enable-diff-xml-search-move",
+            description = u"Activa la búsqueda de movimientos de bloques XML. Puede ser un poco más lento y puede generar parches incompatibles con otras herramientas.",
+            level = "action",
+            call_function = self.enable_diff_xml_search_move
             )
         self.parser.declare_option(
             name = "verbose",
@@ -185,6 +192,9 @@ class MergeToolInterface(EnebooToolsInterface):
     def set_patch_qs_rewrite(self, value):
         if value not in ['reverse','predelete','yes','no','warn','abort']: raise ValueError
         self.patch_qs_rewrite = value
+
+    def enable_diff_xml_search_move(self):
+        self.diff_xml_search_move = True
     
     def set_verbose(self):
         self.verbosity += 1
