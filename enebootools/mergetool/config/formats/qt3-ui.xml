@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<format name="qt3-ui" root-tag="UI" encoding="UTF-8">
+    <filetype>.ui</filetype>
+    <filetype>.ui3</filetype>
+    <assert>
+        <xpath>/UI/@version = '3.3'</xpath>
+        <xpath>/UI/@stdsetdef = '1'</xpath>
+        <xpath>count(/UI/class) = 1</xpath>
+        <xpath>count(/UI/widget) = 1</xpath>
+    </assert>
+    
+    <entities>
+        <entity name="property">
+            <search>
+                <xpath>/UI//property</xpath>
+            </search>
+            <context-information>
+                <xpath name="class">name()</xpath>
+                <xpath name="name">@name</xpath>
+                <value name="scope">local</value>
+            </context-information>
+        </entity>
+        <entity name="tabstop">
+            <search>
+                <xpath>/UI/tabstops/tabstop</xpath>
+            </search>
+            <context-information>
+                <xpath name="class">name()</xpath>
+                <xpath name="name">text()</xpath>
+                <value name="scope">local</value>
+            </context-information>
+        </entity>
+        <entity name="object">
+            <search>
+                <xpath>/UI//*[property/@name]</xpath>
+            </search>
+            <context-information>
+                <xpath name="class">@class</xpath> <!-- si no existe @class, aplica tag -->
+                <xpath name="class">name()</xpath>
+                <xpath name="name">property[@name='name']/cstring/text()</xpath>
+                <if-then-else name="scope">
+                    <xpath name="if">context-information/name/@value='unnamed'</xpath>
+                    <value name="then">none</value>
+                    <value name="else">global</value>
+                </if-then-else>
+            </context-information>
+        </entity>
+        <entity name="other">
+            <search>
+                <xpath>/UI/*</xpath>
+                <xpath>/UI/*/*</xpath>
+            </search>
+            <context-information>
+            </context-information>
+        </entity>
+        <default>
+            <context-information>
+                <xpath name="class">name()</xpath>
+                <xpath name="name">count(preceding-sibling::*[name() = $name])+1
+                    <xpath name="name">name()</xpath>
+                </xpath>
+                <value name="scope">none</value>
+            </context-information>
+        </default>
+    </entities>
+</format>
+

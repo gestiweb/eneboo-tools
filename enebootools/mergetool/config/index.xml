@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<etc xmlns:xi="http://www.w3.org/2001/XInclude">
+    <formats>
+        <xi:include href="formats/qt3-ui.xml"/>
+    </formats>
+</etc>
