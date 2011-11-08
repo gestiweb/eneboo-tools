@@ -1,22 +1,33 @@
 #encoding: UTF-8
 from lxml import etree
+from copy import deepcopy
 import os.path
 import difflib
 
 def filepath(): return os.path.abspath(os.path.dirname(__file__))
 def filedir(x): return os.path.abspath(os.path.join(filepath(),x))
 
-config_tree = etree.parse(filedir("config/index.xml"))    
+config_tree = etree.parse(filedir("etc/index.xml"))    
 config_tree.xinclude()
 
-def _xf(x): #xml-format
+def _xf(x, cstring = False, **kwargs): #xml-format
     if type(x) is list: return "\n---\n\n".join([ _xf(x1) for x1 in x ])
-    return unicode(etree.tostring(x,pretty_print=True, encoding = "UTF8"), "UTF8")
+    if 'encoding' not in kwargs: 
+        kwargs['encoding'] = "UTF8"
+    if 'pretty_print' not in kwargs: 
+        kwargs['pretty_print'] = True
+        
+    value = etree.tostring(x, **kwargs)
+    if cstring:
+        return value
+    else:
+        return unicode(value , kwargs['encoding'])
 
 class XMLFormatParser(object):
-    def __init__(self, iface, format, file1):
+    def __init__(self, iface, format, style, file1):
         self.iface = iface
         self.format = format
+        self.style = style
         self.encoding = self.format.xpath("@encoding")[0]
         self.parser = etree.XMLParser(
                         ns_clean=True,
@@ -49,9 +60,15 @@ class XMLFormatParser(object):
         
     def evaluate(self, elem, from_elem = None):
         if elem is None: return None
-        text = elem.text.strip()
+        if elem.text: text = elem.text.strip()
+        else: text = ""
         if from_elem is None: from_elem = self.tree
-        
+        elem_patch_style = elem.get("patch-style")
+        if elem_patch_style and self.style.attrib['name'] not in elem_patch_style.split(" "):
+            return None
+        elem_except_style = elem.get("except-style")
+        if elem_except_style and self.style.attrib['name'] in elem_except_style.split(" "):
+            return None
         def sxpath(text,**kwargs):
             try:
                 xlist = from_elem.xpath(text,**kwargs)
@@ -64,7 +81,8 @@ class XMLFormatParser(object):
             else: return xlist
             
         try:
-            if elem.tag == "xpath": 
+            if elem.tag == "empty": return ""
+            elif elem.tag == "xpath": 
                 kwvars = {}
                 for elem in elem.xpath("*[@name]"):
                     kwvars[elem.get("name")] = self.evaluate(elem,from_elem)
@@ -79,27 +97,41 @@ class XMLFormatParser(object):
                     if name: kwargs[name] = value
                     else: args.append(value)
                 return format_string.format(*args,**kwargs)
+            elif elem.tag == "implode": 
+                join_string = elem.get("join")
+                args = []
+                for elem in elem.xpath("*"):
+                    value = self.evaluate(elem,from_elem)
+                    if value is not None and value != "": args.append(value)
+                return join_string.join(args)
             elif elem.tag == "value": return text
             elif elem.tag == "if-then-else": 
                 kwvars = {}
                 for elem in elem.xpath("*[@name]"):
                     kwvars[elem.get("name")] = self.evaluate(elem,from_elem)
                 if kwvars['if']:
-                    return kwvars['then']
+                    return kwvars.get('then')
                 else:
-                    return kwvars['else']
+                    return kwvars.get('else')
             else: self.iface.warn("Descartando tag de evaluación desconocido: %s:%s" % (elem.tag,text))
         except Exception, e:
             self.iface.exception("EvaluateError","Error evaluando  %s:%s" % (elem.tag,text))
             return None
-            
-    def load_entity(self, entity_name, context_info, search_xpath):
+
+    def load_default_entity(self, elem):
+        tree = elem.getroottree()
+        search_xpath = tree.getpath(elem) + "/../*"
+        entity_name = "default"
+        default_ctx = self.format.xpath("entities/default/context-information/*")
+        self.load_entity(entity_name, default_ctx, search_xpath)
+    
+    def load_entity(self, entity_name, context_info, search_xpath, context_items = []):
         self.iface.debug2("Aplicando entidad %s a los elementos %s" % (entity_name,search_xpath))
         for element in self.tree.xpath(search_xpath):
             if element.xpath("context-information"): continue
             if element.xpath("ancestor-or-self::context-information"): continue
             ctx = etree.SubElement(element, "context-information", entity = entity_name)
-            self.context_items.append(ctx)
+            context_items.append(ctx)
             ctx_pending_names = set([])
             ctxdict = {}
             for ctxopt in context_info:
@@ -127,12 +159,211 @@ class XMLFormatParser(object):
             context_info = entity.xpath("context-information/*")
             self.iface.debug2("Cargando entidad %s" % entity_name)
             for search_xpath in entity.xpath("search/xpath"):
-                ret = self.load_entity(entity_name, context_info + default_ctx, search_xpath.text.strip())
+                ret = self.load_entity(entity_name, context_info + default_ctx, search_xpath.text.strip(), self.context_items)
                 if not ret: return False
                 
         return True
+
+# ^ ^ ^ ^ ^ ^     / class XMLFormatParser
+
+
+
+class XMLDiffer(object):
+    def __init__(self, iface, format, style, file_base, file_final):
+        self.iface = iface
+        self.format = format
+        self.style = style
+        self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base)
     
+        if not self.xbase.validate():
+            self.iface.error(u"El fichero base no es válido para el formato %s" % (format_name))
+            return
+        if not self.xbase.load_entities():
+            self.iface.error(u"Error al cargar entidades del formato %s (fichero base)" % (format_name))
+            return
+
+        self.xfinal = XMLFormatParser(self.iface, self.format, self.style, file_final)
+
+        if not self.xfinal.validate():
+            self.iface.error(u"El fichero final no es válido para el formato %s" % (format_name))
+            return
+        if not self.xfinal.load_entities():
+            self.iface.error(u"Error al cargar entidades del formato %s (fichero final)" % (format_name))
+            return
+            
+        self.patch = None
+        self.patch_tree = None
         
+    def patch_output(self):
+        if self.patch is not None: return _xf(self.patch,xml_declaration=True,cstring=True)
+        else: return ""
+        
+    def compare(self):
+        self.patch = etree.Element("xml-patch")
+        self.patch.set("generator", "eneboo")
+        self.patch.set("version", "0.01")
+        self.patch.set("format", self.format.get("name")) 
+        self.patch.set("style",self.style.get("name"))
+        self.patch_tree = self.patch.getroottree()
+        
+        self.recursive_compare(self.xbase.root, self.xfinal.root)
+        
+        return self.patch
+    
+    def sname(self, elem, key, default = None):
+        if len(elem.xpath("context-information")) == 0:
+            self.xbase.load_default_entity(elem)
+            
+        for entity in self.style.xpath("entities/*[@name=$key]",key = key):
+            val = self.xbase.evaluate(entity,from_elem=elem)
+            if val is not None: return val
+        return default
+    
+    def _sname(self, elem):
+        eclass = elem.xpath("context-information/@class")
+        name = elem.xpath("context-information/@name")
+        scope = elem.xpath("context-information/@scope")
+        if eclass: eclass = eclass[0]
+        else: eclass = elem.tag
+        if scope: scope = scope[0]
+        else: scope = "none"
+        if name: name = name[0]
+        else: name = None
+        fullname = [eclass]
+        if name: fullname.append(name)
+        fullname = ":".join(fullname)
+        return scope, name, fullname
+        
+    def shpath(self, elem):
+        if elem is None: raise AssertionError
+        fullname = self.sname(elem, key="id")
+        is_root = self.sname(elem, key="is-root")
+        if not fullname:
+            self.iface.debug("Elemento %s no recibió nombre" % elem.getroottree().getpath(elem))
+            fullname = elem.tag 
+        if not fullname:
+            raise AssertionError
+        if is_root: return fullname
+        parent = elem.getparent()
+        if parent is not None:
+            return self.shpath(parent) + "/" + fullname
+        else:
+            return "/" + fullname
+    
+    def get_elem_contents(self, elem):
+        if elem.text: text = elem.text
+        else: text = ""
+        textvalue = text.strip()
+        if textvalue:
+            textnfixes = text.replace(textvalue, "*") # Nos deja algo como '\n\t*\n\t'
+        else:
+            textnfixes = text
+        textdepth = "" # -> para indicar el string de prefijo común por linea.
+        items = {}
+        items["#text"] = textvalue
+        #items["#textnfixes"] = textnfixes
+        #items["#textdepth"] = textdepth
+        for k,v in elem.attrib.items():
+            items["@%s" % k] = v
+        return items
+             
+    def create_diff(self, tagname, select, **kwargs):
+        select_path = self.shpath(select)
+        patchelem = etree.SubElement(self.patch, tagname, select=select_path, **kwargs)
+        return patchelem 
+      
+    def compare_elems(self, base_elem, final_elem):
+        base = self.get_elem_contents(base_elem)
+        final = self.get_elem_contents(final_elem)
+        if base == final: return True
+        for k, v in base.items()[:]:
+            if k not in final: final[k] = None
+            if final.get(k, None) == v: 
+                del final[k]
+                del base[k]
+                
+        patchelem = self.create_diff("patch-node",select=base_elem)
+        for k, v in sorted(base.items()):
+            tag = "unknown"
+            kwargs = {}
+            if k[0] == "#": tag = "text"
+            if k[0] == "@": 
+                tag = "attribute"
+                kwargs["name"] = k[1:]
+            op = "update"
+            if v is None: op = "create"
+            if final[k] is None: op = "delete"
+            tag = op + "-" + tag
+            subelem = etree.SubElement(patchelem, tag, **kwargs)
+            if v: subelem.set("old", v)
+            if final[k]: subelem.set("new",final[k])
+        
+        # self.iface.debug2r(_=self.shpath(base_elem), base = base, final = final)
+        return None     
+        
+    def get_ctxinfo(self, elem):
+        ctx = elem.xpath("context-information")
+        if len(ctx) == 0: ctx = elem.tag
+        else: ctx = ";".join(["%s=%s" % (k,v) for k,v in sorted(dict(ctx[0].attrib).items())])
+        return ctx
+
+    def compare_subelems(self, base_elem, final_elem):
+        base = [ self.get_ctxinfo(subelem) for subelem in base_elem if subelem.tag != "context-information"]
+        final = [ self.get_ctxinfo(subelem) for subelem in final_elem if subelem.tag != "context-information"]
+        s = difflib.SequenceMatcher(None, base, final)
+        opcodes = fix_replace_opcode(s.get_opcodes())    
+        ratio = s.ratio()
+        return ratio, opcodes
+    
+    def add_subnode(self, patchelem, subelem, action):
+        if patchelem is None: return
+        mode = "full"
+        if action == "noop": mode = "short"
+        
+        fullname = self.sname(subelem, key="id", default=subelem.tag)
+        updelem = etree.SubElement(patchelem, "subnode", action=action, select=fullname)
+        if mode == "full":
+            updelem.append( deepcopy(subelem) )
+            for elem in updelem.xpath(".//context-information[@entity]"):
+                parent = elem.getparent()
+                parent.remove(elem)
+    
+    def recursive_compare(self, base_elem, final_elem, depth = 0):
+        self.compare_elems(base_elem, final_elem)
+        if len(base_elem.getchildren()) == 0 and len(base_elem.getchildren()) == 0: return
+
+        ratio, opcodes = self.compare_subelems(base_elem, final_elem)
+        if len(opcodes) == 0:
+            #self.iface.debug("Opcodes vacío. ?")
+            return
+        if len(opcodes) > 1 or opcodes[0][0] != "equal":
+            patchelem = self.create_diff("patch-node",select=base_elem)
+        else:
+            patchelem = None
+        for action, a1, a2 , b1, b2 in opcodes:
+            if action == "equal": 
+                if a2-a1-b2+b1 != 0:
+                    self.iface.debug2r(_=self.shpath(base_elem), equal=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
+            elif action == "move": 
+                self.iface.debug2r(_=self.shpath(base_elem), move=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
+            elif action == "insert" :
+                self.iface.debug2r(_=self.shpath(base_elem), insert=final_elem[b1:b2], zpos = b1)
+                for final_subelem in final_elem[b1:b2]:
+                    self.add_subnode(patchelem, final_subelem, "insert")
+                        
+                
+            elif action == "delete":
+                self.iface.debug2r(_=self.shpath(base_elem), delete=base_elem[a1:a2], zpos = a1)
+                for base_subelem in base_elem[a1:a2]:
+                    self.add_subnode(patchelem, base_subelem, "delete")
+            else:
+                self.iface.error("Acción %s desconocida" % action)
+                raise ValueError
+            if action == "equal" or action == "move":
+                for base_subelem, final_subelem in zip(base_elem[a1:a2], final_elem[b1:b2]):
+                    self.add_subnode(patchelem, base_subelem, "noop")
+                    self.recursive_compare(base_subelem, final_subelem, depth + 1)
+    
 def diff_lxml(iface, base, final):
     iface.debug(u"Diff LXML $base:%s $final:%s" % (base,final))
     root, ext1 = os.path.splitext(base)
@@ -155,100 +386,29 @@ def diff_lxml(iface, base, final):
     except IOError, e:
         iface.error("Error al abrir el fichero base o final: " + str(e))
         return
+        
     
-    xbase = XMLFormatParser(iface, format, file_base)
+    style_name = iface.patch_xml_style_name
+    styles = config_tree.xpath("/etc/patch-styles/patch-style[@name=$name]", name=style_name)
+    if len(styles) == 0:
+        iface.error("No tenemos ningún estilo de patch que se llame %s" % style_name)
+        return
+    if len(styles) > 1:
+        iface.warn("Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
     
-    if not xbase.validate():
-        iface.error(u"El fichero base no es válido para el formato %s" % (format_name))
-        return
-    if not xbase.load_entities():
-        iface.error(u"Error al cargar entidades del formato %s (fichero base)" % (format_name))
-        return
-
-    xfinal = XMLFormatParser(iface, format, file_final)
-
-    if not xfinal.validate():
-        iface.error(u"El fichero final no es válido para el formato %s" % (format_name))
-        return
-    if not xfinal.load_entities():
-        iface.error(u"Error al cargar entidades del formato %s (fichero final)" % (format_name))
-        return
+    style= styles[0]
     
+    
+    xmldiff = XMLDiffer(iface, format, style, file_base, file_final)
+    xmldiff.compare()
     #xbase.clean()
-    #iface.output.write(xbase.output().encode(xbase.encoding))
-    recursive_compare(iface, xbase.root, xfinal.root)
+    iface.output.write(xmldiff.patch_output())
     
 
-def get_elem_contents(iface, elem):
-    if elem.text: text = elem.text
-    else: text = ""
-    textvalue = text.strip()
-    if textvalue:
-        textnfixes = text.replace(textvalue, "*") # Nos deja algo como '\n\t*\n\t'
-    else:
-        textnfixes = text
-    textdepth = "" # -> para indicar el string de prefijo común por linea.
-    items = {}
-    items["#t"] = textvalue
-    #items["#textnfixes"] = textnfixes
-    #items["#textdepth"] = textdepth
-    for k,v in elem.attrib.items():
-        items["@%s" % k] = v
-    return items
 
-def compare_elems(iface, base_elem, final_elem):
-    base = get_elem_contents(iface, base_elem)
-    final = get_elem_contents(iface, final_elem)
-    if base == final: return True
-    for k, v in base.items()[:]:
-        if k not in final: final[k] = None
-        if final.get(k, None) == v: 
-            del final[k]
-            del base[k]
-    iface.debug2r(_=shpath(base_elem), base = base, final = final)
-    return None                    
 
-def shpath(elem):
-    if elem is None: return ""
-    eclass = elem.xpath("context-information/@class")
-    name = elem.xpath("context-information/@name")
-    scope = elem.xpath("context-information/@scope")
-    if eclass: eclass = eclass[0]
-    else: eclass = elem.tag
-    if scope: scope = scope[0]
-    else: scope = "none"
-    if name: name = name[0]
-    else: name = None
-    fullname = [eclass]
-    if name: fullname.append(name)
-    fullname = ":".join(fullname)
-    if name and scope == "global": return fullname
-    
-    return shpath(elem.getparent()) + "/" + fullname
 
     
-def recursive_compare(iface, base_elem, final_elem, depth = 0):
-    compare_elems(iface, base_elem, final_elem)
-    if len(base_elem.getchildren()) == 0 and len(base_elem.getchildren()) == 0: return
-    
-    ratio, opcodes = compare_subelems(iface, base_elem, final_elem)
-
-    for action, a1, a2 , b1, b2 in opcodes:
-        if action == "equal": 
-            if a2-a1-b2+b1 != 0:
-                iface.debug2r(_=shpath(base_elem), equal=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
-        elif action == "move": 
-            iface.debug2r(_=shpath(base_elem), move=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
-        elif action == "insert" :
-            iface.debug2r(_=shpath(base_elem), insert=final_elem[b1:b2], zpos = b1)
-        elif action == "delete":
-            iface.debug2r(_=shpath(base_elem), delete=base_elem[a1:a2], zpos = a1)
-        else:
-            iface.error("Acción %s desconocida" % action)
-            raise ValueError
-        if action == "equal" or action == "move":
-            for base_subelem, final_subelem in zip(base_elem[a1:a2], final_elem[b1:b2]):
-                recursive_compare(iface, base_subelem, final_subelem, depth + 1)
     
 
 def fix_replace_opcode(opcodes):
@@ -264,16 +424,3 @@ def fix_replace_opcode(opcodes):
         new_opcodes.append( (action, a1, a2 , b1, b2) )
     return new_opcodes
 
-def get_ctxinfo(iface, elem):
-    ctx = elem.xpath("context-information")
-    if len(ctx) == 0: ctx = elem.tag
-    else: ctx = ";".join(["%s=%s" % (k,v) for k,v in sorted(dict(ctx[0].attrib).items())])
-    return ctx
-
-def compare_subelems(iface, base_elem, final_elem):
-    base = [ get_ctxinfo(iface, subelem) for subelem in base_elem if subelem.tag != "context-information"]
-    final = [ get_ctxinfo(iface, subelem) for subelem in final_elem if subelem.tag != "context-information"]
-    s = difflib.SequenceMatcher(None, base, final)
-    opcodes = fix_replace_opcode(s.get_opcodes())    
-    ratio = s.ratio()
-    return ratio, opcodes

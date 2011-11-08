@@ -16,7 +16,7 @@
                 <xpath>/UI//property</xpath>
             </search>
             <context-information>
-                <xpath name="class">name()</xpath>
+                <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
                 <xpath name="name">@name</xpath>
                 <value name="scope">local</value>
             </context-information>
@@ -47,8 +47,7 @@
         </entity>
         <entity name="other">
             <search>
-                <xpath>/UI/*</xpath>
-                <xpath>/UI/*/*</xpath>
+                <!-- xpath>//*</xpath -->
             </search>
             <context-information>
             </context-information>
@@ -56,6 +55,12 @@
         <default>
             <context-information>
                 <xpath name="class">name()</xpath>
+                <if-then-else name="name" except-style="legacy1">
+                    <xpath name="if">count(../*[name() = $tagname]) = 1
+                        <xpath name="tagname">name()</xpath>
+                    </xpath>
+                    <empty name="then"/>
+                </if-then-else>
                 <format name="name" text="{number:.0f}">
                     <xpath name="number">count(preceding-sibling::*[name() = $tagname])+1
                         <xpath name="tagname">name()</xpath>
@@ -65,5 +70,17 @@
             </context-information>
         </default>
     </entities>
+    <indexes type="old-style-aq">
+    <!-- /UI[UI,1]/widget[QWidget,co_i_balancepyg]/
+            property[geometry]/rect[rect,1]/height[height,1]/text()[1]  -->
+    </indexes>
+    <indexes type="short">
+    <!-- FLFieldDB:fdbIva/property:minimumSize/size/width -->
+        <implode name="id" join=":">
+            <xpath>context-information/@class</xpath>
+            <xpath>context-information/@name</xpath>
+        </implode>
+        <xpath name="is-root">context-information/@scope = 'global'</xpath>
+    </indexes>
 </format>
 

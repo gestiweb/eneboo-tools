@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- FLFieldDB:fdbIva/property:minimumSize/size/width -->
+<patch-style name="semantic1">
+    <entities>
+        <implode name="id" join=":">
+            <xpath>context-information/@class</xpath>
+            <xpath>context-information/@name</xpath>
+        </implode>
+        <xpath name="is-root">context-information/@scope = 'global'</xpath>
+    </entities>
+</patch-style>
+
+

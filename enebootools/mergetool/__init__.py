@@ -67,6 +67,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.output_file_name = "STDOUT"
         self.output = sys.stdout
         self.patch_qs_rewrite = "abort"
+        self.patch_xml_style_name = "legacy1"
         self.diff_xml_search_move = False
         if setup_parser: self.setup_parser()
         
@@ -95,6 +96,13 @@ class MergeToolInterface(EnebooToolsInterface):
             description = u"Activa la búsqueda de movimientos de bloques XML. Puede ser un poco más lento y puede generar parches incompatibles con otras herramientas.",
             level = "action",
             call_function = self.enable_diff_xml_search_move
+            )
+        self.parser.declare_option(
+            name = "patch-xml-style",
+            description = u"Usar otro estilo para generar parches (ver mergetools/etc/patch-styles/)",
+            variable = "NAME", 
+            level = "action",
+            call_function = self.set_patch_xml_style
             )
         self.parser.declare_option(
             name = "verbose",
@@ -188,6 +196,9 @@ class MergeToolInterface(EnebooToolsInterface):
     def set_output_file(self, filename):
         self.output_file_name = filename
         self.output = open(filename, "w")
+
+    def set_patch_xml_style(self, name):
+        self.patch_xml_style_name = name
         
     def set_patch_qs_rewrite(self, value):
         if value not in ['reverse','predelete','yes','no','warn','abort']: raise ValueError

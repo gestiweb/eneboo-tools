@@ -3,4 +3,8 @@
     <formats>
         <xi:include href="formats/qt3-ui.xml"/>
     </formats>
+    <patch-styles>
+        <xi:include href="patch-styles/legacy1.xml"/>
+        <xi:include href="patch-styles/semantic1.xml"/>
+    </patch-styles>
 </etc>
