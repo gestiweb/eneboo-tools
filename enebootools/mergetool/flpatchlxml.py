@@ -1,6 +1,7 @@
 #encoding: UTF-8
 from lxml import etree
 import os.path
+import difflib
 
 def filepath(): return os.path.abspath(os.path.dirname(__file__))
 def filedir(x): return os.path.abspath(os.path.join(filepath(),x))
@@ -24,10 +25,17 @@ class XMLFormatParser(object):
                         remove_blank_text=True,
                         )
         self.tree = etree.parse(file1, self.parser)
+        self.root = self.tree.getroot()
+        self.context_items = [] # Lista de los elementos insertados
         
     def output(self):
         return _xf(self.tree.getroot())
         
+    def clean(self):
+        for item in self.context_items:
+            parent = item.getparent()
+            parent.remove(item)
+    
     def validate(self):
         for elem in self.format.xpath("assert/*"):
             result = self.evaluate(elem)
@@ -61,6 +69,16 @@ class XMLFormatParser(object):
                 for elem in elem.xpath("*[@name]"):
                     kwvars[elem.get("name")] = self.evaluate(elem,from_elem)
                 return sxpath(text,**kwvars)
+            elif elem.tag == "format": 
+                format_string = elem.get("text")
+                args = []
+                kwargs = {}
+                for elem in elem.xpath("*"):
+                    name = elem.get("name")
+                    value = self.evaluate(elem,from_elem)
+                    if name: kwargs[name] = value
+                    else: args.append(value)
+                return format_string.format(*args,**kwargs)
             elif elem.tag == "value": return text
             elif elem.tag == "if-then-else": 
                 kwvars = {}
@@ -81,6 +99,7 @@ class XMLFormatParser(object):
             if element.xpath("context-information"): continue
             if element.xpath("ancestor-or-self::context-information"): continue
             ctx = etree.SubElement(element, "context-information", entity = entity_name)
+            self.context_items.append(ctx)
             ctx_pending_names = set([])
             ctxdict = {}
             for ctxopt in context_info:
@@ -91,7 +110,7 @@ class XMLFormatParser(object):
                         value = self.evaluate(ctxopt, element)
                         if value is not None:
                             ctxdict[name] = value
-                            ctx_elem = etree.SubElement(ctx, name, value=unicode(value))
+                            ctx.set(name,unicode(value))
                         
             for name, value in ctxdict.items():
                 ctx_pending_names.remove(name)
@@ -132,7 +151,7 @@ def diff_lxml(iface, base, final):
     
     try:
         file_base = open(base, "r")
-        file_final = open(base, "r")
+        file_final = open(final, "r")
     except IOError, e:
         iface.error("Error al abrir el fichero base o final: " + str(e))
         return
@@ -155,8 +174,106 @@ def diff_lxml(iface, base, final):
         iface.error(u"Error al cargar entidades del formato %s (fichero final)" % (format_name))
         return
     
-    iface.output.write(xbase.output().encode(xbase.encoding))
-                    
+    #xbase.clean()
+    #iface.output.write(xbase.output().encode(xbase.encoding))
+    recursive_compare(iface, xbase.root, xfinal.root)
     
+
+def get_elem_contents(iface, elem):
+    if elem.text: text = elem.text
+    else: text = ""
+    textvalue = text.strip()
+    if textvalue:
+        textnfixes = text.replace(textvalue, "*") # Nos deja algo como '\n\t*\n\t'
+    else:
+        textnfixes = text
+    textdepth = "" # -> para indicar el string de prefijo común por linea.
+    items = {}
+    items["#t"] = textvalue
+    #items["#textnfixes"] = textnfixes
+    #items["#textdepth"] = textdepth
+    for k,v in elem.attrib.items():
+        items["@%s" % k] = v
+    return items
+
+def compare_elems(iface, base_elem, final_elem):
+    base = get_elem_contents(iface, base_elem)
+    final = get_elem_contents(iface, final_elem)
+    if base == final: return True
+    for k, v in base.items()[:]:
+        if k not in final: final[k] = None
+        if final.get(k, None) == v: 
+            del final[k]
+            del base[k]
+    iface.debug2r(_=shpath(base_elem), base = base, final = final)
+    return None                    
+
+def shpath(elem):
+    if elem is None: return ""
+    eclass = elem.xpath("context-information/@class")
+    name = elem.xpath("context-information/@name")
+    scope = elem.xpath("context-information/@scope")
+    if eclass: eclass = eclass[0]
+    else: eclass = elem.tag
+    if scope: scope = scope[0]
+    else: scope = "none"
+    if name: name = name[0]
+    else: name = None
+    fullname = [eclass]
+    if name: fullname.append(name)
+    fullname = ":".join(fullname)
+    if name and scope == "global": return fullname
     
+    return shpath(elem.getparent()) + "/" + fullname
+
     
+def recursive_compare(iface, base_elem, final_elem, depth = 0):
+    compare_elems(iface, base_elem, final_elem)
+    if len(base_elem.getchildren()) == 0 and len(base_elem.getchildren()) == 0: return
+    
+    ratio, opcodes = compare_subelems(iface, base_elem, final_elem)
+
+    for action, a1, a2 , b1, b2 in opcodes:
+        if action == "equal": 
+            if a2-a1-b2+b1 != 0:
+                iface.debug2r(_=shpath(base_elem), equal=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
+        elif action == "move": 
+            iface.debug2r(_=shpath(base_elem), move=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
+        elif action == "insert" :
+            iface.debug2r(_=shpath(base_elem), insert=final_elem[b1:b2], zpos = b1)
+        elif action == "delete":
+            iface.debug2r(_=shpath(base_elem), delete=base_elem[a1:a2], zpos = a1)
+        else:
+            iface.error("Acción %s desconocida" % action)
+            raise ValueError
+        if action == "equal" or action == "move":
+            for base_subelem, final_subelem in zip(base_elem[a1:a2], final_elem[b1:b2]):
+                recursive_compare(iface, base_subelem, final_subelem, depth + 1)
+    
+
+def fix_replace_opcode(opcodes):
+    """
+        Convierte un replace en un delete+insert.
+    """
+    new_opcodes = []
+    for action, a1, a2 , b1, b2 in opcodes:
+        if action == "replace":
+            new_opcodes.append( ("delete", a1, a2 , b1, b1) )        
+            new_opcodes.append( ("insert", a2, a2 , b1, b2) )        
+            continue
+        new_opcodes.append( (action, a1, a2 , b1, b2) )
+    return new_opcodes
+
+def get_ctxinfo(iface, elem):
+    ctx = elem.xpath("context-information")
+    if len(ctx) == 0: ctx = elem.tag
+    else: ctx = ";".join(["%s=%s" % (k,v) for k,v in sorted(dict(ctx[0].attrib).items())])
+    return ctx
+
+def compare_subelems(iface, base_elem, final_elem):
+    base = [ get_ctxinfo(iface, subelem) for subelem in base_elem if subelem.tag != "context-information"]
+    final = [ get_ctxinfo(iface, subelem) for subelem in final_elem if subelem.tag != "context-information"]
+    s = difflib.SequenceMatcher(None, base, final)
+    opcodes = fix_replace_opcode(s.get_opcodes())    
+    ratio = s.ratio()
+    return ratio, opcodes

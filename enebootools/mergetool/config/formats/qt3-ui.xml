@@ -36,11 +36,10 @@
                 <xpath>/UI//*[property/@name]</xpath>
             </search>
             <context-information>
-                <xpath name="class">@class</xpath> <!-- si no existe @class, aplica tag -->
-                <xpath name="class">name()</xpath>
+                <xpath name="class">@class</xpath>
                 <xpath name="name">property[@name='name']/cstring/text()</xpath>
                 <if-then-else name="scope">
-                    <xpath name="if">context-information/name/@value='unnamed'</xpath>
+                    <xpath name="if">context-information/@name='unnamed'</xpath>
                     <value name="then">none</value>
                     <value name="else">global</value>
                 </if-then-else>
@@ -57,9 +56,11 @@
         <default>
             <context-information>
                 <xpath name="class">name()</xpath>
-                <xpath name="name">count(preceding-sibling::*[name() = $name])+1
-                    <xpath name="name">name()</xpath>
-                </xpath>
+                <format name="name" text="{number:.0f}">
+                    <xpath name="number">count(preceding-sibling::*[name() = $tagname])+1
+                        <xpath name="tagname">name()</xpath>
+                    </xpath>
+                </format>
                 <value name="scope">none</value>
             </context-information>
         </default>
