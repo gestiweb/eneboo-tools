@@ -169,7 +169,7 @@ class XMLFormatParser(object):
 
 
 class XMLDiffer(object):
-    def __init__(self, iface, format, style, file_base, file_final):
+    def __init__(self, iface, format, style, file_base, file_final = None, file_patch = None):
         self.iface = iface
         self.namespaces = {
             'xsl' : "http://www.w3.org/1999/XSL/Transform", 
@@ -185,7 +185,8 @@ class XMLDiffer(object):
         if not self.xbase.load_entities():
             self.iface.error(u"Error al cargar entidades del formato %s (fichero base)" % (format_name))
             return
-
+            
+        if file_final is None: file_final = file_base
         self.xfinal = XMLFormatParser(self.iface, self.format, self.style, file_final)
 
         if not self.xfinal.validate():
@@ -207,6 +208,16 @@ class XMLDiffer(object):
                 return str(doc)
             
         else: return ""
+        
+    def final_output(self):
+        if self.xfinal.root is not None: 
+            doc = self.apply_pre_save_final(self.xfinal.root)
+            if isinstance(doc, etree._Element):
+                return _xf(doc,xml_declaration=False,cstring=True, encoding=self.xfinal.encoding)
+            else:
+                return str(doc)
+        else: 
+            return ""
         
     def compare(self):
         self.patch = etree.Element("xml-patch")
@@ -398,7 +409,19 @@ class XMLDiffer(object):
         transform = etree.XSLT(xsl_root)
         newdoc = transform(doc)
         return newdoc
+    
+    def apply_patch(self):
+        # Aplica el parche sobre "final", teniendo en cuenta que se ha 
+        # cargado el mismo fichero que en base.
+        print "No se hace nada."
+    
+    
+#   ^ ^ ^ ^ ^ ^ ^ ^ ^  / class XMLDiffer 
             
+    
+    
+    
+    
     
 def diff_lxml(iface, base, final):
     iface.debug(u"Diff LXML $base:%s $final:%s" % (base,final))
@@ -435,10 +458,54 @@ def diff_lxml(iface, base, final):
     style= styles[0]
     
     
-    xmldiff = XMLDiffer(iface, format, style, file_base, file_final)
+    xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_final = file_final)
     xmldiff.compare()
     #xbase.clean()
     iface.output.write(xmldiff.patch_output())
+
+
+
+
+
+
+
+            
+    
+def patch_lxml(iface, patch, base):
+    iface.debug(u"Patch LXML $patch:%s $base:%s " % (patch, base))
+    root, ext1 = os.path.splitext(base)
+    
+    formats = config_tree.xpath("/etc/formats/format[filetype/text()=$ext]/@name", ext=ext1)
+    if len(formats) == 0:
+        iface.error("No tenemos ningún plugin que reconozca esta extensión")
+        return
+    if len(formats) > 1:
+        iface.warn("Había más de un formato y hemos probado el primero %s" % (repr(formats)))
+    format_name = formats[0]        
+    format = config_tree.xpath("/etc/formats/format[@name=$format_name]", format_name=format_name)[0]
+    
+    try:
+        file_base = open(base, "r")
+        file_patch = open(patch, "r")
+    except IOError, e:
+        iface.error("Error al abrir el fichero base o parche: " + str(e))
+        return
+        
+    
+    style_name = iface.patch_xml_style_name
+    styles = config_tree.xpath("/etc/patch-styles/patch-style[@name=$name]", name=style_name)
+    if len(styles) == 0:
+        iface.error("No tenemos ningún estilo de patch que se llame %s" % style_name)
+        return
+    if len(styles) > 1:
+        iface.warn("Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
+    
+    style= styles[0]
+    
+    
+    xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_patch = file_patch)
+    xmldiff.apply_patch()
+    iface.output.write(xmldiff.final_output())
     
 
 

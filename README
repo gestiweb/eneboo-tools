@@ -1,1 +1,62 @@
 *** Proyecto Eneboo-tools ***
+
+
+Guía superrapida:
+
+Actualmente solo se provee del comando eneboo-mergetool.
+
+Se recomienda enlazarlo a /usr/local/bin para poder llamarlo desde cualuquier sitio:
+
+sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
+
+
+Para sacar una ayuda y listado de acciones:
+
+eneboo-mergetool --help
+
+Para sacar más ayuda de una acción:
+
+eneboo-mergetool --help nombre-accion
+
+===============================================================
+                          DIFF QS
+===============================================================
+
+Obtener diff de un fichero QS:
+
+eneboo-mergetool file-diff qs \
+    antiguo/facturacion/facturacion/scripts/flfactalma.qs \
+    nuevo/facturacion/facturacion/scripts/flfactalma.qs \
+    --output-file patches/flfactalma.qs
+
+Aplicar un diff de fichero QS:
+
+eneboo-mergetool file-patch qs \
+    antiguo/facturacion/facturacion/scripts/flfactalma.qs \
+    patches/flfactalma.qs \
+    --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.qs
+
+
+===============================================================
+                          DIFF XML
+===============================================================
+
+Obtener diff de un fichero XML:
+
+eneboo-mergetool file-diff xml \
+    antiguo/facturacion/facturacion/forms/flfactalma.ui \
+    nuevo/facturacion/facturacion/forms/flfactalma.ui \
+    --output-file patches/flfactalma.ui
+
+Aplicar un diff de fichero XML: (no funciona aún)
+
+eneboo-mergetool file-patch qs \
+    antiguo/facturacion/facturacion/forms/flfactalma.ui \
+    patches/flfactalma.ui \
+    --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.ui
+
+
+
+
+
+

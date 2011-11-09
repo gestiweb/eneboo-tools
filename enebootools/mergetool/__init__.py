@@ -139,7 +139,7 @@ class MergeToolInterface(EnebooToolsInterface):
             name = "file-patch",
             args = ["ext","patch","base"],
             description = u"Aplica un parche de fichero $ext especificado por $patch al fichero $base",
-            options = ['output-file','patch-qs-rewrite'],
+            options = ['output-file','patch-qs-rewrite',"enable-diff-xml-search-move","patch-xml-style"],
             call_function = self.do_file_patch,
             )
         self.file_patch_action.set_help_arg(
@@ -273,8 +273,8 @@ class MergeToolInterface(EnebooToolsInterface):
         try:
             ext = str(ext).upper()
             if ext == 'QS': return flpatchqs.diff_qs(self,base,final)
-            if ext == 'XML': return flpatchxml.diff_xml(self,base,final)
-            if ext == 'LXML': return flpatchlxml.diff_lxml(self,base,final)
+            #if ext == 'XML': return flpatchxml.diff_xml(self,base,final)
+            if ext == 'XML': return flpatchlxml.diff_lxml(self,base,final)
             print "Unknown $ext %s" % (repr(ext))
         except Exception,e:
             self.exception(type(e).__name__,str(e))
@@ -283,6 +283,7 @@ class MergeToolInterface(EnebooToolsInterface):
         try:
             ext = str(ext).upper()
             if ext == 'QS': return flpatchqs.patch_qs(self,base,patch)
+            if ext == 'XML': return flpatchlxml.patch_lxml(self,patch,base)
             print "Unknown $ext %s" % (repr(ext))
         except Exception,e:
             self.exception(type(e).__name__,str(e))
