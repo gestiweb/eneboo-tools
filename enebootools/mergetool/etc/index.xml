@@ -2,6 +2,7 @@
 <etc xmlns:xi="http://www.w3.org/2001/XInclude">
     <formats>
         <xi:include href="formats/qt3-ui.xml"/>
+        <xi:include href="formats/aq23-mtd.xml"/>
     </formats>
     <patch-styles>
         <xi:include href="patch-styles/legacy1.xml"/>
