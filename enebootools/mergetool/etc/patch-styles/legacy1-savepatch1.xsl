@@ -46,4 +46,14 @@
     </xupdate:update>
 </xsl:template>
 
+<xsl:template match="/xml-patch/patch-node/subnode[@action='delete']">
+    <xupdate:delete>
+        <xsl:attribute name="select">
+            <xsl:value-of select="concat(../@select, '/', @select)" />
+        </xsl:attribute>        
+    </xupdate:delete>
+</xsl:template>
+
+
+
 </xsl:stylesheet>
