@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!-- /UI[UI,1]/widget[QWidget,co_i_balancepyg]/
         property[geometry]/rect[rect,1]/height[height,1]/text()[1]  -->
-<patch-style name="legacy1">
+<patch-style name="legacy1" xmlns:xi="http://www.w3.org/2001/XInclude">
     <entities>
         <format name="id" text="{tag}[{namelist}]">
             <xpath name="tag">name()</xpath>
@@ -14,6 +14,10 @@
         </format>
         <xpath name="is-root">false()</xpath>
     </entities>
+    <pre-save-patch>
+        <!-- como transformar el patch a guardar -->
+        <xi:include href="legacy1-savepatch1.xsl"/>
+    </pre-save-patch>
 </patch-style>
 
 

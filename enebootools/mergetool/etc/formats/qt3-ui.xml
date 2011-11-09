@@ -26,9 +26,38 @@
                 <xpath>/UI/tabstops/tabstop</xpath>
             </search>
             <context-information>
-                <xpath name="class">name()</xpath>
-                <xpath name="name">text()</xpath>
+                <xpath name="class" except-style="legacy1">name()</xpath>
+                <xpath name="name" except-style="legacy1">text()</xpath>
                 <value name="scope">local</value>
+            </context-information>
+        </entity>
+        <entity name="layout">
+            <search>
+                <xpath>/UI//vbox[property/@name]</xpath>
+                <xpath>/UI//hbox[property/@name]</xpath>
+                <xpath>/UI//grid[property/@name]</xpath>
+            </search>
+            <context-information>
+                <xpath name="class">@class</xpath>
+                <if-then-else name="scope">
+                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <value name="then">none</value>
+                    <value name="else">global</value>
+                </if-then-else>
+            </context-information>
+        </entity>
+        <entity name="spacer">
+            <search>
+                <xpath>/UI//spacer[property/@name]</xpath>
+            </search>
+            <context-information>
+                <empty name="class" />
+                <xpath name="name">property[@name='name']/cstring/text()</xpath>
+                <if-then-else name="scope">
+                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <value name="then">none</value>
+                    <value name="else">global</value>
+                </if-then-else>
             </context-information>
         </entity>
         <entity name="object">
@@ -43,6 +72,15 @@
                     <value name="then">none</value>
                     <value name="else">global</value>
                 </if-then-else>
+            </context-information>
+        </entity>
+        <entity name="object">
+            <search>
+                <xpath>/UI/includehints/includehint</xpath>
+            </search>
+            <context-information>
+                <empty name="class" />
+                <xpath name="name">text()</xpath>
             </context-information>
         </entity>
         <entity name="other">

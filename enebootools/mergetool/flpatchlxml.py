@@ -171,6 +171,10 @@ class XMLFormatParser(object):
 class XMLDiffer(object):
     def __init__(self, iface, format, style, file_base, file_final):
         self.iface = iface
+        self.namespaces = {
+            'xsl' : "http://www.w3.org/1999/XSL/Transform", 
+            'xupdate' : "http://www.xmldb.org/xupdate",
+        }
         self.format = format
         self.style = style
         self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base)
@@ -195,7 +199,13 @@ class XMLDiffer(object):
         self.patch_tree = None
         
     def patch_output(self):
-        if self.patch is not None: return _xf(self.patch,xml_declaration=True,cstring=True)
+        if self.patch is not None: 
+            doc = self.apply_pre_save_patch(self.patch)
+            if isinstance(doc, etree._Element):
+                return _xf(doc,xml_declaration=True,cstring=True)
+            else:
+                return str(doc)
+            
         else: return ""
         
     def compare(self):
@@ -213,6 +223,7 @@ class XMLDiffer(object):
     def sname(self, elem, key, default = None):
         if len(elem.xpath("context-information")) == 0:
             self.xbase.load_default_entity(elem)
+            self.xfinal.load_default_entity(elem)
             
         for entity in self.style.xpath("entities/*[@name=$key]",key = key):
             val = self.xbase.evaluate(entity,from_elem=elem)
@@ -363,6 +374,25 @@ class XMLDiffer(object):
                 for base_subelem, final_subelem in zip(base_elem[a1:a2], final_elem[b1:b2]):
                     self.add_subnode(patchelem, base_subelem, "noop")
                     self.recursive_compare(base_subelem, final_subelem, depth + 1)
+                    
+    def apply_pre_save_patch(self, doc):
+        
+        for elem in self.style.xpath("pre-save-patch/*"):
+            if elem.tag == "{http://www.w3.org/1999/XSL/Transform}stylesheet":
+                doc = self.apply_xsl(elem, doc)
+        return doc
+    
+    def apply_xsl(self, xsl_elem, doc):
+        xsl_tree = etree.ElementTree( deepcopy(xsl_elem) )
+        xsl_root = xsl_tree.getroot()
+        xsl_output = xsl_root.xpath("xsl:output",  namespaces=self.namespaces)[0]
+        if "encoding" not in xsl_output.attrib:
+            xsl_output.set("encoding",self.xbase.encoding)
+            
+        transform = etree.XSLT(xsl_root)
+        newdoc = transform(doc)
+        return newdoc
+            
     
 def diff_lxml(iface, base, final):
     iface.debug(u"Diff LXML $base:%s $final:%s" % (base,final))
