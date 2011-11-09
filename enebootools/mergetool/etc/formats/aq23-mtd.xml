@@ -26,7 +26,6 @@
             <context-information>
                 <xpath name="class">table/text()</xpath>
                 <xpath name="name">field/text()</xpath>
-                <xpath name="other1">card/text()</xpath>
                 <value name="scope">local</value>
             </context-information>
         </entity>

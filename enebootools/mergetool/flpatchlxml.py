@@ -374,6 +374,12 @@ class XMLDiffer(object):
                 for base_subelem, final_subelem in zip(base_elem[a1:a2], final_elem[b1:b2]):
                     self.add_subnode(patchelem, base_subelem, "noop")
                     self.recursive_compare(base_subelem, final_subelem, depth + 1)
+            if patchelem is not None:
+                # Agregar las modificaciones del padre, después de modificar los hijos.
+                parent = patchelem.getparent()
+                parent.remove(patchelem)
+                parent.append(patchelem)
+                
                     
     def apply_pre_save_patch(self, doc):
         
