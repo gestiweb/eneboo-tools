@@ -24,7 +24,7 @@ def _xf(x, cstring = False, **kwargs): #xml-format
         return unicode(value , kwargs['encoding'])
 
 class XMLFormatParser(object):
-    def __init__(self, iface, format, style, file1):
+    def __init__(self, iface, format, style, file1, rbt = True):
         self.iface = iface
         self.format = format
         self.style = style
@@ -33,7 +33,7 @@ class XMLFormatParser(object):
                         ns_clean=True,
                         encoding=self.encoding,
                         recover=False, # .. recover funciona y parsea cuasi cualquier cosa.
-                        remove_blank_text=True,
+                        remove_blank_text=rbt,
                         )
         file1.seek(0)
         self.tree = etree.parse(file1, self.parser)
@@ -183,6 +183,10 @@ class XMLFormatParser(object):
         for element in self.root.xpath("//*[@ctx-id]"):
             del element.attrib["ctx-id"]
             
+        for element in self.root.xpath("//delete-me-when-cleaning"):
+            parent = element.getparent()
+            parent.remove(element)
+            
     
     def apply_one_id(self, elem):
         idname = elem.get("ctx-id")
@@ -213,7 +217,10 @@ class XMLDiffer(object):
         }
         self.format = format
         self.style = style
-        self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base)
+        
+        if file_patch: rbt = False # Remove Blank Text 
+        else: rbt = True
+        self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base, rbt)
     
         if not self.xbase.validate():
             self.iface.error(u"El fichero base no es válido para el formato %s" % (format_name))
@@ -222,7 +229,7 @@ class XMLDiffer(object):
             self.iface.error(u"Error al cargar entidades del formato %s (fichero base)" % (format_name))
             return
             
-        self.xfinal = XMLFormatParser(self.iface, self.format, self.style, file_final)
+        self.xfinal = XMLFormatParser(self.iface, self.format, self.style, file_final, rbt)
 
         if not self.xfinal.validate():
             self.iface.error(u"El fichero final no es válido para el formato %s" % (format_name))
@@ -255,10 +262,11 @@ class XMLDiffer(object):
     def final_output(self):
         if self.xfinal.root is not None: 
             doc = self.apply_pre_save_final(self.xfinal.root)
+            doctype = unicode(self.xfinal.tree.docinfo.doctype).encode(self.xfinal.encoding)
             if isinstance(doc, etree._Element):
-                return _xf(doc,xml_declaration=False,cstring=True, encoding=self.xfinal.encoding)
+                return doctype + _xf(doc,xml_declaration=False,cstring=True, encoding=self.xfinal.encoding)
             else:
-                return str(doc)
+                return doctype + str(doc)
         else: 
             return ""
         
@@ -474,27 +482,108 @@ class XMLDiffer(object):
     def apply_patch(self):
         # Aplica el parche sobre "final", teniendo en cuenta que se ha 
         # cargado el mismo fichero que en base.
-        print "Aplicando informacion contextual . . ."
-        self.xfinal.add_context_id()
+        # self.iface.info("Aplicando informacion contextual . . .")
+        # self.xfinal.add_context_id()
+        
+        self.iface.info("Aplicando parche . . .")
         patch_fn = self.select_patch_applyfn()
         if patch_fn is None: return
         patch_fn()
         
-        print "Limpiando . . ."
+        self.iface.info("Limpiando . . .")
         self.xfinal.clean()
         self.xfinal.clean_ctxid()
-        print "OK"
+        self.iface.info("OK")
         
+    def resolve_select(self, element, select):
+        path = select.split("/")
+        while path:
+            p0 = path.pop(0) 
+            if p0 == "": 
+                newelement = element.getroottree().getroot()
+                p0 = path.pop(0) 
+                continue
+            else:
+                newelement = element.xpath("*[@ctx-id=$ctxid]",ctxid = p0)
+                if newelement: 
+                    newelement = newelement[-1]
+                else: 
+                    newelement = None
+                    toupdate = element.xpath("*[not(@ctx-id)]")
+                    for e in toupdate:
+                        self.xfinal.apply_one_id(e)
+                        if e.get("ctx-id") == p0: newelement = e
+                        
+            if newelement is None: return element, "/".join([p0] + path)
+            element = newelement
+        self.xfinal.apply_one_id(element)
+        return element, "."
+    
+    def resolve_select2(self, element, select):
+        element, select = self.resolve_select(element, select)
+        if select.startswith("text()"): select = "text()"
+        elif select == ".": select = "."
+        return element, select
+    
+
     def patch_xupdate(self):
         ns = "{http://www.xmldb.org/xupdate}"
         for action in self.patch:
             actionname = None
+            if not action.tag.startswith("{"):
+                actionname = action.tag
             if action.tag.startswith(ns):
                 actionname = action.tag.replace(ns,"")
+
             if actionname is None:
                 self.iface.warn("Tipo de tag no esperado: " + action.tag)
                 continue
-            print actionname, action.attrib
+            select = _select = action.get("select")
+            
+            element, select = self.resolve_select2(self.xfinal.root, select)
+            if actionname == "update" and select == "text()":
+                element.text = action.text
+            elif actionname == "delete" and select == ".":
+                previous = element.getprevious()
+                if previous is not None:
+                    previous.tail = element.tail
+                parent = element.getparent()
+                if parent is not None:
+                    newelement  = etree.Element("delete-me-when-cleaning")
+                    newelement.tail = element.tail
+                    newelement.set("ctx-id" , element.get("ctx-id"))
+                    parent.replace(element,newelement)
+            elif actionname == "insert-after" and select == ".":
+                added = deepcopy(action[0])
+                tail = element.tail
+                if tail is None: tail = ""
+                element.addnext(added)
+                element.tail = tail + "    "
+                self.xfinal.load_entities()
+            elif actionname == "insert-after" and select != ".":
+                self.iface.info("No se encontró el elemento y se agregó al final -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
+                added = deepcopy(action[0])
+                tail = element.text
+                try: previous = element.getchildren()[-1]; prev_tail = previous.tail
+                except IndexError: previous = None; prev_tail = ""
+                element.append(added)
+                if previous is not None:
+                    print "#" ,repr(prev_tail),repr(tail)
+                    added.tail = prev_tail
+                    previous.tail = tail
+                self.xfinal.load_entities()
+            elif actionname == "append-first" and select != ".":
+                added = deepcopy(action[0])
+                tail = element.text
+                element.insert(0,added)
+                self.xfinal.load_entities()
+            else:
+                self.iface.warn("Accion no aplicada -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
+                print _select
+                
+                
+            
+            
         
         
     

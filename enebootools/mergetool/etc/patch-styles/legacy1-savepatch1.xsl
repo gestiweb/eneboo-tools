@@ -46,6 +46,9 @@
     </xupdate:update>
 </xsl:template>
 
+<!-- TODO: Falta definir el formato para actualizar @atributos -->
+
+
 <xsl:template match="/xml-patch/patch-node/subnode[@action='delete']">
     <xupdate:delete>
         <xsl:attribute name="select">
