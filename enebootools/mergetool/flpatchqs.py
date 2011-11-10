@@ -519,7 +519,10 @@ def patch_qs(iface, base, patch):
         
     if line:
         iface.output.write("\n")
-        
+    
+    return True
+    
+    
 def fix_class(iface, flbase, clbase, cdbase, classname, **updates):
     """
         Busca en $base la clase $class_name y modifica el código según los

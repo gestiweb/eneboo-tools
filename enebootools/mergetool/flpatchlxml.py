@@ -268,6 +268,7 @@ class XMLDiffer(object):
                             ns_clean=True,
                             remove_blank_text=True,
                             recover=True,
+                            encoding = self.xbase.encoding
                             )
             self.patch_tree = etree.parse(file_patch, parser)
             self.patch = self.patch_tree.getroot()
@@ -601,18 +602,16 @@ class XMLDiffer(object):
                 except IndexError: previous = None; prev_tail = ""
                 element.append(added)
                 if previous is not None:
-                    print "#" ,repr(prev_tail),repr(tail)
                     added.tail = prev_tail
                     previous.tail = tail
                 self.xfinal.load_entities()
-            elif actionname == "append-first" and select != ".":
+            elif actionname == "append-first" and select == ".":
                 added = deepcopy(action[0])
                 tail = element.text
                 element.insert(0,added)
                 self.xfinal.load_entities()
             else:
                 self.iface.warn("Accion no aplicada -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
-                print _select
                 
                 
             
@@ -713,7 +712,7 @@ def patch_lxml(iface, patch, base):
     xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_final = file_final, file_patch = file_patch)
     xmldiff.apply_patch()
     iface.output.write(xmldiff.final_output())
-    
+    return True
 
 
 

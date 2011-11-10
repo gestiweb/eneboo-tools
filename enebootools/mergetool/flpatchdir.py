@@ -4,6 +4,8 @@ from copy import deepcopy
 import os, os.path, shutil
 import difflib
 
+from enebootools.mergetool import flpatchqs, flpatchlxml
+
 def filepath(): return os.path.abspath(os.path.dirname(__file__))
 def filedir(x): return os.path.abspath(os.path.join(filepath(),x))
 
@@ -62,6 +64,45 @@ class FolderPatch(object):
                 self.iface.warn("Ignorando parche QS para %s (el fichero no existe)" % filename)
                 continue
             self.iface.debug("Aplicando parche QS %s . . ." % filename)
+            old_output = self.iface.output
+            old_verbosity = self.iface.verbosity
+            self.iface.verbosity -= 2
+            if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
+            self.iface.set_output_file(dst+".patched")
+            ret = flpatchqs.patch_qs(self.iface,dst,src)
+            self.iface.output = old_output 
+            self.iface.verbosity = old_verbosity
+            if not ret:
+                self.iface.warn("Pudo haber algún problema aplicando el parche QS para %s" % filename)
+            os.unlink(dst)
+            os.rename(dst+".patched",dst)
+                
+        for patchxml in self.root.xpath("/modifications/patchXml"):
+            path = patchxml.get("path")
+            filename = patchxml.get("name")
+            
+            pathname = os.path.join(path, filename)
+            src = os.path.join(self.patch_dir,filename)
+            dst = os.path.join(folder,pathname)
+            
+            if not os.path.exists(dst):
+                self.iface.warn("Ignorando parche XML para %s (el fichero no existe)" % filename)
+                continue
+            self.iface.debug("Aplicando parche XML %s . . ." % filename)
+            old_output = self.iface.output
+            old_verbosity = self.iface.verbosity
+            self.iface.verbosity -= 2
+            if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
+            self.iface.set_output_file(dst+".patched")
+            ret = flpatchlxml.patch_lxml(self.iface,src,dst)
+            self.iface.output = old_output 
+            self.iface.verbosity = old_verbosity
+            if not ret:
+                self.iface.warn("Pudo haber algún problema aplicando el parche XML para %s" % filename)
+
+            os.unlink(dst)
+            os.rename(dst+".patched",dst)
+            
             
                 
             
