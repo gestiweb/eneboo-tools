@@ -192,13 +192,16 @@ class XMLFormatParser(object):
             parent_level = None
             parent = element.getparent()
             if parent is not None: parent_level = parent.text
-            if parent_level is None: continue
-            grandparent_level = None
-            grandparent = parent.getparent()
-            if grandparent is not None: grandparent_level = grandparent.text
+            if parent_level is None: 
+                parent_level = ""
+                increment = "    "
+            else:
+                grandparent_level = None
+                grandparent = parent.getparent()
+                if grandparent is not None: grandparent_level = grandparent.text
             
-            if grandparent_level : increment = parent_level.replace(grandparent_level,"")
-            else: increment = parent_level
+                if grandparent_level : increment = parent_level.replace(grandparent_level,"")
+                else: increment = "    "
             
             child_level = parent_level + increment            
             
@@ -264,6 +267,7 @@ class XMLDiffer(object):
             parser = etree.XMLParser(
                             ns_clean=True,
                             remove_blank_text=True,
+                            recover=True,
                             )
             self.patch_tree = etree.parse(file_patch, parser)
             self.patch = self.patch_tree.getroot()
@@ -493,10 +497,11 @@ class XMLDiffer(object):
     def select_patch_applyfn(self):
     
         known_tags = {
-            '{http://www.xmldb.org/xupdate}modifications' : self.patch_xupdate
+            '{http://www.xmldb.org/xupdate}modifications' : self.patch_xupdate,
+            'modifications' : self.patch_xupdate,
         }
         if self.patch.tag not in known_tags:
-            iface.error("Tipo de parche desconocido: " + repr(self.patch.tag))
+            self.iface.error("Tipo de parche desconocido: " + repr(self.patch.tag))
             return None
         else:
             return known_tags[self.patch.tag]
@@ -508,15 +513,15 @@ class XMLDiffer(object):
         # self.iface.info("Aplicando informacion contextual . . .")
         # self.xfinal.add_context_id()
         
-        self.iface.info("Aplicando parche . . .")
+        self.iface.debug("Aplicando parche . . .")
         patch_fn = self.select_patch_applyfn()
         if patch_fn is None: return
         patch_fn()
         
-        self.iface.info("Limpiando . . .")
+        self.iface.debug("Limpiando . . .")
         self.xfinal.clean()
         self.xfinal.clean_ctxid()
-        self.iface.info("OK")
+        self.iface.debug("OK")
         
     def resolve_select(self, element, select):
         path = select.split("/")
