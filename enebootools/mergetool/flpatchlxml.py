@@ -35,9 +35,15 @@ class XMLFormatParser(object):
                         recover=False, # .. recover funciona y parsea cuasi cualquier cosa.
                         remove_blank_text=True,
                         )
+        file1.seek(0)
         self.tree = etree.parse(file1, self.parser)
         self.root = self.tree.getroot()
         self.context_items = [] # Lista de los elementos insertados
+        self.namespaces = {
+            'xsl' : "http://www.w3.org/1999/XSL/Transform", 
+            'xupdate' : "http://www.xmldb.org/xupdate",
+            'ctx' : "context-information",
+        }
         
     def output(self):
         return _xf(self.tree.getroot())
@@ -123,7 +129,7 @@ class XMLFormatParser(object):
         search_xpath = tree.getpath(elem) + "/../*"
         entity_name = "default"
         default_ctx = self.format.xpath("entities/default/context-information/*")
-        self.load_entity(entity_name, default_ctx, search_xpath)
+        self.load_entity(entity_name, default_ctx, search_xpath, self.context_items)
     
     def load_entity(self, entity_name, context_info, search_xpath, context_items = []):
         self.iface.debug2("Aplicando entidad %s a los elementos %s" % (entity_name,search_xpath))
@@ -163,6 +169,36 @@ class XMLFormatParser(object):
                 if not ret: return False
                 
         return True
+    
+    def sname(self, elem, key, default = None):
+        if len(elem.xpath("context-information")) == 0:
+            self.load_default_entity(elem)
+            
+        for entity in self.style.xpath("entities/*[@name=$key]",key = key):
+            val = self.evaluate(entity,from_elem=elem)
+            if val is not None: return val
+        return default
+    
+    def clean_ctxid(self):
+        for element in self.root.xpath("//*[@ctx-id]"):
+            del element.attrib["ctx-id"]
+            
+    
+    def apply_one_id(self, elem):
+        idname = elem.get("ctx-id")
+        if idname: return
+        idname = self.sname(elem, "id", elem.tag)
+        elem.set("ctx-id",idname)
+            
+    def add_context_id(self, root = None):
+        if root is None: 
+            root = self.root
+            
+        self.apply_one_id(root)
+            
+        for element in root:
+            if element.tag == "context-information": continue
+            self.add_context_id(element)
 
 # ^ ^ ^ ^ ^ ^     / class XMLFormatParser
 
@@ -186,7 +222,6 @@ class XMLDiffer(object):
             self.iface.error(u"Error al cargar entidades del formato %s (fichero base)" % (format_name))
             return
             
-        if file_final is None: file_final = file_base
         self.xfinal = XMLFormatParser(self.iface, self.format, self.style, file_final)
 
         if not self.xfinal.validate():
@@ -195,9 +230,17 @@ class XMLDiffer(object):
         if not self.xfinal.load_entities():
             self.iface.error(u"Error al cargar entidades del formato %s (fichero final)" % (format_name))
             return
-            
-        self.patch = None
-        self.patch_tree = None
+        if file_patch:
+            parser = etree.XMLParser(
+                            ns_clean=True,
+                            remove_blank_text=True,
+                            )
+            self.patch_tree = etree.parse(file_patch, parser)
+            self.patch = self.patch_tree.getroot()
+
+        else:            
+            self.patch = None
+            self.patch_tree = None
         
     def patch_output(self):
         if self.patch is not None: 
@@ -393,8 +436,14 @@ class XMLDiffer(object):
                 
                     
     def apply_pre_save_patch(self, doc):
-        
         for elem in self.style.xpath("pre-save-patch/*"):
+            if elem.tag == "{http://www.w3.org/1999/XSL/Transform}stylesheet":
+                doc = self.apply_xsl(elem, doc)
+        return doc
+    
+    def apply_pre_save_final(self, doc):
+        
+        for elem in self.style.xpath("pre-save-final/*"):
             if elem.tag == "{http://www.w3.org/1999/XSL/Transform}stylesheet":
                 doc = self.apply_xsl(elem, doc)
         return doc
@@ -410,14 +459,49 @@ class XMLDiffer(object):
         newdoc = transform(doc)
         return newdoc
     
+    def select_patch_applyfn(self):
+    
+        known_tags = {
+            '{http://www.xmldb.org/xupdate}modifications' : self.patch_xupdate
+        }
+        if self.patch.tag not in known_tags:
+            iface.error("Tipo de parche desconocido: " + repr(self.patch.tag))
+            return None
+        else:
+            return known_tags[self.patch.tag]
+    
+
     def apply_patch(self):
         # Aplica el parche sobre "final", teniendo en cuenta que se ha 
         # cargado el mismo fichero que en base.
-        print "No se hace nada."
+        print "Aplicando informacion contextual . . ."
+        self.xfinal.add_context_id()
+        patch_fn = self.select_patch_applyfn()
+        if patch_fn is None: return
+        patch_fn()
+        
+        print "Limpiando . . ."
+        self.xfinal.clean()
+        self.xfinal.clean_ctxid()
+        print "OK"
+        
+    def patch_xupdate(self):
+        ns = "{http://www.xmldb.org/xupdate}"
+        for action in self.patch:
+            actionname = None
+            if action.tag.startswith(ns):
+                actionname = action.tag.replace(ns,"")
+            if actionname is None:
+                self.iface.warn("Tipo de tag no esperado: " + action.tag)
+                continue
+            print actionname, action.attrib
+        
+        
     
     
 #   ^ ^ ^ ^ ^ ^ ^ ^ ^  / class XMLDiffer 
-            
+
+
     
     
     
@@ -486,6 +570,7 @@ def patch_lxml(iface, patch, base):
     
     try:
         file_base = open(base, "r")
+        file_final = open(base, "r")
         file_patch = open(patch, "r")
     except IOError, e:
         iface.error(u"Error al abrir el fichero base o parche: " + str(e))
@@ -503,7 +588,7 @@ def patch_lxml(iface, patch, base):
     style= styles[0]
     
     
-    xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_patch = file_patch)
+    xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_final = file_final, file_patch = file_patch)
     xmldiff.apply_patch()
     iface.output.write(xmldiff.final_output())
     
