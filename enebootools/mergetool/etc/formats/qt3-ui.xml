@@ -11,9 +11,24 @@
     </assert>
     
     <entities>
-        <entity name="property">
+        <entity name="includehint">
+            <tags>
+                <tag>includehint</tag>
+            </tags>
             <search>
-                <xpath>/UI//property</xpath>
+                <xpath>.//includehint</xpath>
+            </search>
+            <context-information>
+                <empty name="class" />
+                <xpath name="name">text()</xpath>
+            </context-information>
+        </entity>
+        <entity name="property">
+            <tags>
+                <tag>property</tag>
+            </tags>
+            <search>
+                <xpath>.//property</xpath>
             </search>
             <context-information>
                 <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
@@ -22,6 +37,9 @@
             </context-information>
         </entity>
         <entity name="tabstop">
+            <tags>
+                <tag>tabstop</tag>
+            </tags>
             <search>
                 <xpath>/UI/tabstops/tabstop</xpath>
             </search>
@@ -32,10 +50,15 @@
             </context-information>
         </entity>
         <entity name="layout">
+            <tags>
+                <tag>vbox</tag>
+                <tag>hbox</tag>
+                <tag>grid</tag>
+            </tags>
             <search>
-                <xpath>/UI//vbox[property/@name]</xpath>
-                <xpath>/UI//hbox[property/@name]</xpath>
-                <xpath>/UI//grid[property/@name]</xpath>
+                <xpath>.//vbox[property/@name]</xpath>
+                <xpath>.//hbox[property/@name]</xpath>
+                <xpath>.//grid[property/@name]</xpath>
             </search>
             <context-information>
                 <xpath name="class">@class</xpath>
@@ -47,8 +70,11 @@
             </context-information>
         </entity>
         <entity name="spacer">
+            <tags>
+                <tag>spacer</tag>
+            </tags>
             <search>
-                <xpath>/UI//spacer[property/@name]</xpath>
+                <xpath>.//spacer[property/@name]</xpath>
             </search>
             <context-information>
                 <empty name="class" />
@@ -61,8 +87,11 @@
             </context-information>
         </entity>
         <entity name="verysimpleobj">
+            <tags>
+                <tag>item</tag>
+            </tags>
             <search>
-                <xpath>/UI//*[@name]</xpath>
+                <xpath>.//*[@name]</xpath>
             </search>
             <context-information>
                 <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
@@ -75,9 +104,13 @@
             </context-information>
         </entity>
         <entity name="simpleobj">
+            <tags>
+                <tag>action</tag>
+                <tag>toolbar</tag>
+            </tags>
             <search>
-                <xpath>/UI//action[property/@name]</xpath>
-                <xpath>/UI//toolbar[property/@name]</xpath>
+                <xpath>.//action[property/@name]</xpath>
+                <xpath>.//toolbar[property/@name]</xpath>
             </search>
             <context-information>
                 <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
@@ -90,8 +123,11 @@
             </context-information>
         </entity>
         <entity name="object">
+            <tags>
+                <tag>widget</tag>
+            </tags>
             <search>
-                <xpath>/UI//*[property/@name]</xpath>
+                <xpath>.//*[property/@name]</xpath>
             </search>
             <context-information>
                 <xpath name="class">@class</xpath>
@@ -104,8 +140,11 @@
             </context-information>
         </entity>
         <entity name="connection">
+            <tags>
+                <tag>connection</tag>
+            </tags>
             <search>
-                <xpath>/UI/connections/connection</xpath>
+                <xpath>.//connection[name(..) = 'connections']</xpath>
             </search>
             <context-information>
                 <xpath name="class">sender/text()</xpath>
@@ -113,15 +152,6 @@
                 <xpath name="other1">receiver/text()</xpath>
                 <xpath name="other2">slot/text()</xpath>
                 <value name="scope">global</value>
-            </context-information>
-        </entity>
-        <entity name="includehint">
-            <search>
-                <xpath>/UI/includehints/includehint</xpath>
-            </search>
-            <context-information>
-                <empty name="class" />
-                <xpath name="name">text()</xpath>
             </context-information>
         </entity>
         <entity name="other">

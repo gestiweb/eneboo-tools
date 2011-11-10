@@ -28,6 +28,8 @@ class XMLFormatParser(object):
         self.iface = iface
         self.format = format
         self.style = style
+        self.default_ctx = None
+        self.entities = None
         self.encoding = self.format.xpath("@encoding")[0]
         self.parser = etree.XMLParser(
                         ns_clean=True,
@@ -131,9 +133,16 @@ class XMLFormatParser(object):
         default_ctx = self.format.xpath("entities/default/context-information/*")
         self.load_entity(entity_name, default_ctx, search_xpath, self.context_items)
     
-    def load_entity(self, entity_name, context_info, search_xpath, context_items = []):
-        self.iface.debug2("Aplicando entidad %s a los elementos %s" % (entity_name,search_xpath))
-        for element in self.tree.xpath(search_xpath):
+    def load_entity(self, entity_name, context_info, search_xpath, context_items = [], root = None):
+        # self.iface.debug2("Aplicando entidad %s a los elementos %s" % (entity_name,search_xpath))
+        if root is None: root = self.root
+        else: root = root.getparent()
+        try:
+            search = root.xpath(search_xpath)
+        except Exception, e:
+            self.iface.error("search_xpath: " + search_xpath)
+            raise
+        for element in search:
             if element.xpath("context-information"): continue
             if element.xpath("ancestor-or-self::context-information"): continue
             ctx = etree.SubElement(element, "context-information", entity = entity_name)
@@ -158,14 +167,22 @@ class XMLFormatParser(object):
                 
         return True
         
-    def load_entities(self):
-        default_ctx = self.format.xpath("entities/default/context-information/*")
-        for entity in self.format.xpath("entities/entity"):
+    def load_entities(self, root = None, tag = None):
+        self.iface.debug2("Cargando entidades . . . " +  repr(root))
+        if self.default_ctx is None:
+            self.default_ctx = self.format.xpath("entities/default/context-information/*")
+        if self.entities is None:
+            self.entities = self.format.xpath("entities/entity")
+        for entity in self.entities:
             entity_name = entity.get("name")
+            if tag:
+                if ( not entity.xpath("tags/tag/text()[. = $tag]", tag = tag)
+                    and tag != entity_name
+                    ): continue
+                
             context_info = entity.xpath("context-information/*")
-            self.iface.debug2("Cargando entidad %s" % entity_name)
             for search_xpath in entity.xpath("search/xpath"):
-                ret = self.load_entity(entity_name, context_info + default_ctx, search_xpath.text.strip(), self.context_items)
+                ret = self.load_entity(entity_name, context_info + self.default_ctx, search_xpath.text.strip(), self.context_items, root)
                 if not ret: return False
                 
         return True
@@ -205,7 +222,7 @@ class XMLFormatParser(object):
             
             child_level = parent_level + increment            
             
-            self.iface.debug2("Reindentando: %s" % self.tree.getpath(element))
+            #self.iface.debug2("Reindentando: %s" % self.tree.getpath(element))
             element.text = child_level
             for child in element[:-1]: child.tail = child_level
             element[-1].tail = parent_level
@@ -214,11 +231,13 @@ class XMLFormatParser(object):
             
 
     
-    def apply_one_id(self, elem):
+    def apply_one_id(self, elem, le = True):
         idname = elem.get("ctx-id")
         if idname: return
+        #if le: self.load_entities(elem)
         idname = self.sname(elem, "id", elem.tag)
         elem.set("ctx-id",idname)
+        #for sub in elem: self.apply_one_id(sub, False)
             
     def add_context_id(self, root = None):
         if root is None: 
@@ -522,7 +541,6 @@ class XMLDiffer(object):
         self.iface.debug("Limpiando . . .")
         self.xfinal.clean()
         self.xfinal.clean_ctxid()
-        self.iface.debug("OK")
         
     def resolve_select(self, element, select):
         path = select.split("/")
@@ -582,7 +600,10 @@ class XMLDiffer(object):
             select = _select = action.get("select")
             
             element, select = self.resolve_select2(self.xfinal.root, select)
-            
+            if '/' in select:
+                self.xfinal.load_entities()
+                element, select = self.resolve_select2(self.xfinal.root, select)
+                
             if '/' in select:
                 searching = select.split("/")[0]
                 alternatives = element.xpath("*/@ctx-id")
@@ -615,11 +636,11 @@ class XMLDiffer(object):
                 if tail is None: tail = ""
                 element.addnext(added)
                 element.tail = tail + "    "
-                self.xfinal.load_entities()
                 parent = element.getparent()
                 parent.text = None
                 for subn in parent:
                     subn.tail = None
+                self.xfinal.load_entities(added,added.tag)
                 
             elif actionname == "insert-after" and select != ".":
                 searching = select.split("/")[0]
@@ -635,12 +656,12 @@ class XMLDiffer(object):
                 if previous is not None:
                     added.tail = prev_tail
                     previous.tail = tail
-                self.xfinal.load_entities()
+                self.xfinal.load_entities(added,added.tag)
             elif actionname == "append-first" and select == ".":
                 added = deepcopy(action[0])
                 tail = element.text
                 element.insert(0,added)
-                self.xfinal.load_entities()
+                self.xfinal.load_entities(added,added.tag)
             else:
                 self.iface.warn("Accion no aplicada -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
                 
