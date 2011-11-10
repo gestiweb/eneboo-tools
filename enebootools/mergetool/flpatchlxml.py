@@ -180,13 +180,36 @@ class XMLFormatParser(object):
         return default
     
     def clean_ctxid(self):
-        for element in self.root.xpath("//*[@ctx-id]"):
-            del element.attrib["ctx-id"]
             
         for element in self.root.xpath("//delete-me-when-cleaning"):
             parent = element.getparent()
             parent.remove(element)
             
+        for element in self.root.xpath("//*[@ctx-id]"):
+            del element.attrib["ctx-id"]
+
+        for element in self.root.xpath("//*[not(text()) and ./*]"):
+            parent_level = None
+            parent = element.getparent()
+            if parent is not None: parent_level = parent.text
+            if parent_level is None: continue
+            grandparent_level = None
+            grandparent = parent.getparent()
+            if grandparent is not None: grandparent_level = grandparent.text
+            
+            if grandparent_level : increment = parent_level.replace(grandparent_level,"")
+            else: increment = parent_level
+            
+            child_level = parent_level + increment            
+            
+            self.iface.debug2("Reindentando: %s" % self.tree.getpath(element))
+            element.text = child_level
+            for child in element[:-1]: child.tail = child_level
+            element[-1].tail = parent_level
+            
+            
+            
+
     
     def apply_one_id(self, elem):
         idname = elem.get("ctx-id")
@@ -560,6 +583,11 @@ class XMLDiffer(object):
                 element.addnext(added)
                 element.tail = tail + "    "
                 self.xfinal.load_entities()
+                parent = element.getparent()
+                parent.text = None
+                for subn in parent:
+                    subn.tail = None
+                
             elif actionname == "insert-after" and select != ".":
                 self.iface.info("No se encontró el elemento y se agregó al final -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
                 added = deepcopy(action[0])
