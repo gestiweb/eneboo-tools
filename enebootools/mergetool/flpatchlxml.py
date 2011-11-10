@@ -2,7 +2,7 @@
 from lxml import etree
 from copy import deepcopy
 import os.path
-import difflib
+import difflib, re
 
 def filepath(): return os.path.abspath(os.path.dirname(__file__))
 def filedir(x): return os.path.abspath(os.path.join(filepath(),x))
@@ -542,7 +542,18 @@ class XMLDiffer(object):
                     for e in toupdate:
                         self.xfinal.apply_one_id(e)
                         if e.get("ctx-id") == p0: newelement = e
-                        
+                    
+                    if newelement is None: # Intentar mas a fondo:
+                        m = re.match("(\w+)\[(\w+),(\d+)\]", p0)
+                        if m:
+                            tagname = m.group(1)
+                            number = int(m.group(3))-1
+                            elist = element.xpath(tagname)
+                            try: newelement = elist[number]
+                            except Exception, e: 
+                                self.iface.warn(e)
+                                newelement = None
+                    
             if newelement is None: return element, "/".join([p0] + path)
             element = newelement
         self.xfinal.apply_one_id(element)
@@ -551,6 +562,7 @@ class XMLDiffer(object):
     def resolve_select2(self, element, select):
         element, select = self.resolve_select(element, select)
         if select.startswith("text()"): select = "text()"
+        elif select.startswith("#text"): select = "text()"
         elif select == ".": select = "."
         return element, select
     
@@ -570,8 +582,18 @@ class XMLDiffer(object):
             select = _select = action.get("select")
             
             element, select = self.resolve_select2(self.xfinal.root, select)
+            
+            if '/' in select:
+                searching = select.split("/")[0]
+                alternatives = element.xpath("*/@ctx-id")
+                close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
+                self.iface.warn("Error buscando el elemento %s entre %s" % (repr(searching),close_matches))
+                continue
+            
             if actionname == "update" and select == "text()":
                 element.text = action.text
+            elif actionname == "delete" and select == "text()":
+                element.text = None
             elif actionname == "delete" and select == ".":
                 previous = element.getprevious()
                 if previous is not None:
@@ -582,6 +604,11 @@ class XMLDiffer(object):
                     newelement.tail = element.tail
                     newelement.set("ctx-id" , element.get("ctx-id"))
                     parent.replace(element,newelement)
+            elif actionname == "delete" and select != ".":
+                searching = select.split("/")[0]
+                alternatives = element.xpath("*/@ctx-id")
+                close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
+                self.iface.warn("No se encontró el elemento %s entre %s y no se eliminó nada" % (searching,close_matches))
             elif actionname == "insert-after" and select == ".":
                 added = deepcopy(action[0])
                 tail = element.tail
@@ -595,7 +622,11 @@ class XMLDiffer(object):
                     subn.tail = None
                 
             elif actionname == "insert-after" and select != ".":
-                self.iface.info("No se encontró el elemento y se agregó al final -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
+                searching = select.split("/")[0]
+                alternatives = element.xpath("*/@ctx-id")
+                close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
+            
+                self.iface.warn("No se encontró el elemento %s entre %s y se agregó el nodo al final" % (searching,close_matches))
                 added = deepcopy(action[0])
                 tail = element.text
                 try: previous = element.getchildren()[-1]; prev_tail = previous.tail

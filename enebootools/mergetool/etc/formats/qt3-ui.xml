@@ -60,6 +60,35 @@
                 </if-then-else>
             </context-information>
         </entity>
+        <entity name="verysimpleobj">
+            <search>
+                <xpath>/UI//*[@name]</xpath>
+            </search>
+            <context-information>
+                <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
+                <xpath name="name">@name</xpath>
+                <if-then-else name="scope">
+                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <value name="then">none</value>
+                    <value name="else">global</value>
+                </if-then-else>
+            </context-information>
+        </entity>
+        <entity name="simpleobj">
+            <search>
+                <xpath>/UI//action[property/@name]</xpath>
+                <xpath>/UI//toolbar[property/@name]</xpath>
+            </search>
+            <context-information>
+                <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
+                <xpath name="name">property[@name='name']/cstring/text()</xpath>
+                <if-then-else name="scope">
+                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <value name="then">none</value>
+                    <value name="else">global</value>
+                </if-then-else>
+            </context-information>
+        </entity>
         <entity name="object">
             <search>
                 <xpath>/UI//*[property/@name]</xpath>
@@ -74,7 +103,19 @@
                 </if-then-else>
             </context-information>
         </entity>
-        <entity name="object">
+        <entity name="connection">
+            <search>
+                <xpath>/UI/connections/connection</xpath>
+            </search>
+            <context-information>
+                <xpath name="class">sender/text()</xpath>
+                <xpath name="name">signal/text()</xpath>
+                <xpath name="other1">receiver/text()</xpath>
+                <xpath name="other2">slot/text()</xpath>
+                <value name="scope">global</value>
+            </context-information>
+        </entity>
+        <entity name="includehint">
             <search>
                 <xpath>/UI/includehints/includehint</xpath>
             </search>
