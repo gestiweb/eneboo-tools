@@ -4,7 +4,7 @@ from enebootools import EnebooToolsInterface
 import enebootools.parseargs as pa
 import sys, traceback
 
-from enebootools.mergetool import flpatchqs, flpatchxml, flpatchlxml
+from enebootools.mergetool import flpatchqs, flpatchxml, flpatchlxml, flpatchdir
 
 """
     El receptor de las llamadas del parser es una clase. Cada opción
@@ -119,6 +119,32 @@ class MergeToolInterface(EnebooToolsInterface):
             level = "parser",
             call_function = self.set_quiet
             )
+            
+        self.folder_diff_action = self.parser.declare_action(
+            name = "folder-diff",
+            args = ["patchdir","basedir","finaldir"],
+            options = [],
+            description = u"Genera en $patchdir una colección de parches de la diferencia entre las carpetas $basedir y $finaldir",
+            call_function = self.do_folder_diff,
+            )
+        self.folder_diff_action.set_help_arg(
+            patchdir = "Carpeta donde guardar las diferencias",
+            basedir = "Carpeta a leer como referencia",
+            finaldir = "Carpeta a comparar",
+            )                
+            
+        self.folder_patch_action = self.parser.declare_action(
+            name = "folder-patch",
+            args = ["patchdir","basedir","finaldir"],
+            options = [],
+            description = u"Aplica los parches en $patchdir a la carpeta $basedir y genera $finaldir",
+            call_function = self.do_folder_patch,
+            )
+        self.folder_patch_action.set_help_arg(
+            patchdir = "Carpeta donde leer las diferencias",
+            basedir = "Carpeta a leer como referencia",
+            finaldir = "Carpeta a aplicar los cambios",
+            )                
 
         self.file_diff_action = self.parser.declare_action(
             name = "file-diff",
@@ -268,6 +294,19 @@ class MergeToolInterface(EnebooToolsInterface):
         print traceback.format_exc()
     
     # :::: ACTIONS ::::
+
+    def do_folder_diff(self, basedir, finaldir, patchdir):
+        try:
+            return flpatchdir.diff_folder(self, basedir, finaldir, patchdir)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_folder_patch(self, basedir, finaldir, patchdir):
+        try:
+            return flpatchdir.patch_folder(self, basedir, finaldir, patchdir)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
     
     def do_file_diff(self, ext, base, final):
         try:
