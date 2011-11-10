@@ -428,14 +428,14 @@ def diff_lxml(iface, base, final):
     root, ext1 = os.path.splitext(base)
     root, ext2 = os.path.splitext(final)
     if ext1 != ext2:
-        iface.warn("Comparando ficheros de extensiones diferentes.")
+        iface.warn(u"Comparando ficheros de extensiones diferentes.")
     
     formats = config_tree.xpath("/etc/formats/format[filetype/text()=$ext]/@name", ext=ext1)
     if len(formats) == 0:
-        iface.error("No tenemos ningún plugin que reconozca esta extensión")
+        iface.error(u"No tenemos ningún plugin que reconozca esta extensión")
         return
     if len(formats) > 1:
-        iface.warn("Había más de un formato y hemos probado el primero %s" % (repr(formats)))
+        iface.warn(u"Había más de un formato y hemos probado el primero %s" % (repr(formats)))
     format_name = formats[0]        
     format = config_tree.xpath("/etc/formats/format[@name=$format_name]", format_name=format_name)[0]
     
@@ -450,10 +450,10 @@ def diff_lxml(iface, base, final):
     style_name = iface.patch_xml_style_name
     styles = config_tree.xpath("/etc/patch-styles/patch-style[@name=$name]", name=style_name)
     if len(styles) == 0:
-        iface.error("No tenemos ningún estilo de patch que se llame %s" % style_name)
+        iface.error(u"No tenemos ningún estilo de patch que se llame %s" % style_name)
         return
     if len(styles) > 1:
-        iface.warn("Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
+        iface.warn(u"Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
     
     style= styles[0]
     
@@ -480,7 +480,7 @@ def patch_lxml(iface, patch, base):
         iface.error("No tenemos ningún plugin que reconozca esta extensión")
         return
     if len(formats) > 1:
-        iface.warn("Había más de un formato y hemos probado el primero %s" % (repr(formats)))
+        iface.warn(u"Había más de un formato y hemos probado el primero %s" % (repr(formats)))
     format_name = formats[0]        
     format = config_tree.xpath("/etc/formats/format[@name=$format_name]", format_name=format_name)[0]
     
@@ -488,17 +488,17 @@ def patch_lxml(iface, patch, base):
         file_base = open(base, "r")
         file_patch = open(patch, "r")
     except IOError, e:
-        iface.error("Error al abrir el fichero base o parche: " + str(e))
+        iface.error(u"Error al abrir el fichero base o parche: " + str(e))
         return
         
     
     style_name = iface.patch_xml_style_name
     styles = config_tree.xpath("/etc/patch-styles/patch-style[@name=$name]", name=style_name)
     if len(styles) == 0:
-        iface.error("No tenemos ningún estilo de patch que se llame %s" % style_name)
+        iface.error(u"No tenemos ningún estilo de patch que se llame %s" % style_name)
         return
     if len(styles) > 1:
-        iface.warn("Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
+        iface.warn(u"Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
     
     style= styles[0]
     

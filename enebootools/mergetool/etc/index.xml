@@ -3,6 +3,7 @@
     <formats>
         <xi:include href="formats/qt3-ui.xml"/>
         <xi:include href="formats/aq23-mtd.xml"/>
+        <xi:include href="formats/aq23-xml.xml"/>
     </formats>
     <patch-styles>
         <xi:include href="patch-styles/legacy1.xml"/>
