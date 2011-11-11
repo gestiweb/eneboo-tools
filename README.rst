@@ -3,12 +3,30 @@ Proyecto Eneboo-tools (Guía superrapida)
 
 Actualmente solo se provee del comando eneboo-mergetool.
 
+Dependencias
+---------------------
+
+Como mínimo, se necesita:
+    * python 2.5 
+    * lxml (python-lxml)
+        * libxml2
+        * libxslt
+    
+Para tener el programa funcionando, se recomienda:
+    * python 2.6 o superior. (no es compatible con Python 3.X)
+    * lxml (python-lxml) (Parser de XML)
+    * psycopg (python-psycopg) (Driver de base de datos PostgreSQL)
+    * pyqt4 (python-pyqt4) (Enlace de Qt4 para GUI)
+    
+
 Instalación
 ---------------------
 
-Se recomienda enlazarlo a /usr/local/bin para poder llamarlo desde cualuquier sitio::
+No hay aún instalación, pero se recomienda enlazarlo a /usr/local/bin para 
+poder llamarlo desde cualuquier sitio::
 
     $ sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
+
 
 Uso
 -------------------
