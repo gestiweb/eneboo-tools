@@ -19,16 +19,16 @@
 
 <xsl:template match="/xml-patch/patch-node/subnode[@action='noop']" />
 
-<xsl:template match="/xml-patch/patch-node/subnode[@action='insert' and count(preceding-sibling::subnode) > 0]">
+<xsl:template match="/xml-patch/patch-node/subnode[@action='insert' and count(preceding-sibling::subnode[@action!='delete']) > 0]">
     <xupdate:insert-after>
         <xsl:attribute name="select">
-            <xsl:value-of select="concat(../@select, '/', (preceding-sibling::subnode)[last()]/@select)" />
+            <xsl:value-of select="concat(../@select, '/', (preceding-sibling::subnode[@action!='delete'])[last()]/@select)" />
         </xsl:attribute>        
         <xsl:apply-templates select="node()"/>
     </xupdate:insert-after>
 </xsl:template>
 
-<xsl:template match="/xml-patch/patch-node/subnode[@action='insert' and count(preceding-sibling::subnode) = 0]">
+<xsl:template match="/xml-patch/patch-node/subnode[@action='insert' and count(preceding-sibling::subnode[@action!='delete']) = 0]">
     <xupdate:append-first>
         <xsl:attribute name="select">
             <xsl:value-of select="../@select" />

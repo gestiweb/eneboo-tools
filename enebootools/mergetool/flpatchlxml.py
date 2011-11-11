@@ -774,6 +774,7 @@ def diff_lxml(iface, base, final):
     xmldiff.compare()
     #xbase.clean()
     iface.output.write(xmldiff.patch_output())
+    return True
 
 
 

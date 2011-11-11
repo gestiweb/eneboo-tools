@@ -189,6 +189,7 @@ def extract_classes(iface,clfinal,flfinal,classes2extract):
         iface.output.write("\n")
         
     iface.output.write("\n")
+    return True
         
 
 def check_qs_classes(iface, base):
@@ -362,6 +363,9 @@ def patch_qs(iface, base, patch):
                         u"tomará precedencia por encima del extends %s" % (
                         newclass, cfrom, extends) )
             extends = cfrom
+            #iface.debug(u"class %s: Se ha especificado un %%from %s, "
+            #            u"pero se ignora y dejamos el extends %s" % (
+            #            newclass, cfrom, extends) )
         if extends not in clbase['classes']:
             iface.error(u"La clase %s debía heredar de %s, pero no "
                         u"la encontramos en el fichero base." % (newclass,extends))

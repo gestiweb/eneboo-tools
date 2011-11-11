@@ -327,11 +327,11 @@ class FolderCreatePatch(object):
     def compute_patch_script(self, patchscript):
         path = patchscript.get("path")
         filename = patchscript.get("name")
-        # TODO _________________________-
-        return
+
         pathname = os.path.join(path, filename)
         dst = os.path.join(self.patchdir,filename)
-        src = os.path.join(folder,pathname)
+        base = os.path.join(self.basedir,pathname)
+        final = os.path.join(self.finaldir,pathname)
         
         self.iface.debug("Generando parche QS %s . . ." % filename)
         old_output = self.iface.output
@@ -339,40 +339,32 @@ class FolderCreatePatch(object):
         self.iface.verbosity -= 2
         if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
         self.iface.set_output_file(dst)
-        ret = flpatchqs.diff_qs(self.iface,dst,src)
+        ret = flpatchqs.diff_qs(self.iface,base,final)
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
         if not ret:
-            self.iface.warn("Pudo haber algún problema aplicando el parche QS para %s" % filename)
-        os.unlink(dst)
-        os.rename(dst+".patched",dst)
+            self.iface.warn("Pudo haber algún problema generando el parche QS para %s" % filename)
                 
     def compute_patch_xml(self, patchxml):
         path = patchxml.get("path")
         filename = patchxml.get("name")
-        return # TODO: ----- TODO -----
         
         pathname = os.path.join(path, filename)
-        src = os.path.join(self.patchdir,filename)
-        dst = os.path.join(folder,pathname)
+        dst = os.path.join(self.patchdir,filename)
+        base = os.path.join(self.basedir,pathname)
+        final = os.path.join(self.finaldir,pathname)
         
-        if not os.path.exists(dst):
-            self.iface.warn("Ignorando parche XML para %s (el fichero no existe)" % filename)
-            return
-        self.iface.debug("Aplicando parche XML %s . . ." % filename)
+        self.iface.debug("Generando parche XML %s . . ." % filename)
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
         self.iface.verbosity -= 2
         if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
-        self.iface.set_output_file(dst+".patched")
-        ret = flpatchlxml.patch_lxml(self.iface,src,dst)
+        self.iface.set_output_file(dst)
+        ret = flpatchlxml.diff_lxml(self.iface,base,final)
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
         if not ret:
-            self.iface.warn("Pudo haber algún problema aplicando el parche XML para %s" % filename)
-
-        os.unlink(dst)
-        os.rename(dst+".patched",dst)
+            self.iface.warn("Pudo haber algún problema generando el parche XML para %s" % filename)
         
 
 

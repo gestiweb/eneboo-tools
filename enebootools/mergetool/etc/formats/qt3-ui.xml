@@ -89,6 +89,7 @@
         <entity name="verysimpleobj">
             <tags>
                 <tag>item</tag>
+                <tag>image</tag>
             </tags>
             <search>
                 <xpath>.//*[@name]</xpath>
