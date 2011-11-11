@@ -204,29 +204,83 @@ class XMLFormatParser(object):
             
         for element in self.root.xpath("//*[@ctx-id]"):
             del element.attrib["ctx-id"]
-
-        for element in self.root.xpath("//*[not(text()) and ./*]"):
-            parent_level = None
-            parent = element.getparent()
-            if parent is not None: parent_level = parent.text
-            if parent_level is None: 
-                parent_level = ""
-                increment = "    "
+        
+        reindent_items = self.root.xpath("//*[not(text()) and ./*]")
+        if reindent_items:
+            # Detectar indentado:
+            indent = None
+            parent_text = None
+            depth = -1
+            for element in self.root.iter():
+                if len(element) == 0 : continue
+                parent_text = element.text 
+                subelement = None
+                for sub in element:
+                    if sub.tail and parent_text is None: parent_text = sub.tail
+                    if len(sub) == 0 : continue
+                    if sub.text is None: continue
+                    subelement = sub
+                    break
+                if subelement is None: continue
+                if parent_text is None: continue
+                child_text = subelement.text
+                parent_text = parent_text[parent_text.find("\n"):]
+                child_text = child_text[child_text.find("\n"):]
+                indent = child_text[len(parent_text):] 
+                depth = int(element.xpath("count(ancestor::*)"))
+                if child_text.startswith(parent_text):
+                    break
+            if parent_text: parent_text = parent_text[1:]
+            reindent_config = depth, parent_text, indent
+            #print depth, repr(parent_text), repr(indent)
+            
+        for element in reindent_items:
+            re_depth, re_parent, re_indent = reindent_config
+            if depth == -1:
+                parent_level = None
+                parent = element.getparent()
+                if parent is not None: parent_level = parent.text
+                if parent_level is None: 
+                    parent_level = "\n"
+                    increment = "    "
+                else:
+                    grandparent_level = None
+                    grandparent = parent.getparent()
+                    if grandparent is not None: grandparent_level = grandparent.text
+            
+                    if grandparent_level : increment = parent_level.replace(grandparent_level,"")
+                    else: increment = "    "
+                child_level = parent_level + increment     
+                re_indent = increment       
             else:
-                grandparent_level = None
-                grandparent = parent.getparent()
-                if grandparent is not None: grandparent_level = grandparent.text
-            
-                if grandparent_level : increment = parent_level.replace(grandparent_level,"")
-                else: increment = "    "
-            
-            child_level = parent_level + increment            
+                depth = int(element.xpath("count(ancestor::*)"))
+                def create_indent(depth):
+                    ind_sz = len(re_indent)
+                    diff = int(depth - re_depth)
+                    if diff < 0:
+                        txt = "\n" + re_parent[:ind_sz*(diff)]
+                        # return "{" + txt
+                        return txt
+                    if diff > 0:
+                        txt = "\n" + re_parent + (re_indent * diff)
+                        #return "}" + txt
+                        return txt
+                    if diff == 0:
+                        txt = "\n" + re_parent 
+                        #return "=" + txt 
+                        return txt
+                parent_level = create_indent(depth-1)
+                child_level = create_indent(depth)
+                
+            #increment = "    "
+            #parent_level = "\n" + increment * (depth-1)
             
             #self.iface.debug2("Reindentando: %s" % self.tree.getpath(element))
             element.text = child_level
             for child in element[:-1]: child.tail = child_level
             element[-1].tail = parent_level
-            
+            if element.tail is None:
+                element.tail = parent_level
             
             
 
@@ -310,6 +364,7 @@ class XMLDiffer(object):
         if self.xfinal.root is not None: 
             doc = self.apply_pre_save_final(self.xfinal.root)
             doctype = unicode(self.xfinal.tree.docinfo.doctype).encode(self.xfinal.encoding)
+            if doctype: doctype += "\n"
             if isinstance(doc, etree._Element):
                 return doctype + _xf(doc,xml_declaration=False,cstring=True, encoding=self.xfinal.encoding)
             else:
