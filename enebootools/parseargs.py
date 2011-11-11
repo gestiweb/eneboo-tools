@@ -300,6 +300,9 @@ class ArgParser(object):
     
     def parse2(self, parse_count = 0):
         self.parse_count = parse_count
+        if 'h' in self.parse.shortopts: 
+            self.parse.options.append("help")
+            self.parse.values["help"] = None
         if 'help' in self.parse.options:
             if len(self.parse.actions) == self.parse_count:
                 help_value = self.parse.values['help']

@@ -147,6 +147,23 @@ class FolderPatch(object):
 def diff_folder(iface, basedir, finaldir, patchdir):
     iface.debug(u"Folder Diff $basedir:%s $finaldir:%s $patchdir:%s" % (basedir,finaldir,patchdir))
     # patchdir no debe existir
+    parent_patchdir = os.path.abspath(os.path.join(patchdir,".."))
+    if not os.path.exists(parent_patchdir):
+        iface.error("La ruta %s no existe" % parent_patchdir)
+        return
+    if os.path.lexists(patchdir):
+        iface.error("La ruta a $finaldir %s ya existía. No se continua. " % patchdir)
+        return
+    if not os.path.exists(basedir):
+        iface.error("La ruta %s no existe" % basedir)
+        return
+    if not os.path.exists(finaldir):
+        iface.error("La ruta %s no existe" % finaldir)
+        return
+        
+    os.mkdir(patchdir)
+    
+    
     
     
     
