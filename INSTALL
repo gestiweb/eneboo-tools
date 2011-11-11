@@ -1,0 +1,8 @@
+
+El proceso de instalación aún no está definido.
+
+La instalación típica es crear manualmente un enlace simbólico de 
+cada utilidad a /usr/local/bin
+
+sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
+
