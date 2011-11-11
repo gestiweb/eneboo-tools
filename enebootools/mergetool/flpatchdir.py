@@ -3,18 +3,43 @@ from lxml import etree
 from copy import deepcopy
 import os, os.path, shutil
 import difflib, time
+import hashlib, fnmatch
 
 from enebootools.mergetool import flpatchqs, flpatchlxml
 
 def filepath(): return os.path.abspath(os.path.dirname(__file__))
 def filedir(x): return os.path.abspath(os.path.join(filepath(),x))
 
+def hash_file(dirname, filename):
+    f1 = open(os.path.join(dirname, filename))
+    sha = hashlib.sha224()
+    while True:
+        chunk = f1.read(4096)
+        if not chunk: break
+        sha.update(chunk)
+    return sha.hexdigest()
+    
+def _xf(x, cstring = False, **kwargs): #xml-format
+    if type(x) is list: return "\n---\n\n".join([ _xf(x1) for x1 in x ])
+    if 'encoding' not in kwargs: 
+        kwargs['encoding'] = "UTF8"
+    if 'pretty_print' not in kwargs: 
+        kwargs['pretty_print'] = True
+        
+    value = etree.tostring(x, **kwargs)
+    if cstring:
+        return value
+    else:
+        return unicode(value , kwargs['encoding'])
 
-class FolderPatch(object):
+class FolderApplyPatch(object):
     def __init__(self, iface, patchdir):
         self.iface = iface
         if patchdir[-1] == "/": patchdir = patchdir[:-1]
-        self.patch_name = os.path.basename(patchdir)
+        if self.iface.patch_name:
+            self.patch_name = self.iface.patch_name
+        else:
+            self.patch_name = os.path.basename(patchdir)
         expected_file = self.patch_name + ".xml"
         self.patch_dir = None
         for root, dirs, files in os.walk(patchdir):
@@ -38,7 +63,7 @@ class FolderPatch(object):
         self.root = self.tree.getroot()
     
     def patch_folder(self, folder):
-        for action in self.root.xpath("/modifications/*"):
+        for action in self.root:
             actionname = action.tag
             if actionname.startswith("{"):
                 actionname = action.tag.split("}")[1]
@@ -50,6 +75,7 @@ class FolderPatch(object):
             elif actionname == "replacefile": self.replace_file(action, folder)
             elif actionname == "patchscript": self.patch_script(action, folder)
             elif actionname == "patchxml": self.patch_xml(action, folder)
+            # TODO: actionname == "patchphp" 
             else: self.iface.warn("** Se ha ignorado acción desconocida %s **" % repr(actionname))
             tend = time.time()
             tdelta = tend - tbegin
@@ -139,8 +165,214 @@ class FolderPatch(object):
         os.rename(dst+".patched",dst)
         
         
+class FolderCreatePatch(object):
+    nsmap = {
+        'flpatch' : "http://www.abanqg2.com/es/directori/abanq-ensambla/?flpatch",
+    }
+    def __init__(self, iface, basedir, finaldir, patchdir):
+        self.iface = iface
+        if patchdir[-1] == "/": patchdir = patchdir[:-1]
+        if self.iface.patch_name:
+            self.patch_name = self.iface.patch_name
+        else:
+            self.patch_name = os.path.basename(patchdir)
+        expected_file = self.patch_name + ".xml"
+        self.patchdir = patchdir
+        self.basedir = basedir
+        self.finaldir = finaldir
+
+        self.patch_filename = os.path.join(self.patchdir, expected_file)
+        
+        self.encoding = "iso-8859-15"
+        # <flpatch:modifications name="patchname" >
+        self.root = etree.Element("{%s}modifications" % self.nsmap['flpatch'], name=self.patch_name, nsmap=self.nsmap)
+        self.tree = self.root.getroottree()
+        ignored_files = [
+            "*~",
+            ".*",
+            "*.bak",
+            "*.bakup",
+            "*.tar.gz",
+            "*.tar.bz2",
+            "*.BASE.*",
+            "*.LOCAL.*",
+            "*.REMOTE.*",
+            "*.*.rej",
+            "*.*.orig",
+        ]
+        basedir_files = set([])
+        
+        for root, dirs, files in os.walk(basedir):
+            baseroot = root[len(basedir)+1:]
+            for pattern in ignored_files:
+                delfiles = fnmatch.filter(files, pattern)
+                for f in delfiles: files.remove(f)
                 
+            for filename in files:
+                basedir_files.add( os.path.join( baseroot, filename ) ) 
+
+        finaldir_files = set([])
+    
+        for root, dirs, files in os.walk(finaldir):
+            baseroot = root[len(finaldir)+1:]
+            for pattern in ignored_files:
+                delfiles = fnmatch.filter(files, pattern)
+                for f in delfiles: files.remove(f)
+
+            for filename in files:
+                finaldir_files.add( os.path.join( baseroot, filename ) ) 
+    
+        self.added_files = finaldir_files - basedir_files
+        self.deleted_files = basedir_files - finaldir_files
+        self.common_files = finaldir_files & basedir_files
+        #print "+" , self.added_files
+        #print "-" , self.deleted_files
+        #print "=" , self.common_files
+        
+        iface.debug("Calculando diferencias . . . ")
+        for filename in self.added_files:
+            self.add_file(filename)
+
+        for filename in self.common_files:
+            self.compare_file(filename)
+        
+        for filename in self.deleted_files:
+            self.remove_file(filename)
+        
+    def create_action(self, actionname, filename):
+        path, name = os.path.split(filename)
+        if not path.endswith("/"): path += "/"
+        newnode = etree.SubElement(self.root, "{%s}%s" % (self.nsmap['flpatch'], actionname), path = path, name = name)
+        return newnode
+
+    def add_file(self, filename):  
+        # flpatch:addFile
+        self.create_action("addFile",filename)
+        
+    def compare_file(self, filename):
+        # Hay que comparar si son iguales o no
+        base_hexdigest = hash_file(self.basedir, filename)
+        final_hexdigest = hash_file(self.finaldir, filename)
+        if final_hexdigest == base_hexdigest: return
+        
+        script_exts = ".qs".split(" ")
+        xml_exts = ".xml .ui .mtd".split(" ")
+        php_exts = ".php".split(" ")
+        
+        path, name = os.path.split(filename)
+        froot, ext = os.path.splitext(name)
+        
+        if ext in script_exts:
+            # flpatch:patchScript
+            self.create_action("patchScript",filename)
+        elif ext in xml_exts:
+            # flpatch:patchXml
+            self.create_action("patchXml",filename)
+        #elif ext in php_exts:
+        # TODO: flpatch:patchPhp 
+        else:        
+            # flpatch:replaceFile
+            self.create_action("replaceFile",filename)
+        
+    def remove_file(self, filename):
+        self.iface.warn("Se detectó borrado del fichero %s, pero flpatch no soporta esto. No se guardará este cambio." % filename)
+        
+    def create_patch(self):
+        for action in self.root:
+            actionname = action.tag
+            if actionname.startswith("{"):
+                actionname = action.tag.split("}")[1]
+            actionname = actionname.lower()
             
+            tbegin = time.time()
+            
+            if actionname == "addfile": self.compute_add_file(action)
+            elif actionname == "replacefile": self.compute_replace_file(action)
+            elif actionname == "patchscript": self.compute_patch_script(action)
+            elif actionname == "patchxml": self.compute_patch_xml(action)
+            # TODO: actionname == "patchphp" 
+            else: self.iface.warn("** Se ha ignorado acción desconocida %s **" % repr(actionname))
+            tend = time.time()
+            tdelta = tend - tbegin
+            if tdelta > 1:
+                self.iface.debug("La operación tomó %.2f segundos" % tdelta)
+                
+        f1 = open(self.patch_filename,"w")
+        f1.write(_xf(self.root,xml_declaration=False,cstring=True,encoding=self.encoding))
+        f1.close()
+
+    def compute_add_file(self, addfile):            
+        path = addfile.get("path")
+        filename = addfile.get("name")
+        
+        pathname = os.path.join(path, filename)
+        self.iface.debug("Copiando fichero %s (nuevo) . . ." % filename)
+        dst = os.path.join(self.patchdir,filename)
+        src = os.path.join(self.finaldir,pathname)
+        
+        shutil.copy(src, dst)
+            
+    
+    def compute_replace_file(self, replacefile):            
+        path = replacefile.get("path")
+        filename = replacefile.get("name")
+        
+        pathname = os.path.join(path, filename)
+        src = os.path.join(self.finaldir,pathname)
+        
+        self.iface.debug("Copiando fichero %s (reemplazado) . . ." % filename)
+        dst = os.path.join(self.patchdir,filename)
+        shutil.copy(src, dst)
+                
+    def compute_patch_script(self, patchscript):
+        path = patchscript.get("path")
+        filename = patchscript.get("name")
+        # TODO _________________________-
+        return
+        pathname = os.path.join(path, filename)
+        dst = os.path.join(self.patchdir,filename)
+        src = os.path.join(folder,pathname)
+        
+        self.iface.debug("Generando parche QS %s . . ." % filename)
+        old_output = self.iface.output
+        old_verbosity = self.iface.verbosity
+        self.iface.verbosity -= 2
+        if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
+        self.iface.set_output_file(dst)
+        ret = flpatchqs.diff_qs(self.iface,dst,src)
+        self.iface.output = old_output 
+        self.iface.verbosity = old_verbosity
+        if not ret:
+            self.iface.warn("Pudo haber algún problema aplicando el parche QS para %s" % filename)
+        os.unlink(dst)
+        os.rename(dst+".patched",dst)
+                
+    def compute_patch_xml(self, patchxml):
+        path = patchxml.get("path")
+        filename = patchxml.get("name")
+        return # TODO: ----- TODO -----
+        
+        pathname = os.path.join(path, filename)
+        src = os.path.join(self.patchdir,filename)
+        dst = os.path.join(folder,pathname)
+        
+        if not os.path.exists(dst):
+            self.iface.warn("Ignorando parche XML para %s (el fichero no existe)" % filename)
+            return
+        self.iface.debug("Aplicando parche XML %s . . ." % filename)
+        old_output = self.iface.output
+        old_verbosity = self.iface.verbosity
+        self.iface.verbosity -= 2
+        if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
+        self.iface.set_output_file(dst+".patched")
+        ret = flpatchlxml.patch_lxml(self.iface,src,dst)
+        self.iface.output = old_output 
+        self.iface.verbosity = old_verbosity
+        if not ret:
+            self.iface.warn("Pudo haber algún problema aplicando el parche XML para %s" % filename)
+
+        os.unlink(dst)
+        os.rename(dst+".patched",dst)
         
 
 
@@ -162,7 +394,11 @@ def diff_folder(iface, basedir, finaldir, patchdir):
         return
         
     os.mkdir(patchdir)
+
+    fpatch = FolderCreatePatch(iface, basedir, finaldir, patchdir)
+    fpatch.create_patch()
     
+
     
     
     
@@ -194,7 +430,7 @@ def patch_folder(iface, basedir, finaldir, patchdir):
         iface.debug("Copiando %s . . . " % node)
         shutil.copytree(src,dst)
     
-    fpatch = FolderPatch(iface, patchdir)
+    fpatch = FolderApplyPatch(iface, patchdir)
     fpatch.patch_folder(finaldir)
         
 

@@ -69,6 +69,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.patch_qs_rewrite = "abort"
         self.patch_xml_style_name = "legacy1"
         self.diff_xml_search_move = False
+        self.patch_name = None
         if setup_parser: self.setup_parser()
         
     def setup_parser(self):
@@ -90,6 +91,13 @@ class MergeToolInterface(EnebooToolsInterface):
             level = "action",
             variable = "VALUE", 
             call_function = self.set_patch_qs_rewrite
+            )
+        self.parser.declare_option(
+            name = "patch-name",
+            description = u"Indica el nombre del parche que se usará en lugar de autodetectarlo.",
+            level = "action",
+            variable = "NAME", 
+            call_function = self.set_patch_name
             )
         self.parser.declare_option(
             name = "enable-diff-xml-search-move",
@@ -123,7 +131,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.folder_diff_action = self.parser.declare_action(
             name = "folder-diff",
             args = ["patchdir","basedir","finaldir"],
-            options = [],
+            options = ["patch-name"],
             description = u"Genera en $patchdir una colección de parches de la diferencia entre las carpetas $basedir y $finaldir",
             call_function = self.do_folder_diff,
             )
@@ -136,7 +144,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.folder_patch_action = self.parser.declare_action(
             name = "folder-patch",
             args = ["patchdir","basedir","finaldir"],
-            options = [],
+            options = ["patch-name"],
             description = u"Aplica los parches en $patchdir a la carpeta $basedir y genera $finaldir",
             call_function = self.do_folder_patch,
             )
@@ -218,7 +226,11 @@ class MergeToolInterface(EnebooToolsInterface):
             if ret: return ret
         
         self.action_chain = []
-                
+              
+    def set_patch_name(self, name):
+        if name == "": name = None
+        self.patch_name = name
+        
     def set_output_file(self, filename):
         self.output_file_name = filename
         self.output = open(filename, "w")
