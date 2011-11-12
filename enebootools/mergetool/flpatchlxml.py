@@ -1,7 +1,7 @@
 #encoding: UTF-8
 from lxml import etree
 from copy import deepcopy
-import os.path
+import os.path, time
 import difflib, re
 
 def filepath(): return os.path.abspath(os.path.dirname(__file__))
@@ -67,6 +67,16 @@ class XMLFormatParser(object):
         return True
         
     def evaluate(self, elem, from_elem = None):
+        #t1 = time.time()
+        ret = self._evaluate(elem, from_elem)
+        #t2 = time.time()
+        #tdeltams = (t2-t1) * 1000
+        #if tdeltams > 10:
+        #    self.iface.info2("Evaluating %s (%.2f ms)" % (etree.tostring(elem),tdeltams))
+
+        return ret
+        
+    def _evaluate(self, elem, from_elem = None):
         if elem is None: return None
         if elem.text: text = elem.text.strip()
         else: text = ""
@@ -93,7 +103,7 @@ class XMLFormatParser(object):
             elif elem.tag == "xpath": 
                 kwvars = {}
                 for elem in elem.xpath("*[@name]"):
-                    kwvars[elem.get("name")] = self.evaluate(elem,from_elem)
+                    kwvars[elem.get("name")] = self._evaluate(elem,from_elem)
                 return sxpath(text,**kwvars)
             elif elem.tag == "format": 
                 format_string = elem.get("text")
@@ -101,7 +111,7 @@ class XMLFormatParser(object):
                 kwargs = {}
                 for elem in elem.xpath("*"):
                     name = elem.get("name")
-                    value = self.evaluate(elem,from_elem)
+                    value = self._evaluate(elem,from_elem)
                     if name: kwargs[name] = value
                     else: args.append(value)
                 return format_string.format(*args,**kwargs)
@@ -109,14 +119,14 @@ class XMLFormatParser(object):
                 join_string = elem.get("join")
                 args = []
                 for elem in elem.xpath("*"):
-                    value = self.evaluate(elem,from_elem)
+                    value = self._evaluate(elem,from_elem)
                     if value is not None and value != "": args.append(value)
                 return join_string.join(args)
             elif elem.tag == "value": return text
             elif elem.tag == "if-then-else": 
                 kwvars = {}
                 for elem in elem.xpath("*[@name]"):
-                    kwvars[elem.get("name")] = self.evaluate(elem,from_elem)
+                    kwvars[elem.get("name")] = self._evaluate(elem,from_elem)
                 if kwvars['if']:
                     return kwvars.get('then')
                 else:
@@ -127,43 +137,62 @@ class XMLFormatParser(object):
             return None
 
     def load_default_entity(self, elem):
-        tree = elem.getroottree()
-        search_xpath = tree.getpath(elem) + "/../*"
+        search_xpath = "."
         entity_name = "default"
-        default_ctx = self.format.xpath("entities/default/context-information/*")
-        self.load_entity(entity_name, default_ctx, search_xpath, self.context_items)
+        if self.default_ctx is None:
+            self.default_ctx = self.format.xpath("entities/default/context-information/*")
+        self.load_entity(entity_name, self.default_ctx, search_xpath, self.context_items, elem)
     
     def load_entity(self, entity_name, context_info, search_xpath, context_items = [], root = None):
         # self.iface.debug2("Aplicando entidad %s a los elementos %s" % (entity_name,search_xpath))
+        #tstart = time.time()
         if root is None: root = self.root
-        else: root = root.getparent()
+        #search_xpath = "(%s)[not(ancestor-or-self::context-information)]" % search_xpath
         try:
-            search = root.xpath(search_xpath)
+            search = list(root.xpath(search_xpath))
         except Exception, e:
             self.iface.error("search_xpath: " + search_xpath)
             raise
+        nsz = len(search)
+        processed = 0
+        #tinit = time.time()
         for element in search:
+            parent = element.getparent()
+            if parent is not None:
+                if parent.tag == "context-information": continue
             if element.xpath("context-information"): continue
-            if element.xpath("ancestor-or-self::context-information"): continue
-            ctx = etree.SubElement(element, "context-information", entity = entity_name)
-            context_items.append(ctx)
+            
             ctx_pending_names = set([])
             ctxdict = {}
             for ctxopt in context_info:
                 name = ctxopt.get("name")
+                if not name: continue
+                
                 ctx_pending_names.add(name)
-                if name:
-                    if name not in ctxdict:
-                        value = self.evaluate(ctxopt, element)
-                        if value is not None:
-                            ctxdict[name] = value
-                            ctx.set(name,unicode(value))
+                if name in ctxdict: continue
+                
+                value = self.evaluate(ctxopt, element)
+                if value is None: continue
+                
+                ctxdict[name] = unicode(value)
+                # ctx.set(name,unicode(value))
                         
+            ctx = etree.SubElement(element, "context-information", entity = entity_name, **ctxdict)
+            context_items.append(ctx)
+
             for name, value in ctxdict.items():
                 ctx_pending_names.remove(name)
                 
             for name in ctx_pending_names:
                 self.iface.debug("Regla de contexto sin valor: %s" % name)
+            processed += 1
+                
+        #tend = time.time()
+        #tinitms = (tinit - tstart) * 1000
+        #tdeltams = (tend - tinit) * 1000
+        #if tdeltams + tinitms > 50:
+        #    self.iface.info2("%s:  %d/%d items, search_xpath: %s (time %.2fms + %.2fms)" % (entity_name, processed, nsz , search_xpath, tinitms, tdeltams))
+        
                 
         return True
         
@@ -173,16 +202,23 @@ class XMLFormatParser(object):
             self.default_ctx = self.format.xpath("entities/default/context-information/*")
         if self.entities is None:
             self.entities = self.format.xpath("entities/entity")
+            self.entities_ctx= {}
+            self.entities_tags= {}
+            
         for entity in self.entities:
             entity_name = entity.get("name")
             if tag:
-                if ( not entity.xpath("tags/tag/text()[. = $tag]", tag = tag)
+                if entity_name not in self.entities_tags:
+                    self.entities_tags[entity_name] = entity.xpath("tags/tag/text()")
+                if ( tag not in self.entities_tags[entity_name]
                     and tag != entity_name
-                    ): continue
+                    ): 
+                    continue
+            if entity_name not in self.entities_ctx:
+                self.entities_ctx[entity_name] = entity.xpath("context-information/*")
                 
-            context_info = entity.xpath("context-information/*")
             for search_xpath in entity.xpath("search/xpath"):
-                ret = self.load_entity(entity_name, context_info + self.default_ctx, search_xpath.text.strip(), self.context_items, root)
+                ret = self.load_entity(entity_name, self.entities_ctx[entity_name] + self.default_ctx, search_xpath.text.strip(), self.context_items, root)
                 if not ret: return False
                 
         return True
@@ -190,6 +226,8 @@ class XMLFormatParser(object):
     def sname(self, elem, key, default = None):
         if len(elem.xpath("context-information")) == 0:
             self.load_default_entity(elem)
+        assert(len(elem.xpath("context-information")))
+        
             
         for entity in self.style.xpath("entities/*[@name=$key]",key = key):
             val = self.evaluate(entity,from_elem=elem)
@@ -359,6 +397,7 @@ class XMLDiffer(object):
                 return str(doc)
             
         else: return ""
+        
         
     def final_output(self):
         if self.xfinal.root is not None: 
@@ -587,7 +626,6 @@ class XMLDiffer(object):
         # cargado el mismo fichero que en base.
         # self.iface.info("Aplicando informacion contextual . . .")
         # self.xfinal.add_context_id()
-        
         self.iface.debug("Aplicando parche . . .")
         patch_fn = self.select_patch_applyfn()
         if patch_fn is None: return
@@ -622,12 +660,15 @@ class XMLDiffer(object):
                             tagname = m.group(1)
                             number = int(m.group(3))-1
                             elist = element.xpath(tagname)
+                            
                             try: newelement = elist[number]
                             except Exception, e: 
                                 self.iface.warn(e)
                                 newelement = None
                     
             if newelement is None: return element, "/".join([p0] + path)
+            elif newelement.get("ctx-id") != p0:
+                self.iface.info2("Seleccionamos %s cuando buscabamos %s" % (newelement.get("ctx-id"), p0))
             element = newelement
         self.xfinal.apply_one_id(element)
         return element, "."
@@ -641,84 +682,96 @@ class XMLDiffer(object):
     
 
     def patch_xupdate(self):
+        for action in self.patch: self.do_patch_action(action)
+    
+    def do_patch_action(self, action):
+        #tstart = time.time()
+        self._do_patch_action(action)
+        #tend = time.time()
+        #tdeltams = (tend - tstart) * 1000
+        #if tdeltams > 30:
+        #    ns = "{http://www.xmldb.org/xupdate}"
+        #    self.iface.msg("-- Accion %s %s , %.2f ms " % (action.tag.replace(ns,""), action.attrib["select"][-30:], tdeltams))
+    
+    def _do_patch_action(self, action):
         ns = "{http://www.xmldb.org/xupdate}"
-        for action in self.patch:
-            actionname = None
-            if not action.tag.startswith("{"):
-                actionname = action.tag
-            if action.tag.startswith(ns):
-                actionname = action.tag.replace(ns,"")
+        actionname = None
+        if not action.tag.startswith("{"):
+            actionname = action.tag
+        if action.tag.startswith(ns):
+            actionname = action.tag.replace(ns,"")
 
-            if actionname is None:
-                self.iface.warn("Tipo de tag no esperado: " + action.tag)
-                continue
-            select = _select = action.get("select")
+        if actionname is None:
+            self.iface.warn("Tipo de tag no esperado: " + action.tag)
+            return
+        select = _select = action.get("select")
+        element, select = self.resolve_select2(self.xfinal.root, select)
+        #if '/' in select:
+        #    self.xfinal.load_entities()
+        #    element, select = self.resolve_select2(self.xfinal.root, select)
             
-            element, select = self.resolve_select2(self.xfinal.root, select)
-            if '/' in select:
-                self.xfinal.load_entities()
-                element, select = self.resolve_select2(self.xfinal.root, select)
-                
-            if '/' in select:
-                searching = select.split("/")[0]
-                alternatives = element.xpath("*/@ctx-id")
-                close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
-                self.iface.warn("Error buscando el elemento %s entre %s" % (repr(searching),close_matches))
-                continue
+        if '/' in select:
+            searching = select.split("/")[0]
+            alternatives = element.xpath("*/@ctx-id")
+            close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
+            self.iface.warn("Error buscando el elemento %s entre %s" % (repr(searching),close_matches))
+            return
+        
+        if actionname == "update" and select == "text()":
+            element.text = action.text
+        elif actionname == "delete" and select == "text()":
+            element.text = None
+        elif actionname == "delete" and select == ".":
+            previous = element.getprevious()
+            if previous is not None:
+                previous.tail = element.tail
+            parent = element.getparent()
+            if parent is not None:
+                newelement  = etree.Element("delete-me-when-cleaning")
+                newelement.tail = element.tail
+                newelement.set("ctx-id" , element.get("ctx-id"))
+                parent.replace(element,newelement)
+        elif actionname == "delete" and select != ".":
+            searching = select.split("/")[0]
+            alternatives = element.xpath("*/@ctx-id")
+            close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
+            self.iface.warn("No se encontró el elemento %s entre %s y no se eliminó nada" % (searching,close_matches))
+        elif actionname == "insert-after" and select == ".":
+            added = deepcopy(action[0])
+            tail = element.tail
+            if tail is None: tail = ""
+            element.addnext(added)
+            element.tail = tail + "    "
+            parent = element.getparent()
+            parent.text = None
+            for subn in parent:
+                subn.tail = None
+            self.xfinal.load_entities(parent,added.tag)
             
-            if actionname == "update" and select == "text()":
-                element.text = action.text
-            elif actionname == "delete" and select == "text()":
-                element.text = None
-            elif actionname == "delete" and select == ".":
-                previous = element.getprevious()
-                if previous is not None:
-                    previous.tail = element.tail
-                parent = element.getparent()
-                if parent is not None:
-                    newelement  = etree.Element("delete-me-when-cleaning")
-                    newelement.tail = element.tail
-                    newelement.set("ctx-id" , element.get("ctx-id"))
-                    parent.replace(element,newelement)
-            elif actionname == "delete" and select != ".":
-                searching = select.split("/")[0]
-                alternatives = element.xpath("*/@ctx-id")
-                close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
-                self.iface.warn("No se encontró el elemento %s entre %s y no se eliminó nada" % (searching,close_matches))
-            elif actionname == "insert-after" and select == ".":
-                added = deepcopy(action[0])
-                tail = element.tail
-                if tail is None: tail = ""
-                element.addnext(added)
-                element.tail = tail + "    "
-                parent = element.getparent()
-                parent.text = None
-                for subn in parent:
-                    subn.tail = None
-                self.xfinal.load_entities(added,added.tag)
-                
-            elif actionname == "insert-after" and select != ".":
-                searching = select.split("/")[0]
-                alternatives = element.xpath("*/@ctx-id")
-                close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
-            
-                self.iface.warn("No se encontró el elemento %s entre %s y se agregó el nodo al final" % (searching,close_matches))
-                added = deepcopy(action[0])
-                tail = element.text
-                try: previous = element.getchildren()[-1]; prev_tail = previous.tail
-                except IndexError: previous = None; prev_tail = ""
-                element.append(added)
-                if previous is not None:
-                    added.tail = prev_tail
-                    previous.tail = tail
-                self.xfinal.load_entities(added,added.tag)
-            elif actionname == "append-first" and select == ".":
-                added = deepcopy(action[0])
-                tail = element.text
-                element.insert(0,added)
-                self.xfinal.load_entities(added,added.tag)
-            else:
-                self.iface.warn("Accion no aplicada -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
+        elif actionname == "insert-after" and select != ".":
+            searching = select.split("/")[0]
+            alternatives = element.xpath("*/@ctx-id")
+            close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
+        
+            self.iface.warn("No se encontró el elemento %s entre %s y se agregó el nodo al final" % (searching,close_matches))
+            added = deepcopy(action[0])
+            tail = element.text
+            try: previous = element.getchildren()[-1]; prev_tail = previous.tail
+            except IndexError: previous = None; prev_tail = ""
+            element.append(added)
+            if previous is not None:
+                added.tail = prev_tail
+                previous.tail = tail
+            parent = element.getparent()
+            self.xfinal.load_entities(parent,added.tag)
+        elif actionname == "append-first" and select == ".":
+            added = deepcopy(action[0])
+            tail = element.text
+            element.insert(0,added)
+            parent = element.getparent()
+            self.xfinal.load_entities(parent,added.tag)
+        else:
+            self.iface.warn("Accion no aplicada -> %s\t%s\t%s" % (actionname, element.get("ctx-id"), select))
                 
                 
             
@@ -816,10 +869,27 @@ def patch_lxml(iface, patch, base):
     
     style= styles[0]
     
+    tstart = time.time()
     
     xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_final = file_final, file_patch = file_patch)
+    
+    t1 = time.time()
+    
     xmldiff.apply_patch()
+
+    t2 = time.time()
+    
     iface.output.write(xmldiff.final_output())
+
+    tend = time.time()
+    tdeltams = (tend - tstart) * 1000
+    
+    if tdeltams > 1000:
+        tdeltams1 = (t1 - tstart) * 1000
+        tdeltams2 = (t2 - t1) * 1000
+        tdeltams3 = (tend - t2) * 1000
+        iface.debug("-- Time %.2f ms = %.2f ms +%.2f ms + %.2f ms  " % (tdeltams,tdeltams1,tdeltams2,tdeltams3))
+
     return True
 
 

@@ -90,9 +90,10 @@
             <tags>
                 <tag>item</tag>
                 <tag>image</tag>
+                <tag>action</tag>
             </tags>
             <search>
-                <xpath>.//*[@name]</xpath>
+                <xpath>( //item | //image | //action )[@name]</xpath>
             </search>
             <context-information>
                 <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->

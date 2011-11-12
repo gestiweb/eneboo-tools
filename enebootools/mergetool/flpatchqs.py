@@ -358,8 +358,8 @@ def patch_qs(iface, base, patch):
                         u" un parche." % newclass)
             continue
         cfrom = cdpatch[newclass]['from']
-        if cfrom: 
-            iface.info2(u"class %s: Se ha especificado un %%from %s y "
+        if cfrom and cfrom != extends: 
+            iface.debug(u"class %s: Se ha especificado un %%from %s y "
                         u"tomará precedencia por encima del extends %s" % (
                         newclass, cfrom, extends) )
             extends = cfrom
