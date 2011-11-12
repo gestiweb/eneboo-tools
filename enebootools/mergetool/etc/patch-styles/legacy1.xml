@@ -6,15 +6,13 @@
         <value name="search-moved-blocks">never</value>
     </options>
     <entities>
-        <format name="id" text="{tag}[{namelist}]">
-            <xpath name="tag">name()</xpath>
-            <implode name="namelist" join=",">
-                <xpath>context-information/@class</xpath>
-                <xpath>context-information/@name</xpath>
-                <xpath>context-information/@other1</xpath>
-                <xpath>context-information/@other2</xpath>
+        <format2 name="id" text="%s[%s]">
+            <xpath>name()</xpath>
+            <implode join=",">
+                <ctx>class</ctx><ctx>name</ctx>
+                <ctx>other1</ctx><ctx>other2</ctx>
             </implode>
-        </format>
+        </format2>
         <xpath name="is-root">false()</xpath>
     </entities>
     <pre-save-patch>

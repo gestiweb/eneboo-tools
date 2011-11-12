@@ -31,6 +31,8 @@ class XMLFormatParser(object):
         self.default_ctx = None
         self.entities = None
         self.encoding = self.format.xpath("@encoding")[0]
+        self.time_sname = 0
+        self.time_evaluate = 0
         self.parser = etree.XMLParser(
                         ns_clean=True,
                         encoding=self.encoding,
@@ -67,27 +69,29 @@ class XMLFormatParser(object):
         return True
         
     def evaluate(self, elem, from_elem = None):
-        #t1 = time.time()
+        if from_elem is None: from_elem = self.tree
+        t1 = time.time()
         ret = self._evaluate(elem, from_elem)
-        #t2 = time.time()
-        #tdeltams = (t2-t1) * 1000
-        #if tdeltams > 10:
-        #    self.iface.info2("Evaluating %s (%.2f ms)" % (etree.tostring(elem),tdeltams))
+        t2 = time.time()
+        tdelta = (t2-t1) 
+        self.time_evaluate += tdelta
 
         return ret
         
     def _evaluate(self, elem, from_elem = None):
         if elem is None: return None
+        if not isinstance(elem.tag, basestring): return None
         if elem.text: text = elem.text.strip()
         else: text = ""
-        if from_elem is None: from_elem = self.tree
+        
         elem_patch_style = elem.get("patch-style")
         if elem_patch_style and self.style.attrib['name'] not in elem_patch_style.split(" "):
             return None
         elem_except_style = elem.get("except-style")
         if elem_except_style and self.style.attrib['name'] in elem_except_style.split(" "):
             return None
-        def sxpath(text,**kwargs):
+            
+        def sxpath(text,from_elem,**kwargs):
             try:
                 xlist = from_elem.xpath(text,**kwargs)
             except Exception, e:
@@ -100,33 +104,51 @@ class XMLFormatParser(object):
             
         try:
             if elem.tag == "empty": return ""
+            elif elem.tag == "ctx": 
+                name = "ctx-info-"+text
+                value = from_elem.get(name)
+                return value
             elif elem.tag == "xpath": 
                 kwvars = {}
-                for elem in elem.xpath("*[@name]"):
-                    kwvars[elem.get("name")] = self._evaluate(elem,from_elem)
-                return sxpath(text,**kwvars)
+                for subelem in elem:
+                    name = subelem.get("name")
+                    kwvars[name] = self._evaluate(subelem,from_elem)
+                return sxpath(text,from_elem,**kwvars)
             elif elem.tag == "format": 
                 format_string = elem.get("text")
                 args = []
                 kwargs = {}
-                for elem in elem.xpath("*"):
-                    name = elem.get("name")
-                    value = self._evaluate(elem,from_elem)
+                for subelem in elem:
+                    name = subelem.get("name")
+                    value = self._evaluate(subelem,from_elem)
                     if name: kwargs[name] = value
                     else: args.append(value)
                 return format_string.format(*args,**kwargs)
-            elif elem.tag == "implode": 
-                join_string = elem.get("join")
+            elif elem.tag == "format2": 
+                format_string = elem.get("text")
                 args = []
-                for elem in elem.xpath("*"):
-                    value = self._evaluate(elem,from_elem)
-                    if value is not None and value != "": args.append(value)
+                for subelem in elem:
+                    value = self._evaluate(subelem,from_elem)
+                    if not isinstance(subelem.tag, basestring): continue
+                    args.append(value)
+                try:
+                    retval = format_string % tuple(args)
+                except TypeError, e:
+                    self.iface.error("Error ejecutando format2: %s %% %s" % (repr(format_string), repr(args)))
+                    raise
+                return retval
+            elif elem.tag == "implode": 
+                join_string = str(elem.get("join"))
+                args = []
+                for subelem in elem:
+                    value = self._evaluate(subelem,from_elem)
+                    if value is not None and value != "": args.append(str(value))
                 return join_string.join(args)
             elif elem.tag == "value": return text
             elif elem.tag == "if-then-else": 
                 kwvars = {}
-                for elem in elem.xpath("*[@name]"):
-                    kwvars[elem.get("name")] = self._evaluate(elem,from_elem)
+                for subelem in elem:
+                    kwvars[subelem.get("name")] = self._evaluate(subelem,from_elem)
                 if kwvars['if']:
                     return kwvars.get('then')
                 else:
@@ -175,7 +197,7 @@ class XMLFormatParser(object):
                 if value is None: continue
                 
                 ctxdict[name] = unicode(value)
-                # ctx.set(name,unicode(value))
+                element.set("ctx-info-" + name,unicode(value))
                         
             ctx = etree.SubElement(element, "context-information", entity = entity_name, **ctxdict)
             context_items.append(ctx)
@@ -224,15 +246,22 @@ class XMLFormatParser(object):
         return True
     
     def sname(self, elem, key, default = None):
+        tstart = time.time()
         if len(elem.xpath("context-information")) == 0:
             self.load_default_entity(elem)
         assert(len(elem.xpath("context-information")))
-        
-            
+        ret = None
         for entity in self.style.xpath("entities/*[@name=$key]",key = key):
             val = self.evaluate(entity,from_elem=elem)
-            if val is not None: return val
-        return default
+            if val is not None: 
+                ret = val
+                break
+        tend = time.time()
+        tdelta = tend - tstart
+        self.time_sname += tdelta
+                
+        if ret is None: ret = default
+        return ret
     
     def clean_ctxid(self):
             
@@ -240,8 +269,11 @@ class XMLFormatParser(object):
             parent = element.getparent()
             parent.remove(element)
             
-        for element in self.root.xpath("//*[@ctx-id]"):
-            del element.attrib["ctx-id"]
+        for element in self.root.iter():
+            for k in element.attrib.keys():
+                if k.startswith("ctx-"):
+                    del element.attrib[k]
+            # del element.attrib["ctx-id"]
         
         reindent_items = self.root.xpath("//*[not(text()) and ./*]")
         if reindent_items:
@@ -269,6 +301,7 @@ class XMLFormatParser(object):
                 if child_text.startswith(parent_text):
                     break
             if parent_text: parent_text = parent_text[1:]
+            else: parent_text =  ""
             reindent_config = depth, parent_text, indent
             #print depth, repr(parent_text), repr(indent)
             
@@ -354,7 +387,7 @@ class XMLDiffer(object):
         }
         self.format = format
         self.style = style
-        
+        self.time_resolve_select = 0
         if file_patch: rbt = False # Remove Blank Text 
         else: rbt = True
         self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base, rbt)
@@ -674,10 +707,14 @@ class XMLDiffer(object):
         return element, "."
     
     def resolve_select2(self, element, select):
+        tstart = time.time()
         element, select = self.resolve_select(element, select)
         if select.startswith("text()"): select = "text()"
         elif select.startswith("#text"): select = "text()"
         elif select == ".": select = "."
+        tend = time.time()
+        tdelta = tend - tstart
+        self.time_resolve_select += tdelta
         return element, select
     
 
@@ -691,7 +728,7 @@ class XMLDiffer(object):
         #tdeltams = (tend - tstart) * 1000
         #if tdeltams > 30:
         #    ns = "{http://www.xmldb.org/xupdate}"
-        #    self.iface.msg("-- Accion %s %s , %.2f ms " % (action.tag.replace(ns,""), action.attrib["select"][-30:], tdeltams))
+        #    self.iface.msg("-- Accion %s %s , %.2f ms (%.2f ms resolving selects)" % (action.tag.replace(ns,""), action.attrib["select"][-30:], tdeltams, self.time_resolve_select*1000 ))
     
     def _do_patch_action(self, action):
         ns = "{http://www.xmldb.org/xupdate}"
@@ -884,11 +921,12 @@ def patch_lxml(iface, patch, base):
     tend = time.time()
     tdeltams = (tend - tstart) * 1000
     
-    if tdeltams > 1000:
+    if tdeltams > 300:
         tdeltams1 = (t1 - tstart) * 1000
         tdeltams2 = (t2 - t1) * 1000
         tdeltams3 = (tend - t2) * 1000
-        iface.debug("-- Time %.2f ms = %.2f ms +%.2f ms + %.2f ms  " % (tdeltams,tdeltams1,tdeltams2,tdeltams3))
+        #iface.info2("-- Time %.2f ms = %.2f ms +%.2f ms + %.2f ms  (%.2f ms resolving, %.2f ms sname)" % (tdeltams,tdeltams1,tdeltams2,tdeltams3,xmldiff.time_resolve_select*1000,xmldiff.xbase.time_sname*1000+xmldiff.xfinal.time_sname*1000))
+        iface.info2("-- Time %.2f ms , %.2f ms sname , %.2f ms evaluating" % (tdeltams,xmldiff.xbase.time_sname*1000+xmldiff.xfinal.time_sname*1000, xmldiff.xbase.time_evaluate*1000+xmldiff.xfinal.time_evaluate*1000))
 
     return True
 
