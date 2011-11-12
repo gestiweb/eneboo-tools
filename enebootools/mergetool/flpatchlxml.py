@@ -179,6 +179,7 @@ class XMLFormatParser(object):
         processed = 0
         #tinit = time.time()
         for element in search:
+            if not isinstance(element.tag, basestring): continue
             parent = element.getparent()
             if parent is not None:
                 if parent.tag == "context-information": continue
@@ -526,6 +527,7 @@ class XMLDiffer(object):
             if k[0] == "@": 
                 tag = "attribute"
                 kwargs["name"] = k[1:]
+                if kwargs["name"].startswith("ctx-info-"): continue
             op = "update"
             if v is None: op = "create"
             if final[k] is None: op = "delete"
@@ -544,7 +546,7 @@ class XMLDiffer(object):
         return ctx
 
     def get_ctxinfo(self, elem):
-        ctx = ";".join(["%s=%s" % (k[9:],v) for k,v in sorted(dict(ctx[0].attrib).items()) if k.startswith("ctx-info-")])
+        ctx = ";".join(["%s=%s" % (k[9:],v) for k,v in sorted(dict(elem.attrib).items())])
         return ctx
 
     def compare_subelems(self, base_elem, final_elem):
@@ -563,7 +565,13 @@ class XMLDiffer(object):
         fullname = self.sname(subelem, key="id", default=subelem.tag)
         updelem = etree.SubElement(patchelem, "subnode", action=action, select=fullname)
         if mode == "full":
-            updelem.append( deepcopy(subelem) )
+            newelem = deepcopy(subelem)
+            updelem.append( newelem )
+            for ie in newelem.iter():
+                for k in ie.attrib.keys():
+                    if k.startswith("ctx-info-"): 
+                        del ie.attrib[k]
+                    
             for elem in updelem.xpath(".//context-information[@entity]"):
                 parent = elem.getparent()
                 parent.remove(elem)
