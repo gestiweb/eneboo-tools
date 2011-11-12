@@ -63,7 +63,9 @@
             <context-information>
                 <xpath name="class">@class</xpath>
                 <if-then-else name="scope">
-                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <xpath name="if">$name='unnamed'
+                        <ctx name="name">name</ctx>
+                    </xpath>
                     <value name="then">none</value>
                     <value name="else">global</value>
                 </if-then-else>
@@ -80,7 +82,9 @@
                 <empty name="class" />
                 <xpath name="name">property[@name='name']/cstring/text()</xpath>
                 <if-then-else name="scope">
-                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <xpath name="if">$name='unnamed'
+                        <ctx name="name">name</ctx>
+                    </xpath>
                     <value name="then">none</value>
                     <value name="else">global</value>
                 </if-then-else>
@@ -99,7 +103,9 @@
                 <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
                 <xpath name="name">@name</xpath>
                 <if-then-else name="scope">
-                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <xpath name="if">$name='unnamed'
+                        <ctx name="name">name</ctx>
+                    </xpath>
                     <value name="then">none</value>
                     <value name="else">global</value>
                 </if-then-else>
@@ -118,7 +124,9 @@
                 <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
                 <xpath name="name">property[@name='name']/cstring/text()</xpath>
                 <if-then-else name="scope">
-                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <xpath name="if">$name='unnamed'
+                        <ctx name="name">name</ctx>
+                    </xpath>
                     <value name="then">none</value>
                     <value name="else">global</value>
                 </if-then-else>
@@ -135,7 +143,9 @@
                 <xpath name="class">@class</xpath>
                 <xpath name="name">property[@name='name']/cstring/text()</xpath>
                 <if-then-else name="scope">
-                    <xpath name="if">context-information/@name='unnamed'</xpath>
+                    <xpath name="if">$name='unnamed'
+                        <ctx name="name">name</ctx>
+                    </xpath>
                     <value name="then">none</value>
                     <value name="else">global</value>
                 </if-then-else>

@@ -182,7 +182,9 @@ class XMLFormatParser(object):
             parent = element.getparent()
             if parent is not None:
                 if parent.tag == "context-information": continue
-            if element.xpath("context-information"): continue
+            # if element.xpath("context-information"): continue
+            if element.get("ctx-info-created") is not None: continue
+            element.set("ctx-info-created", "yes")
             
             ctx_pending_names = set([])
             ctxdict = {}
@@ -199,8 +201,8 @@ class XMLFormatParser(object):
                 ctxdict[name] = unicode(value)
                 element.set("ctx-info-" + name,unicode(value))
                         
-            ctx = etree.SubElement(element, "context-information", entity = entity_name, **ctxdict)
-            context_items.append(ctx)
+            #ctx = etree.SubElement(element, "context-information", entity = entity_name, **ctxdict)
+            #context_items.append(ctx)
 
             for name, value in ctxdict.items():
                 ctx_pending_names.remove(name)
@@ -247,9 +249,10 @@ class XMLFormatParser(object):
     
     def sname(self, elem, key, default = None):
         tstart = time.time()
-        if len(elem.xpath("context-information")) == 0:
+        if elem.get("ctx-info-created") is None: 
             self.load_default_entity(elem)
-        assert(len(elem.xpath("context-information")))
+            
+        assert(elem.get("ctx-info-created") is not None)
         ret = None
         for entity in self.style.xpath("entities/*[@name=$key]",key = key):
             val = self.evaluate(entity,from_elem=elem)
@@ -457,7 +460,8 @@ class XMLDiffer(object):
         return self.patch
     
     def sname(self, elem, key, default = None):
-        if len(elem.xpath("context-information")) == 0:
+        #if len(elem.xpath("context-information")) == 0:
+        if elem.get("ctx-info-created") is None:
             self.xbase.load_default_entity(elem)
             self.xfinal.load_default_entity(elem)
             
@@ -465,21 +469,6 @@ class XMLDiffer(object):
             val = self.xbase.evaluate(entity,from_elem=elem)
             if val is not None: return val
         return default
-    
-    def _sname(self, elem):
-        eclass = elem.xpath("context-information/@class")
-        name = elem.xpath("context-information/@name")
-        scope = elem.xpath("context-information/@scope")
-        if eclass: eclass = eclass[0]
-        else: eclass = elem.tag
-        if scope: scope = scope[0]
-        else: scope = "none"
-        if name: name = name[0]
-        else: name = None
-        fullname = [eclass]
-        if name: fullname.append(name)
-        fullname = ":".join(fullname)
-        return scope, name, fullname
         
     def shpath(self, elem):
         if elem is None: raise AssertionError
@@ -548,10 +537,14 @@ class XMLDiffer(object):
         # self.iface.debug2r(_=self.shpath(base_elem), base = base, final = final)
         return None     
         
-    def get_ctxinfo(self, elem):
+    def _get_ctxinfo_old(self, elem):
         ctx = elem.xpath("context-information")
         if len(ctx) == 0: ctx = elem.tag
         else: ctx = ";".join(["%s=%s" % (k,v) for k,v in sorted(dict(ctx[0].attrib).items())])
+        return ctx
+
+    def get_ctxinfo(self, elem):
+        ctx = ";".join(["%s=%s" % (k[9:],v) for k,v in sorted(dict(ctx[0].attrib).items()) if k.startswith("ctx-info-")])
         return ctx
 
     def compare_subelems(self, base_elem, final_elem):
