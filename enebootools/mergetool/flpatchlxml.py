@@ -362,11 +362,15 @@ class XMLFormatParser(object):
     
     def apply_one_id(self, elem, le = True):
         idname = elem.get("ctx-id")
-        if idname: return
+        if idname: return idname
         #if le: self.load_entities(elem)
-        idname = self.sname(elem, "id", elem.tag)
+        if not isinstance(elem.tag,basestring): 
+            return elem.text
+        else:
+            idname = self.sname(elem, "id", elem.tag)
         elem.set("ctx-id",idname)
         #for sub in elem: self.apply_one_id(sub, False)
+        return idname
             
     def add_context_id(self, root = None):
         if root is None: 
@@ -550,8 +554,8 @@ class XMLDiffer(object):
         return ctx
 
     def compare_subelems(self, base_elem, final_elem):
-        base = [ self.get_ctxinfo(subelem) for subelem in base_elem if subelem.tag != "context-information"]
-        final = [ self.get_ctxinfo(subelem) for subelem in final_elem if subelem.tag != "context-information"]
+        base = [ self.xbase.apply_one_id(subelem) for subelem in base_elem if subelem.tag != "context-information"]
+        final = [ self.xfinal.apply_one_id(subelem) for subelem in final_elem if subelem.tag != "context-information"]
         s = difflib.SequenceMatcher(None, base, final)
         opcodes = fix_replace_opcode(s.get_opcodes())    
         ratio = s.ratio()
@@ -570,6 +574,8 @@ class XMLDiffer(object):
             for ie in newelem.iter():
                 for k in ie.attrib.keys():
                     if k.startswith("ctx-info-"): 
+                        del ie.attrib[k]
+                    if k.startswith("ctx-id"): 
                         del ie.attrib[k]
                     
             for elem in updelem.xpath(".//context-information[@entity]"):

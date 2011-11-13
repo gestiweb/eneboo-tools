@@ -124,7 +124,7 @@ class FolderApplyPatch(object):
         if not os.path.exists(dst):
             self.iface.warn("Ignorando parche QS para %s (el fichero no existe)" % filename)
             return
-        self.iface.debug("Aplicando parche QS %s . . ." % filename)
+        self.iface.info("Aplicando parche QS %s . . ." % filename)
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
         self.iface.verbosity -= 2
@@ -149,7 +149,7 @@ class FolderApplyPatch(object):
         if not os.path.exists(dst):
             self.iface.warn("Ignorando parche XML para %s (el fichero no existe)" % filename)
             return
-        self.iface.debug("Aplicando parche XML %s . . ." % filename)
+        self.iface.info("Aplicando parche XML %s . . ." % filename)
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
         self.iface.verbosity -= 2
@@ -229,7 +229,7 @@ class FolderCreatePatch(object):
         #print "-" , self.deleted_files
         #print "=" , self.common_files
         
-        iface.debug("Calculando diferencias . . . ")
+        iface.info("Calculando diferencias . . . ")
         for filename in self.added_files:
             self.add_file(filename)
 
@@ -333,7 +333,7 @@ class FolderCreatePatch(object):
         base = os.path.join(self.basedir,pathname)
         final = os.path.join(self.finaldir,pathname)
         
-        self.iface.debug("Generando parche QS %s . . ." % filename)
+        self.iface.info("Generando parche QS %s . . ." % filename)
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
         self.iface.verbosity -= 2
@@ -354,7 +354,7 @@ class FolderCreatePatch(object):
         base = os.path.join(self.basedir,pathname)
         final = os.path.join(self.finaldir,pathname)
         
-        self.iface.debug("Generando parche XML %s . . ." % filename)
+        self.iface.info("Generando parche XML %s . . ." % filename)
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
         self.iface.verbosity -= 2
