@@ -207,6 +207,8 @@ class FolderCreatePatch(object):
             for pattern in ignored_files:
                 delfiles = fnmatch.filter(files, pattern)
                 for f in delfiles: files.remove(f)
+                deldirs = fnmatch.filter(dirs, pattern)
+                for f in deldirs: dirs.remove(f)
                 
             for filename in files:
                 basedir_files.add( os.path.join( baseroot, filename ) ) 
@@ -218,6 +220,8 @@ class FolderCreatePatch(object):
             for pattern in ignored_files:
                 delfiles = fnmatch.filter(files, pattern)
                 for f in delfiles: files.remove(f)
+                deldirs = fnmatch.filter(dirs, pattern)
+                for f in deldirs: dirs.remove(f)
 
             for filename in files:
                 finaldir_files.add( os.path.join( baseroot, filename ) ) 
@@ -285,13 +289,15 @@ class FolderCreatePatch(object):
             actionname = actionname.lower()
             
             tbegin = time.time()
-            
-            if actionname == "addfile": self.compute_add_file(action)
-            elif actionname == "replacefile": self.compute_replace_file(action)
-            elif actionname == "patchscript": self.compute_patch_script(action)
-            elif actionname == "patchxml": self.compute_patch_xml(action)
+            ret = 1
+            if actionname == "addfile": ret = self.compute_add_file(action)
+            elif actionname == "replacefile": ret = self.compute_replace_file(action)
+            elif actionname == "patchscript": ret = self.compute_patch_script(action)
+            elif actionname == "patchxml": ret = self.compute_patch_xml(action)
             # TODO: actionname == "patchphp" 
             else: self.iface.warn("** Se ha ignorado acción desconocida %s **" % repr(actionname))
+            if ret == -1:
+                self.root.remove(action)
             tend = time.time()
             tdelta = tend - tbegin
             if tdelta > 1:
@@ -342,6 +348,9 @@ class FolderCreatePatch(object):
         ret = flpatchqs.diff_qs(self.iface,base,final)
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
+        if ret == -1:
+            os.unlink(dst)
+            return -1
         if not ret:
             self.iface.warn("Pudo haber algún problema generando el parche QS para %s" % filename)
                 
@@ -363,6 +372,9 @@ class FolderCreatePatch(object):
         ret = flpatchlxml.diff_lxml(self.iface,base,final)
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
+        if ret == -1:
+            os.unlink(dst)
+            return -1
         if not ret:
             self.iface.warn("Pudo haber algún problema generando el parche XML para %s" % filename)
         

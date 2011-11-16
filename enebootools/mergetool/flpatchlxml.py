@@ -24,7 +24,7 @@ def _xf(x, cstring = False, **kwargs): #xml-format
         return unicode(value , kwargs['encoding'])
 
 class XMLFormatParser(object):
-    def __init__(self, iface, format, style, file1, rbt = True):
+    def __init__(self, iface, format, style, file1, rbt = True, recover = False):
         self.iface = iface
         self.format = format
         self.style = style
@@ -36,7 +36,7 @@ class XMLFormatParser(object):
         self.parser = etree.XMLParser(
                         ns_clean=True,
                         encoding=self.encoding,
-                        recover=False, # .. recover funciona y parsea cuasi cualquier cosa.
+                        recover=recover, # .. recover funciona y parsea cuasi cualquier cosa.
                         remove_blank_text=rbt,
                         )
         file1.seek(0)
@@ -274,7 +274,7 @@ class XMLFormatParser(object):
             parent.remove(element)
             
         for element in self.root.iter():
-            for k in element.attrib.keys():
+            for k in element.attrib.keys()[:]:
                 if k.startswith("ctx-"):
                     del element.attrib[k]
             # del element.attrib["ctx-id"]
@@ -387,7 +387,7 @@ class XMLFormatParser(object):
 
 
 class XMLDiffer(object):
-    def __init__(self, iface, format, style, file_base, file_final = None, file_patch = None):
+    def __init__(self, iface, format, style, file_base, file_final = None, file_patch = None, recover = False):
         self.iface = iface
         self.namespaces = {
             'xsl' : "http://www.w3.org/1999/XSL/Transform", 
@@ -398,23 +398,23 @@ class XMLDiffer(object):
         self.time_resolve_select = 0
         if file_patch: rbt = False # Remove Blank Text 
         else: rbt = True
-        self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base, rbt)
+        self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base, rbt, recover = recover)
     
         if not self.xbase.validate():
-            self.iface.error(u"El fichero base no es válido para el formato %s" % (format_name))
-            return
+            self.iface.error(u"El fichero base no es válido para el formato %s" % (self.format.get("name")))
+            raise ValueError
         if not self.xbase.load_entities():
-            self.iface.error(u"Error al cargar entidades del formato %s (fichero base)" % (format_name))
-            return
+            self.iface.error(u"Error al cargar entidades del formato %s (fichero base)" % (self.format.get("name")))
+            raise ValueError
             
-        self.xfinal = XMLFormatParser(self.iface, self.format, self.style, file_final, rbt)
+        self.xfinal = XMLFormatParser(self.iface, self.format, self.style, file_final, rbt, recover = recover)
 
         if not self.xfinal.validate():
-            self.iface.error(u"El fichero final no es válido para el formato %s" % (format_name))
-            return
+            self.iface.error(u"El fichero final no es válido para el formato %s" % (self.format.get("name")))
+            raise ValueError
         if not self.xfinal.load_entities():
-            self.iface.error(u"Error al cargar entidades del formato %s (fichero final)" % (format_name))
-            return
+            self.iface.error(u"Error al cargar entidades del formato %s (fichero final)" % (self.format.get("name")))
+            raise ValueError
         if file_patch:
             parser = etree.XMLParser(
                             ns_clean=True,
@@ -428,7 +428,6 @@ class XMLDiffer(object):
         else:            
             self.patch = None
             self.patch_tree = None
-        
     def patch_output(self):
         if self.patch is not None: 
             doc = self.apply_pre_save_patch(self.patch)
@@ -492,8 +491,13 @@ class XMLDiffer(object):
             return "/" + fullname
     
     def get_elem_contents(self, elem):
-        if elem.text: text = elem.text
-        else: text = ""
+        try:
+            if elem.text: 
+                    text = elem.text
+            else: text = ""
+        except UnicodeDecodeError:
+            text = "**UNICODE_DECODE_ERROR**"
+            self.iface.warn("Error al leer el texto de un elemento.")
         textvalue = text.strip()
         if textvalue:
             textnfixes = text.replace(textvalue, "*") # Nos deja algo como '\n\t*\n\t'
@@ -654,7 +658,10 @@ class XMLDiffer(object):
             '{http://www.xmldb.org/xupdate}modifications' : self.patch_xupdate,
             'modifications' : self.patch_xupdate,
         }
-        if self.patch.tag not in known_tags:
+        if self.patch is None:
+            self.iface.warn("Sin parche que aplicar (vacío o inexistente)")
+            return None
+        elif self.patch.tag not in known_tags:
             self.iface.error("Tipo de parche desconocido: " + repr(self.patch.tag))
             return None
         else:
@@ -865,10 +872,24 @@ def diff_lxml(iface, base, final):
         iface.warn(u"Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
     
     style= styles[0]
-    
-    
-    xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_final = file_final)
-    xmldiff.compare()
+    try:
+        xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_final = file_final)
+    except etree.XMLSyntaxError, e: 
+        iface.warn(u"Error parseando fichero XML: %s" % (str(e)))
+        iface.warn(u".. durante Diff LXML $base:%s $final:%s" % (base,final))
+        try:
+            file_base = open(base, "r")
+            file_final = open(final, "r")
+            xmldiff = XMLDiffer(iface, format, style, file_base = file_base, file_final = file_final, recover = True)
+        except etree.XMLSyntaxError, e: 
+            iface.error(u"Error parseando fichero XML: %s" % (str(e)))
+            iface.error(u".. durante Diff LXML $base:%s $final:%s" % (base,final))
+            return False
+    except ValueError:
+        return False
+
+    patch = xmldiff.compare()
+    if len(patch) == 0: return -1
     #xbase.clean()
     iface.output.write(xmldiff.patch_output())
     return True

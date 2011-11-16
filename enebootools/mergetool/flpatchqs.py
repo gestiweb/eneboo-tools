@@ -121,6 +121,7 @@ def diff_qs(iface, base, final):
     
     if len(created_classes) == 0:
         iface.warn(u"No se han detectado clases nuevas. El parche quedará vacío. ($final:%s)" % (final))
+        return -1
         
     if len(deleted_classes) > 0:
         iface.warn(u"Se han borrado clases. Este cambio no se registrará en el parche. ($final:%s)" % (final))

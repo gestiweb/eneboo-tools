@@ -259,7 +259,9 @@ class MergeToolInterface(EnebooToolsInterface):
         for arg, var in sorted(kwargs.items()):
             prefix = ": %s =" % arg
             print prefix, 
-            lines = pformat(var).splitlines()
+            try: lines = pformat(var).splitlines()
+            except UnicodeEncodeError: 
+                lines = ["UNICODE ENCODE ERROR"]
             for n,line in enumerate(lines):
                 if n > 0: print " "*(len(prefix)+0), 
                 print line,
