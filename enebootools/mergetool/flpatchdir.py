@@ -203,7 +203,7 @@ class FolderCreatePatch(object):
         basedir_files = set([])
         
         for root, dirs, files in os.walk(basedir):
-            baseroot = root[len(basedir)+1:]
+            baseroot = root[len(basedir):]
             for pattern in ignored_files:
                 delfiles = fnmatch.filter(files, pattern)
                 for f in delfiles: files.remove(f)
@@ -216,7 +216,7 @@ class FolderCreatePatch(object):
         finaldir_files = set([])
     
         for root, dirs, files in os.walk(finaldir):
-            baseroot = root[len(finaldir)+1:]
+            baseroot = root[len(finaldir):]
             for pattern in ignored_files:
                 delfiles = fnmatch.filter(files, pattern)
                 for f in delfiles: files.remove(f)
@@ -338,7 +338,7 @@ class FolderCreatePatch(object):
         dst = os.path.join(self.patchdir,filename)
         base = os.path.join(self.basedir,pathname)
         final = os.path.join(self.finaldir,pathname)
-        
+    
         self.iface.info("Generando parche QS %s . . ." % filename)
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
@@ -357,12 +357,14 @@ class FolderCreatePatch(object):
     def compute_patch_xml(self, patchxml):
         path = patchxml.get("path")
         filename = patchxml.get("name")
+        if (path == "/"):
+          pathname = filename
+        else:
+          pathname = os.path.join(path, filename)
         
-        pathname = os.path.join(path, filename)
         dst = os.path.join(self.patchdir,filename)
         base = os.path.join(self.basedir,pathname)
         final = os.path.join(self.finaldir,pathname)
-        
         self.iface.info("Generando parche XML %s . . ." % filename)
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
