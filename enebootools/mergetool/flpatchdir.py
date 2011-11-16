@@ -203,7 +203,7 @@ class FolderCreatePatch(object):
         basedir_files = set([])
         
         for root, dirs, files in os.walk(basedir):
-            baseroot = root[len(basedir):]
+            baseroot = os.path.relpath(root,basedir)
             for pattern in ignored_files:
                 delfiles = fnmatch.filter(files, pattern)
                 for f in delfiles: files.remove(f)
@@ -216,7 +216,7 @@ class FolderCreatePatch(object):
         finaldir_files = set([])
     
         for root, dirs, files in os.walk(finaldir):
-            baseroot = root[len(finaldir):]
+            baseroot = os.path.relpath(root,finaldir)
             for pattern in ignored_files:
                 delfiles = fnmatch.filter(files, pattern)
                 for f in delfiles: files.remove(f)
@@ -245,7 +245,7 @@ class FolderCreatePatch(object):
         
     def create_action(self, actionname, filename):
         path, name = os.path.split(filename)
-        if not path.endswith("/"): path += "/"
+        if len(path) and not path.endswith("/"): path += "/"
         newnode = etree.SubElement(self.root, "{%s}%s" % (self.nsmap['flpatch'], actionname), path = path, name = name)
         return newnode
 
@@ -289,6 +289,11 @@ class FolderCreatePatch(object):
             actionname = actionname.lower()
             
             tbegin = time.time()
+            path = action.get("path")
+            if path:
+                if path.endswith("/"):
+                    path = path[:-1]
+                    action.set("path",path)
             ret = 1
             if actionname == "addfile": ret = self.compute_add_file(action)
             elif actionname == "replacefile": ret = self.compute_replace_file(action)
@@ -357,11 +362,7 @@ class FolderCreatePatch(object):
     def compute_patch_xml(self, patchxml):
         path = patchxml.get("path")
         filename = patchxml.get("name")
-        if (path == "/"):
-          pathname = filename
-        else:
-          pathname = os.path.join(path, filename)
-        
+        pathname = os.path.join(path, filename)
         dst = os.path.join(self.patchdir,filename)
         base = os.path.join(self.basedir,pathname)
         final = os.path.join(self.finaldir,pathname)
