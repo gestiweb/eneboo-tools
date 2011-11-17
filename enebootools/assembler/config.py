@@ -15,6 +15,25 @@ class ConfModule(AutoConfigTemplate):
     buildcache=string:~/.eneboo-tools/buildcache
     """
     
+    def normalize_path(self, path):
+        pathlist = path.split("/")
+        return os.path.join( *[
+            os.path.expanduser(p)
+            for p in pathlist
+        ] )
+    
+    def init(self):
+        self.modulefolders = [ self.normalize_path(folder) 
+                            for folder in self.modulefolders]
+    
+        self.featurefolders = [ self.normalize_path(folder) 
+                            for folder in self.featurefolders]
+    
+        self.buildcache = self.normalize_path(self.buildcache) 
+    
+            
+    
+    
     
 
 
@@ -34,6 +53,7 @@ def reloadConfig(saveTemplate = False):
     
     c.cfg = ConfigReader(files=files, saveConfig = saveTemplate)
     c.cfg.module = ConfModule(c.cfg,section = "module")
+    c.cfg.module.init()
     
     if saveTemplate:
         f1w = open(saveTemplate, 'wb')

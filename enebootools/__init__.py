@@ -1,5 +1,5 @@
 # encoding: UTF-8
-import sys
+import sys, traceback
 import enebootools.parseargs as pa
 
 class EnebooToolsInterface(object):

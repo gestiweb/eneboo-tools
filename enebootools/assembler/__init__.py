@@ -1,6 +1,7 @@
 # encoding: UTF-8
 from enebootools import EnebooToolsInterface
 
+from enebootools.assembler.database import update_database
 
 class AssemblerInterface(EnebooToolsInterface):
     module_description = u"Herramientas de gestión de proyectos de mezcla"
@@ -11,21 +12,19 @@ class AssemblerInterface(EnebooToolsInterface):
     def setup_parser(self):
         EnebooToolsInterface.setup_parser(self)
         
-        self.update_action = self.parser.declare_action(
-            name = "update",
+        self.dbupdate_action = self.parser.declare_action(
+            name = "dbupdate",
             args = [],
             options = [],
             description = u"Actualiza la base de datos de módulos y extensiones existentes",
-            call_function = self.do_update,
+            call_function = self.do_dbupdate,
             )
             
     # :::: ACTIONS ::::
 
-    def do_update(self):
+    def do_dbupdate(self):
         try:
-            ret = False
-            # TODO: Llamar aqui la funcion de reescaneo de directorios.
-            return ret
+            return update_database(self)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 

@@ -1,0 +1,66 @@
+<h1 id="proyecto-eneboo-tools-gu&#237;a-superrapida">Proyecto Eneboo-tools (Guía superrapida)</h1>
+<p>Actualmente solo se provee del comando eneboo-mergetool.</p>
+<h2 id="instalaci&#243;n">Instalación</h2>
+<p>Se recomienda enlazarlo a /usr/local/bin para poder llamarlo desde cualuquier sitio:</p>
+<pre><code>$ sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
+</code></pre>
+<h2 id="uso">Uso</h2>
+<p>Para sacar una ayuda y listado de acciones:</p>
+<pre><code>$ eneboo-mergetool --help
+</code></pre>
+<p>Para sacar más ayuda de una acción:</p>
+<pre><code>$ eneboo-mergetool --help nombre-accion
+</code></pre>
+<h2 id="acciones-disponibles">Acciones disponibles</h2>
+<p><strong>Utilidades para carpetas:</strong></p>
+<p><em>folder-diff</em> lee dos carpetas recursivamente y obtiene una diferencia. A partir de esta diferencia, genera una colección de parches en una tercera carpeta.</p>
+<p><em>folder-patch</em> lee una carpeta de parches (flpatch) y una carpeta de ficheros originales. Aplica los parches en a estos ficheros y el resultado se guarda en una tercera carpeta.</p>
+<p><strong>Utilidades para ficheros individuales:</strong></p>
+<p><em>file-diff</em> muestra la diferencia entre dos ficheros por la salida estándar o a un fichero especificado por --output-file. Tiene un argumento de modo que condiciona el tipo de algoritmo que será lanzado para comparar los ficheros. Están soportados <em>qs</em> y <em>xml</em>.</p>
+<p><em>file-patch</em> muestra el resultado de aplicar un parche a un fichero por la salida estándar o guarda el resultado en el fichero indicado por --output-file. Tiene un argumento de modo que condiciona el algoritmo que se lanza para aplicar el parche. Están soportados <em>qs</em> y <em>xml</em>.</p>
+<p><em>file-check</em> realiza comprobaciones rutinarias sobre el fichero dado. Actualmente sólo está soportado el modo <em>qs-classes</em>, que comprobará la correcta herencia de éstas.</p>
+<p><em>qs-extract</em> es una utilidad para extraer clases que se especifiquen de un fichero qs directamente, sin necesidad de comparar con otro fichero.</p>
+<h2 id="folder-diff">FOLDER DIFF</h2>
+<p>Extrae las modificaciones realizadas en un proyecto y guarda una carpeta de parche.</p>
+<p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una contendrá un backup del proyecto antes de realizar los cambios y la otra será donde hayamos realizado nuestras modificaciones. Llamamos <em>basedir</em> a la carpeta de backup y <em>finaldir</em> a la carpeta donde están los cambios realizados.</p>
+<p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro todas las diferencias encontradas, así como las instrucciones de aplicación.</p>
+<p>Veamos un ejemplo:</p>
+<pre><code>$ eneboo-mergetool folder-diff parches/mi_parche \
+    proyecto1_original/ proyecto1_modificado/
+</code></pre>
+<p>Esto crearía la carpeta <em>parches/mi_parche</em> y contendría las instrucciones para generar <em>proyecto1_modificado</em> a partir del <em>proyecto1_original</em>.</p>
+<h2 id="folder-patch">FOLDER PATCH</h2>
+<p>Lee una carpeta de parche y aplica las modificaciones en el proyecto generando una carpeta nueva.</p>
+<p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una contendrá proyecto a aplicar los cambios y la otra será donde hayamos guardado el parche. Llamamos <em>basedir</em> a la carpeta del proyecto original y <em>patchdir</em> a la carpeta donde están guardados los parches.</p>
+<p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro el nuevo proyecto que será el resultado de la aplicación de los parches.</p>
+<p>Veamos un ejemplo:</p>
+<pre><code>$ eneboo-mergetool folder-patch parches/mi_parche \
+    proyecto1_original/ proyecto1_parcheado/
+</code></pre>
+<p>Esto crearía la carpeta <em>proyecto1_parcheado/</em> y contendría <em>proyecto1_original/</em> pero con los parches aplicados.</p>
+<h2 id="diff-qs">DIFF QS</h2>
+<p>Obtener diff de un fichero QS:</p>
+<pre><code>$ eneboo-mergetool file-diff qs \
+    antiguo/facturacion/facturacion/scripts/flfactalma.qs \
+    nuevo/facturacion/facturacion/scripts/flfactalma.qs \
+    --output-file patches/flfactalma.qs
+</code></pre>
+<p>Aplicar un diff de fichero QS:</p>
+<pre><code>$ eneboo-mergetool file-patch qs \
+    antiguo/facturacion/facturacion/scripts/flfactalma.qs \
+    patches/flfactalma.qs \
+    --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.qs
+</code></pre>
+<h2 id="diff-xml">DIFF XML</h2>
+<p>Obtener diff de un fichero XML:</p>
+<pre><code>$ eneboo-mergetool file-diff xml \
+    antiguo/facturacion/facturacion/forms/flfactalma.ui \
+    nuevo/facturacion/facturacion/forms/flfactalma.ui \
+    --output-file patches/flfactalma.ui
+</code></pre>
+<p>Aplicar un diff de fichero XML:</p>
+<pre><code>$ eneboo-mergetool file-patch qs \
+    antiguo/facturacion/facturacion/forms/flfactalma.ui \
+    patches/flfactalma.ui \
+    --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.ui
+</code></pre>
