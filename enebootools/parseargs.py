@@ -17,7 +17,7 @@ class Action(object):
         self.parent = None
         if self.min_argcount == -1: self.min_argcount = len(self.args)
         assert(self.min_argcount <= len(self.args))
-        assert(self.min_argcount > 0)
+        assert(self.min_argcount >= 0)
         assert(self.min_file_list >= 0)
         assert(self.max_file_list >= -1)
         if self.max_file_list >= 0:
