@@ -1,0 +1,40 @@
+#!/bin/bash -e
+
+PATH_EXTENSIONES="funcional/tronco"
+PATH_MODULOS="modulos/modulos/oficial/tronco"
+
+PATH_PROYECTO=$1
+
+echo "Calculando Proyecto $PATH_PROYECTO . . ."
+PATH_BASE=$PATH_PROYECTO/build/base
+PATH_FINAL=$PATH_PROYECTO/build/final
+MODULES=$(cat $PATH_PROYECTO/module_list)
+PATCHES=$(cat $PATH_PROYECTO/patch_series)
+echo "Creando carpeta inicial $PATH_BASE . . ."
+rm -Rf $PATH_PROYECTO/build
+mkdir "$PATH_PROYECTO/build" 
+mkdir "$PATH_BASE" 
+
+for modulo in $MODULES
+do
+    mkdir "$PATH_BASE/$modulo" -p
+    cp -Rf "$PATH_MODULOS/$modulo"/* "$PATH_BASE/$modulo"
+done
+
+SRC=$PATH_BASE
+NUM=0
+for patch in $PATCHES
+do
+    NUM=$(expr $NUM + 1)
+    FNUM=$(printf "%02d" $NUM)
+    DST="$PATH_BASE-$FNUM-$patch"
+    test -e "$DST" && rm -Rf "$DST"
+    PATH_PATCH="$PATH_EXTENSIONES/$patch"
+    echo "Aplicando parche $patch . . . ($DST)"
+    eneboo-mergetool folder-patch "$PATH_PATCH" "$SRC" "$DST" 
+    
+    SRC=$DST
+done
+test -e "$PATH_FINAL" && rm -Rf "$PATH_FINAL"
+cp -Rf "$DST" "$PATH_FINAL" 
+echo "Fin."
