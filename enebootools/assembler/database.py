@@ -1,8 +1,19 @@
 # encoding: UTF-8
 from enebootools.assembler.config import cfg
 import os.path, fnmatch, os
+import sqlite3
 from lxml import etree
 from enebootools import CONF_DIR
+
+import enebootools.lib.peewee as peewee
+
+class KnownObjects(peewee.Model):
+    objid = peewee.PrimaryKeyField()
+    objtype = peewee.CharField()
+    abspath = peewee.CharField()
+    relpath = peewee.CharField()
+    filename = peewee.CharField()
+    extradata = peewee.TextField()
 
 db = None
 dbtree = None
@@ -86,23 +97,13 @@ def get_max_mtime(path, filename):
                     
 """
 
+
 def get_database():
     global db
     if db is not None: return db
     
-    dbfile = os.path.join(CONF_DIR, "assembler-database.xml")
-    if os.path.exists(dbfile):
-        parser = etree.XMLParser(
-                        ns_clean=False,
-                        encoding="UTF-8",
-                        recover=True,
-                        remove_blank_text=True,
-                        )
-        dbtree = etree.parse(dbfile, parser)
-        db = dbtree.getroot()
-    else:
-        db = etree.Element("assemberdb", version="1.0")
-        dbtree = db.getroottree()
+    dbfile = os.path.join(CONF_DIR, "assembler-database.sqlite")
+    db = sqlite3.connect(dbfile)
     return db
 
 def update_database(iface):

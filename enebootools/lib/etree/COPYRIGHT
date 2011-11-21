@@ -1,0 +1,8 @@
+This folder contains the original etree implementation found in Python 2.7.x 
+source code. It is here only to avoid a direct requirement on Python 2.7 and 
+allow to execute the code on older python versions. 
+
+This library is unused at the moment, and has been replaced by the use of lxml.
+It will be removed from the sources in the future.
+
+See Python sources for more information on licenses and copyrights.
