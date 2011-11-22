@@ -1,22 +1,72 @@
 # encoding: UTF-8
 from enebootools.assembler.config import cfg
 import os.path, fnmatch, os
-import sqlite3
+import sqlite3, json
 from lxml import etree
 from enebootools import CONF_DIR
 
 import enebootools.lib.peewee as peewee
 
-class KnownObjects(peewee.Model):
+db = None
+dbtree = None
+
+dbfile = os.path.join(CONF_DIR, "assembler-database.sqlite")
+db = peewee.SqliteDatabase(dbfile)
+
+class BaseModel(peewee.Model):
+    
+    just_created = False
+    
+    class Meta:
+        database = db
+    
+    @classmethod
+    def validate_table(cls):
+        tablename = cls._meta.db_table
+        query = cls._meta.database.execute("PRAGMA table_info( %s )" % tablename)
+        if query.description is None: return False
+        field_names = [ x[0] for x in query.description ]
+        not_found_fields = cls._meta.fields.keys()
+        update_fields = {}
+        for rowtuple in query:
+            row = dict(zip(field_names, rowtuple))
+            if row['name'] not in cls._meta.fields: continue
+            not_found_fields.remove(row['name'])
+            field = cls._meta.fields[row['name']]
+            tpl1 = u"%(name)s %(type)s" % row
+            if row['notnull'] == 1: tpl1 += ' NOT NULL'
+            if row['pk'] == 1: tpl1 += ' PRIMARY KEY'
+            tpl2 = unicode(field.to_sql())
+            if tpl1 != tpl2:
+                update_fields[row['name']] = (tpl1 , tpl2)
+        
+        if not_found_fields:
+            return False
+        if update_fields:
+            return False
+        return True
+            
+    @classmethod
+    def setup(cls):
+        if cls.validate_table(): return True
+        cls.drop_table(True)
+        cls.create_table()
+        cls.just_created = True
+        print "CacheSqlite:: Se ha recreado la tabla %s."  % cls._meta.db_table
+        return False
+
+
+class KnownObjects(BaseModel):
     objid = peewee.PrimaryKeyField()
     objtype = peewee.CharField()
     abspath = peewee.CharField()
     relpath = peewee.CharField()
     filename = peewee.CharField()
+    timestamp = peewee.IntegerField()
+    x1 = peewee.IntegerField()
     extradata = peewee.TextField()
 
-db = None
-dbtree = None
+KnownObjects.setup()
 
 def find_files(basedir, glob_pattern = "*", abort_on_match = False):
     ignored_files = [
@@ -96,19 +146,16 @@ def get_max_mtime(path, filename):
             y qué versiones (fecha de modificación) se usaron para éstas.
                     
 """
+            
 
 
 def get_database():
     global db
     if db is not None: return db
-    
-    dbfile = os.path.join(CONF_DIR, "assembler-database.sqlite")
-    db = sqlite3.connect(dbfile)
     return db
 
 def update_database(iface):
     from datetime import datetime
-    db = get_database()
     iface.info(u"Actualizando base de datos de módulos y funcionalidades . . . ")
     module_root = {}
     for path in cfg.module.modulefolders:
@@ -124,7 +171,17 @@ def update_database(iface):
             iface.debug(u"Módulo %s" % module)
             mtime = get_max_mtime(path,module)
             dmtime = datetime.fromtimestamp(mtime)
-            print dmtime.strftime("%a %d %B %Y @ %H:%M:%S %z")
+            obj = KnownObjects()
+            obj.objtype = "module"
+            obj.abspath = path
+            obj.relpath = os.path.dirname(module)
+            obj.filename = os.path.basename(module)
+            obj.timestamp = mtime
+            data = {}
+            obj.extradata = json.dumps(data)
+            obj.save()
+            
+            # print dmtime.strftime("%a %d %B %Y @ %H:%M:%S %z")
         module_root[path] = modules
 
     feature_root = {}
@@ -141,7 +198,7 @@ def update_database(iface):
             iface.debug(u"Funcionalidad %s" % feature)
             mtime = get_max_mtime(path,feature)
             dmtime = datetime.fromtimestamp(mtime)
-            print dmtime.strftime("%a %d %B %Y @ %H:%M:%S %z")
+            # print dmtime.strftime("%a %d %B %Y @ %H:%M:%S %z")
         
         feature_root[path] = features
         

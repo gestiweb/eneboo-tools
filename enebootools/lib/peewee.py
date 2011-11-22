@@ -29,6 +29,7 @@
 #           on a separate file on the package.
 #       * Remove mysql and psycopg imports
 #       * Remove default database
+#       * Force fields to be created in the correct order
 #
 #
 ##############################################################################
@@ -340,12 +341,13 @@ class Database(object):
     def create_table(self, model_class, safe=False):
         framing = safe and "CREATE TABLE IF NOT EXISTS %s (%s);" or "CREATE TABLE %s (%s);"
         columns = []
-
-        for field in model_class._meta.fields.values():
+        field_list = model_class._meta.fields.values()
+        field_list.sort(key=lambda x: x._order)
+        for field in field_list:
             columns.append(field.to_sql())
 
         query = framing % (model_class._meta.db_table, ', '.join(columns))
-        
+
         self.execute(query, commit=True)
     
     def create_index(self, model_class, field, unique=False):
@@ -1699,6 +1701,7 @@ class BaseModelOptions(object):
         self.reverse_relations = {}
         self.fields = {}
         self.model_class = model_class
+    
     
     def get_sorted_fields(self):
         return sorted(self.fields.items(), key=lambda (k,v): (k == self.pk_name and 1 or 2, v._order))
