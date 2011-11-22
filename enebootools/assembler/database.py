@@ -1,15 +1,19 @@
 # encoding: UTF-8
 from enebootools.assembler.config import cfg
 import os.path, fnmatch, os
-import sqlite3, json
-from lxml import etree
+import sqlite3
 from enebootools import CONF_DIR
-
 import enebootools.lib.peewee as peewee
+from lxml import etree
 
+def one(iterable, default=None):
+    if iterable:
+        for item in iterable:
+            return item
+    return default
+    
 db = None
 dbtree = None
-
 dbfile = os.path.join(CONF_DIR, "assembler-database.sqlite")
 db = peewee.SqliteDatabase(dbfile)
 db.execute("PRAGMA synchronous = 1;")
@@ -55,7 +59,12 @@ class BaseModel(peewee.Model):
         cls.just_created = True
         print "CacheSqlite:: Se ha recreado la tabla %s."  % cls._meta.db_table
         return False
-
+    
+    def format(self):
+        field_list = self._meta.fields.values()
+        field_list.sort(key=lambda x: x._order)
+        fields = " ".join( [ "%s=%s" % (f.name,repr(getattr(self,f.name,None))) for f in field_list ] )
+        return "<%s %s>" % (self.__class__.__name__, fields)
 
 class KnownObjects(BaseModel):
     objid = peewee.PrimaryKeyField()
@@ -193,8 +202,7 @@ def update_database(iface):
             obj.relpath = os.path.dirname(module)
             obj.filename = os.path.basename(module)
             obj.timestamp = int(mtime)
-            data = {}
-            obj.extradata = json.dumps(data)
+            obj.extradata = ""
             obj.save()
             
             # print dmtime.strftime("%a %d %B %Y @ %H:%M:%S %z")
@@ -221,13 +229,52 @@ def update_database(iface):
             obj.relpath = os.path.dirname(feature)
             obj.filename = os.path.basename(feature)
             obj.timestamp = int(mtime)
-            data = {}
-            obj.extradata = json.dumps(data)
+            obj.extradata = ""
             obj.save()
         
         feature_root[path] = features
+
+class ModuleObject(object):
+    def __init__(self, iface, obj):
+        self.encoding = "ISO-8859-15"
+        self.parser = etree.XMLParser(
+                        ns_clean=False,
+                        encoding=self.encoding,
+                        recover=True, # .. recover funciona y parsea cuasi cualquier cosa.
+                        remove_blank_text=True,
+                        )
+        self.tree = etree.parse(obj.fullfilename, self.parser)
+        self.root = self.tree.getroot()
+        self.name = one(self.root.xpath("name/text()"))
+        self.area = one(self.root.xpath("area/text()"))
+        self.areaname = one(self.root.xpath("areaname/text()"))
+        self.description = one(self.root.xpath("description/text()"))
+        self.dependencies = self.root.xpath("dependencies/dependency/text()")
+
+class ObjectIndex(object):
+    def __init__(self, iface):
+        self.iface = iface
         
+    def analyze_objects(self):
+        for kobj in KnownObjects.select():
+            fullfilename = os.path.join(kobj.abspath, kobj.relpath, kobj.filename)
+            kobj.fullfilename = fullfilename
+            if kobj.objtype == "module": self.load_module(kobj)
+            elif kobj.objtype == "feature": self.load_feature(kobj)
+            else: 
+                self.iface.warn("Unknown object type %s" % kobj.objtype)
+                self.iface.warn(kobj.format())
+                
+    def load_module(self, obj):
+        mod = ModuleObject(self.iface, obj)
 
+    def load_feature(self, obj):
+        pass
 
+def list_objects(iface):
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    
+    
 
 
