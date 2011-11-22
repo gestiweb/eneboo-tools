@@ -284,6 +284,7 @@ class Database(object):
         self.adapter = adapter
         self.database = database
         self.connect_kwargs = connect_kwargs
+        self.autocommit = True
         
         if threadlocals:
             self.__local = threading.local()
@@ -313,12 +314,13 @@ class Database(object):
     def execute(self, sql, params=None, commit=False):
         cursor = self.get_cursor()
         res = cursor.execute(sql, params or ())
-        if commit:
+        if commit and self.autocommit:
             self.commit()
         logger.debug((sql, params))
         return cursor
     
     def commit(self):
+        # print " --- COMMIT --- "
         self.get_conn().commit()
     
     def rollback(self):

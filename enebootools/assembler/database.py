@@ -12,6 +12,7 @@ dbtree = None
 
 dbfile = os.path.join(CONF_DIR, "assembler-database.sqlite")
 db = peewee.SqliteDatabase(dbfile)
+db.execute("PRAGMA synchronous = 1;")
 
 class BaseModel(peewee.Model):
     
@@ -63,7 +64,6 @@ class KnownObjects(BaseModel):
     relpath = peewee.CharField()
     filename = peewee.CharField()
     timestamp = peewee.IntegerField()
-    x1 = peewee.IntegerField()
     extradata = peewee.TextField()
 
 KnownObjects.setup()
@@ -148,15 +148,31 @@ def get_max_mtime(path, filename):
 """
             
 
+def transactional(fn):
+    def decorator(*args,**kwargs): 
+        global db
+        old_autocommit = db.autocommit 
+        db.autocommit = False
+        try:
+            ret = fn(*args,**kwargs)
+        except:
+            db.rollback()
+            raise
+        db.commit()
+        db.autocommit = old_autocommit
+        return ret
+    return decorator
 
 def get_database():
     global db
     if db is not None: return db
     return db
 
+@transactional
 def update_database(iface):
     from datetime import datetime
     iface.info(u"Actualizando base de datos de módulos y funcionalidades . . . ")
+    KnownObjects.delete().execute() # -- Borrar todos los objetos
     module_root = {}
     for path in cfg.module.modulefolders:
         if not os.path.exists(path):
@@ -176,7 +192,7 @@ def update_database(iface):
             obj.abspath = path
             obj.relpath = os.path.dirname(module)
             obj.filename = os.path.basename(module)
-            obj.timestamp = mtime
+            obj.timestamp = int(mtime)
             data = {}
             obj.extradata = json.dumps(data)
             obj.save()
@@ -199,6 +215,15 @@ def update_database(iface):
             mtime = get_max_mtime(path,feature)
             dmtime = datetime.fromtimestamp(mtime)
             # print dmtime.strftime("%a %d %B %Y @ %H:%M:%S %z")
+            obj = KnownObjects()
+            obj.objtype = "feature"
+            obj.abspath = path
+            obj.relpath = os.path.dirname(feature)
+            obj.filename = os.path.basename(feature)
+            obj.timestamp = int(mtime)
+            data = {}
+            obj.extradata = json.dumps(data)
+            obj.save()
         
         feature_root[path] = features
         
