@@ -1804,7 +1804,11 @@ class Model(object):
         self.get_field_dict()
         for k, v in kwargs.items():
             setattr(self, k, v)
-    
+            
+    @classmethod
+    def set_database(self, db):
+        self._meta.database = db
+            
     def __eq__(self, other):
         return other.__class__ == self.__class__ and \
                self.get_pk() and \
