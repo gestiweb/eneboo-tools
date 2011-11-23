@@ -28,6 +28,18 @@ class AssemblerInterface(EnebooToolsInterface):
             call_function = self.do_list_objects,
             )
             
+        self.howto_build_action = self.parser.declare_action(
+            name = "howto-build",
+            args = ["feat","target"],
+            options = [],
+            description = u"Explica los pasos a seguir para construir el objetivo $target de la funcionalidad $feat",
+            call_function = self.do_howto_build,
+            )
+        self.howto_build_action.set_help_arg(
+            target = "Objetivo a construir",
+            feat = "Funcionalidad a construir",
+            )                
+            
     # :::: ACTIONS ::::
 
     def do_dbupdate(self):
@@ -39,6 +51,12 @@ class AssemblerInterface(EnebooToolsInterface):
     def do_list_objects(self):
         try:
             return asmdb.list_objects(self)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_howto_build(self, target, feat):
+        try:
+            return asmdb.do_howto_build(self,target, feat)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 

@@ -83,7 +83,7 @@ class BaseObject(object):
         
     def finish_setup(self):
         self.all_required_modules = self._get_full_required_modules()
-        self.all_required_fatures = self._get_full_required_features()
+        self.all_required_features = self._get_full_required_features()
     
     
 class ModuleObject(BaseObject):
@@ -122,6 +122,53 @@ class FeatureObject(BaseObject):
         self.patch_series = read_file_list(self.fullpath, "conf/patch_series", errlog = self.iface.warn)
         
         self.iface.debug2(u"Se ha parseado la funcionalidad %s" % self.name)
+    
+    def get_base_actions(self):
+        actions = []
+        dst_folder = os.path.join(self.fullpath, "build/base")
+        BuildInstructions(actions, feature=self.formal_name(), target="base", path=self.fullpath, dstfolder="build/base")
+        
+        #DeleteFolderIfExistsAction(actions, dst=dst_folder)
+        #CreateFolderIfNotExists(actions, dst=dst_folder)
+        
+        for modulename in self.all_required_modules:
+            module = ModuleObject.find(modulename)
+            CopyFolderAction(actions, src=module.fullpath, dst=module.obj.relpath, create_dst="yes")
+        
+        for featurename in self.all_required_features:
+            feature = FeatureObject.find(featurename)
+            for patchdir in read_file_list(feature.fullpath, "conf/patch_series", errlog=self.iface.warn):
+                ApplyPatchAction(action, src=os.path.join(feature.fullpath,"patches",patchdir))
+                
+        return actions
+
+class Action(object):
+    def __init__(self, parent, **kwargs):
+        self.name = self.__class__.__name__
+        for k,v in kwargs.items():
+            setattr(self, k, v)
+        parent.append(self)
+    def __repr__(self):
+        attrs = self.__dict__.copy()
+        del attrs['name']
+        text = "".join([ " %s=%s" % (k,repr(v)) for k, v in sorted(attrs.items()) ])
+        return "<%s%s>" % (self.name, text)
+            
+class DeleteFolderIfExistsAction(Action):
+    pass
+            
+class CreateFolderIfNotExists(Action):
+    pass
+    
+class CopyFolderAction(Action):
+    pass
+
+class ApplyPatchAction(Action):
+    pass
+
+class BuildInstructions(Action):
+    pass
+
 
 class ObjectIndex(object):
     def __init__(self, iface):
@@ -148,4 +195,15 @@ class ObjectIndex(object):
         
     def features(self): 
         return FeatureObject.items()
+        
+    def get_build_actions(self, target, func):
+        feature = FeatureObject.find(func)
+        if not feature: 
+            self.iface.error("Funcionalidad %s desconocida." % func)
+            return []
+        if target == 'base':
+            return feature.get_base_actions()
+            
+        self.iface.error("Target %s desconocido." % target)
+        return []
         

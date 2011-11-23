@@ -117,6 +117,15 @@ def list_objects(iface):
     for obj in oi.features():
         iface.msg(u" - %s" % obj.formal_name())
 
+def do_howto_build(iface,target, feat):
+    db = init_database()
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    actions = oi.get_build_actions(target,feat)
+    iface.msg("Acciones para compilar funcionalidad %s %s:" % (feat, target))
+    for action in actions:
+        print repr(action)
+    
     
     
 
