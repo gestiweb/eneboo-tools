@@ -8,6 +8,19 @@ def one(iterable, default=None):
             return item
     return default
     
+def read_file_list(filepath, filename, errlog = None):
+    fullfilename = os.path.join(filepath, filename)
+    try:
+        file1 = open(fullfilename, "rb")
+    except Exception, e:
+        if errlog: errlog("Error al abrir el fichero %s" % fullfilename)
+        return []
+    txt = [ line.strip() for line in file1 ]
+    file1.close()
+    txt2 = [ line for line in txt if len(line) and not line.startswith("#") ]
+    return txt2
+    
+    
 
 def find_files(basedir, glob_pattern = "*", abort_on_match = False):
     ignored_files = [
