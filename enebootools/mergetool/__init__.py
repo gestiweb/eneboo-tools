@@ -97,6 +97,17 @@ class MergeToolInterface(EnebooToolsInterface):
             call_function = self.set_patch_xml_style
             )
             
+        self.build_project_action = self.parser.declare_action(
+            name = "build-project",
+            args = ["buildxml"],
+            options = [],
+            description = u"Lee el fichero $buildxml y realiza las operaciones que se determinan",
+            call_function = self.do_build_project,
+            )
+        self.build_project_action.set_help_arg(
+            buildxml = "Fichero del que leer las instrucciones",
+            )                
+            
         self.folder_diff_action = self.parser.declare_action(
             name = "folder-diff",
             args = ["patchdir","basedir","finaldir"],
@@ -188,7 +199,13 @@ class MergeToolInterface(EnebooToolsInterface):
         self.diff_xml_search_move = True
     
     # :::: ACTIONS ::::
-
+    def do_build_project(self, buildxml):
+        try:
+            # TODO: Crear project builder y build_xml_file
+            return projectbuilder.build_xml_file(self, buildxml)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+    
     def do_folder_diff(self, basedir, finaldir, patchdir):
         try:
             return flpatchdir.diff_folder(self, basedir, finaldir, patchdir)
