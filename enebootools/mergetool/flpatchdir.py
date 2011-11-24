@@ -441,3 +441,6 @@ def patch_folder(iface, basedir, finaldir, patchdir):
     fpatch.patch_folder(finaldir)
         
 
+def patch_folder_inplace(iface, patchdir, finaldir):
+    fpatch = FolderApplyPatch(iface, patchdir)
+    fpatch.patch_folder(finaldir)
