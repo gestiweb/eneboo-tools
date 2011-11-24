@@ -124,23 +124,28 @@ class FeatureObject(BaseObject):
         self.iface.debug2(u"Se ha parseado la funcionalidad %s" % self.name)
     
     def get_base_actions(self):
-        actions = []
         dst_folder = os.path.join(self.fullpath, "build/base")
-        BuildInstructions(actions, feature=self.formal_name(), target="base", path=self.fullpath, dstfolder="build/base")
-        
-        #DeleteFolderIfExistsAction(actions, dst=dst_folder)
-        #CreateFolderIfNotExists(actions, dst=dst_folder)
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","base")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/base")
         
         for modulename in self.all_required_modules:
             module = ModuleObject.find(modulename)
-            CopyFolderAction(actions, src=module.fullpath, dst=module.obj.relpath, create_dst="yes")
+            cpfolder = etree.SubElement(binstr,"CopyFolderAction")
+            cpfolder.set("src",module.fullpath)
+            cpfolder.set("dst",module.obj.relpath)
+            cpfolder.set("create_dst", "yes")
         
         for featurename in self.all_required_features:
             feature = FeatureObject.find(featurename)
             for patchdir in read_file_list(feature.fullpath, "conf/patch_series", errlog=self.iface.warn):
-                ApplyPatchAction(action, src=os.path.join(feature.fullpath,"patches",patchdir))
-                
-        return actions
+                apatch = etree.SubElement(binstr,"ApplyPatchAction")
+                apatch.set("src",os.path.join(feature.fullpath,"patches",patchdir))
+        
+        # print etree.tostring(binstr, pretty_print=True)
+        return binstr
 
 class Action(object):
     def __init__(self, parent, **kwargs):
@@ -200,10 +205,10 @@ class ObjectIndex(object):
         feature = FeatureObject.find(func)
         if not feature: 
             self.iface.error("Funcionalidad %s desconocida." % func)
-            return []
+            return None
         if target == 'base':
             return feature.get_base_actions()
             
         self.iface.error("Target %s desconocido." % target)
-        return []
+        return None
         

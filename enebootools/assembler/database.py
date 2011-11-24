@@ -121,10 +121,14 @@ def do_howto_build(iface,target, feat):
     db = init_database()
     oi = ObjectIndex(iface)
     oi.analyze_objects()
-    actions = oi.get_build_actions(target,feat)
-    iface.msg("Acciones para compilar funcionalidad %s %s:" % (feat, target))
-    for action in actions:
-        print repr(action)
+    build_instructions = oi.get_build_actions(target,feat)
+    iface.info("Acciones para compilar funcionalidad %s %s:" % (feat, target))
+    iface.msg(etree.tostring(build_instructions, pretty_print=True))
+    buildpath = os.path.join(build_instructions.get("path"), "build")
+    if not os.path.exists(buildpath):
+        os.mkdir(buildpath)
+    dstfile = os.path.join(buildpath, "%s.build.xml" % target)
+    build_instructions.getroottree().write(dstfile, pretty_print=True)
     
     
     
