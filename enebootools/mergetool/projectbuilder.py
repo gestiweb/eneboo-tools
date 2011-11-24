@@ -18,7 +18,7 @@ class BuildInstructions(object):
         
     def execute(self):
         if os.path.exists(self.dstpath):
-            self.iface.debug("Borrando carpeta %s ..." % self.dstpath)
+            self.iface.msg("Borrando carpeta %s . . . "  % self.dstpath)
             shutil.rmtree(self.dstpath)
         os.mkdir(self.dstpath)
         for instruction in self.instructions:
@@ -32,7 +32,7 @@ class BuildInstructions(object):
     def copyFolder(self,src,dst,create_dst=False):
         if create_dst == "yes": create_dst = True
         if create_dst == "no": create_dst = False
-        self.iface.debug("copyFolder src=%s dst=%s" % (src, dst))
+        self.iface.msg("Copiando %s . . . " % (dst))
         dst = os.path.join(self.dstpath, dst)
         if not os.path.exists(src):
             self.iface.error("La carpeta %s no existe" % src)
@@ -51,7 +51,7 @@ class BuildInstructions(object):
         
 
     def applyPatch(self,src):
-        self.iface.debug("applyPatch src=%s" % (src))
+        self.iface.msg("Aplicando parche (...)%s . . ." % (src[-48:]))
         flpatchdir.patch_folder_inplace(self.iface, src, self.dstpath)
 
 def build_xml_file(iface, xmlfile):
@@ -65,3 +65,6 @@ def build_xml_file(iface, xmlfile):
     bi = BuildInstructions(iface, build_instructions)
     bi.execute()
     
+def build_xml(iface, xml):
+    bi = BuildInstructions(iface, xml)
+    bi.execute()

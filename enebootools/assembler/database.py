@@ -9,6 +9,8 @@ from enebootools import CONF_DIR
 from enebootools.assembler.config import cfg
 from enebootools.lib.utils import one, find_files, get_max_mtime
 import enebootools.lib.peewee as peewee
+from enebootools.mergetool import projectbuilder
+from enebootools.mergetool import MergeToolInterface    
 
 
 from databasemodels import KnownObjects
@@ -130,6 +132,23 @@ def do_howto_build(iface,target, feat):
     dstfile = os.path.join(buildpath, "%s.build.xml" % target)
     build_instructions.getroottree().write(dstfile, pretty_print=True)
     
+    
+
+
+
+def do_build(iface,target, feat):
+    db = init_database()
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    build_instructions = oi.get_build_actions(target,feat)
+    buildpath = os.path.join(build_instructions.get("path"), "build")
+    if not os.path.exists(buildpath):
+        os.mkdir(buildpath)
+    dstfile = os.path.join(buildpath, "%s.build.xml" % target)
+    build_instructions.getroottree().write(dstfile, pretty_print=True)
+    mtool_iface = MergeToolInterface()
+    mtool_iface.verbosity = iface.verbosity
+    projectbuilder.build_xml(mtool_iface,build_instructions)
     
     
 

@@ -128,7 +128,7 @@ class FolderApplyPatch(object):
         old_output = self.iface.output
         old_verbosity = self.iface.verbosity
         self.iface.verbosity -= 2
-        if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
+        if self.iface.verbosity < 0: self.iface.verbosity = 0
         self.iface.set_output_file(dst+".patched")
         ret = flpatchqs.patch_qs(self.iface,dst,src)
         self.iface.output = old_output 

@@ -12,6 +12,19 @@ class AssemblerInterface(EnebooToolsInterface):
     def setup_parser(self):
         EnebooToolsInterface.setup_parser(self)
         
+        self.build_action = self.parser.declare_action(
+            name = "build",
+            args = ["feat","target"],
+            options = [],
+            description = u"Construye el objetivo $target de la funcionalidad $feat",
+            call_function = self.do_build,
+            )
+        self.build_action.set_help_arg(
+            target = "Objetivo a construir",
+            feat = "Funcionalidad a construir",
+            )                
+            
+        
         self.dbupdate_action = self.parser.declare_action(
             name = "dbupdate",
             args = [],
@@ -40,6 +53,7 @@ class AssemblerInterface(EnebooToolsInterface):
             feat = "Funcionalidad a construir",
             )                
             
+            
     # :::: ACTIONS ::::
 
     def do_dbupdate(self):
@@ -57,6 +71,12 @@ class AssemblerInterface(EnebooToolsInterface):
     def do_howto_build(self, target, feat):
         try:
             return asmdb.do_howto_build(self,target, feat)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_build(self, target, feat):
+        try:
+            return asmdb.do_build(self,target, feat)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 
