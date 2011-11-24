@@ -7,10 +7,26 @@ class BuildInstructions(object):
     def __init__(self, iface, instructions):
         self.instructions = instructions
         self.iface = iface
+        print self.instructions.tag
+        print self.instructions.attrib
+        assert( self.instructions.tag in ["BuildInstructions"] )
         
     def execute(self):
-        pass
+        for instruction in self.instructions:
+            if instruction.tag == "CopyFolderAction":
+                self.copyFolder(**instruction.attrib)
+            elif instruction.tag == "ApplyPatchAction":
+                self.applyPatch(**instruction.attrib)
+            else:
+                self.iface.warn("Accion %s desconocida" % instruction.tag)
         
+    def copyFolder(self,src,dst,create_dst=False):
+        if create_dst == "yes": create_dst = True
+        if create_dst == "no": create_dst = False
+        print "copyFolder", src, dst
+
+    def applyPatch(self,src):
+        print "ApplyPatch", src
 
 def build_xml_file(iface, xmlfile):
     parser = etree.XMLParser(
@@ -20,7 +36,6 @@ def build_xml_file(iface, xmlfile):
                     )
     bitree = etree.parse(xmlfile, parser)
     build_instructions = bitree.getroot()
-    assert( build_instructions.tag in ["BuildInstructions"] )
-    print build_instructions.tag
-    print build_instructions.attrib
+    bi = BuildInstructions(iface, build_instructions)
+    bi.execute()
     

@@ -15,6 +15,8 @@ class BaseObject(object):
     def __init__(self, iface, obj):
         self.iface = iface
         self.obj = obj
+        self.all_required_modules = None
+        self.all_required_features = None
         self.fullpath = os.path.join(obj.abspath, obj.relpath)
         self.fullfilename = os.path.join(obj.abspath, obj.relpath, obj.filename)
         self.setup()
@@ -56,6 +58,7 @@ class BaseObject(object):
             obj.finish_setup()
         
     def _get_full_required_modules(self):
+        if self.all_required_modules: return self.all_required_modules
         req = []
         myreq = []
         for modname in self.required_modules:
@@ -63,27 +66,56 @@ class BaseObject(object):
             if obj is None:
                 self.iface.warn("Modulo con nombre %s no encontrado" % modname)
                 continue
-            req += [ modulename for modulename in obj._get_full_required_modules() if modulename not in req  ]
+            new_reqs = [ modulename for modulename in obj._get_full_required_modules() if modulename not in req  ]
+            if self.type == "prj":
+                for n in new_reqs:
+                    if n in self.required_modules: continue
+                    self.iface.warn("Proyecto %s, se agrega modulo %s solicitado por %s" % (self.formal_name(),n,modname))
+            
+            req += new_reqs
             myreq.append(obj.formal_name())
+            
+        self.all_required_features = self._get_full_required_features()
+            
+        for featname in self.all_required_features:
+            obj = FeatureObject.find(featname)
+            if obj is None:
+                self.iface.warn("Funcionalidad con nombre %s no encontrada" % featname)
+                continue
+            new_reqs = [ modulename for modulename in obj._get_full_required_modules() if modulename not in req  ]
+            if self.type == "prj":
+                for n in new_reqs:
+                    if n in self.required_modules: continue
+                    self.iface.warn("Proyecto %s, se agrega modulo %s solicitado por funcionalidad %s" % (self.formal_name(),n,featname))
+            req += new_reqs
+            
         req += [ modulename for modulename in myreq if modulename not in req ]
+        self.all_required_modules = req
         return req
         
     def _get_full_required_features(self):
+        if self.all_required_features: return self.all_required_features
         req = []
         myreq = []
         for featname in self.required_features:
             obj = FeatureObject.find(featname)
             if obj is None:
-                self.iface.warn("Funcionalidad con nombre %s no encontrado" % featname)
+                self.iface.warn("Funcionalidad con nombre %s no encontrada" % featname)
                 continue
-            req += [ featurename for featurename in obj._get_full_required_features() if featurename not in req  ]
+            new_reqs = [ featurename for featurename in obj._get_full_required_features() if featurename not in req  ]
+            if self.type == "prj":
+                for n in new_reqs:
+                    if n in self.required_features: continue
+                    self.iface.warn("Proyecto %s, se agrega funcionalidad %s solicitada por %s" % (self.formal_name(),n,featname))
+            req += new_reqs
             myreq.append(obj.formal_name())
         req += [ featurename for featurename in myreq if featurename not in req ]
+        self.all_required_features = req
         return req
         
     def finish_setup(self):
-        self.all_required_modules = self._get_full_required_modules()
-        self.all_required_features = self._get_full_required_features()
+        self._get_full_required_features()
+        self._get_full_required_modules()
     
     
 class ModuleObject(BaseObject):
@@ -140,39 +172,18 @@ class FeatureObject(BaseObject):
         
         for featurename in self.all_required_features:
             feature = FeatureObject.find(featurename)
-            for patchdir in read_file_list(feature.fullpath, "conf/patch_series", errlog=self.iface.warn):
+            patch_list = read_file_list(feature.fullpath, "conf/patch_series", errlog=self.iface.warn)
+            if len(patch_list) == 0: self.iface.warn("No encontramos parches para aplicar en %s" % featurename)
+            for patchdir in patch_list:
                 apatch = etree.SubElement(binstr,"ApplyPatchAction")
-                apatch.set("src",os.path.join(feature.fullpath,"patches",patchdir))
+                srcpath = os.path.join(feature.fullpath,"patches",patchdir)
+                if not os.path.exists(srcpath):
+                    self.iface.warn("La ruta %s no existe." % srcpath)
+                
+                apatch.set("src",srcpath)
         
         # print etree.tostring(binstr, pretty_print=True)
         return binstr
-
-class Action(object):
-    def __init__(self, parent, **kwargs):
-        self.name = self.__class__.__name__
-        for k,v in kwargs.items():
-            setattr(self, k, v)
-        parent.append(self)
-    def __repr__(self):
-        attrs = self.__dict__.copy()
-        del attrs['name']
-        text = "".join([ " %s=%s" % (k,repr(v)) for k, v in sorted(attrs.items()) ])
-        return "<%s%s>" % (self.name, text)
-            
-class DeleteFolderIfExistsAction(Action):
-    pass
-            
-class CreateFolderIfNotExists(Action):
-    pass
-    
-class CopyFolderAction(Action):
-    pass
-
-class ApplyPatchAction(Action):
-    pass
-
-class BuildInstructions(Action):
-    pass
 
 
 class ObjectIndex(object):
