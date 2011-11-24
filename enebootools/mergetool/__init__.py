@@ -3,7 +3,7 @@ import enebootools
 from enebootools import EnebooToolsInterface
 import sys, traceback
 
-from enebootools.mergetool import flpatchqs, flpatchxml, flpatchlxml, flpatchdir
+from enebootools.mergetool import flpatchqs, flpatchxml, flpatchlxml, flpatchdir, projectbuilder
 
 """
     El receptor de las llamadas del parser es una clase. Cada opción
@@ -201,7 +201,6 @@ class MergeToolInterface(EnebooToolsInterface):
     # :::: ACTIONS ::::
     def do_build_project(self, buildxml):
         try:
-            # TODO: Crear project builder y build_xml_file
             return projectbuilder.build_xml_file(self, buildxml)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
