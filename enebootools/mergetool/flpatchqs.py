@@ -296,7 +296,7 @@ def patch_qs(iface, base, patch):
     #       clase padre de la clase insertada y de la nueva clase hija
     #  - En caso de no haber nueva clase hija, entonces "iface" cambia de tipo.
     #       Además, probablemente haya que bajar la definición de iface.
-    
+    new_iface_class = None
     for newclass in clpatch['classes']:
         auth_overwrite_class = False
         todo = [] # Diferentes "arreglos" que ejecutar luego.
@@ -433,6 +433,7 @@ def patch_qs(iface, base, patch):
                             u"tipo de dato usado por iface, por lo tanto actualizamos"
                             u" el tipo de dato usado por iface a %s" % (extending, newclass))
                     todo.append('fix-iface newclass')
+                    new_iface_class = newclass
             else:
                 iface.warn("No existe declaración de iface en el código (aplicando patch para clase %s)" % newclass)
                 todo.append('create-iface')
@@ -514,6 +515,11 @@ def patch_qs(iface, base, patch):
                 fix_class(iface, flbase, clbase, cdbase, prev_child_cname, set_extends = newclass)
                 # Al terminar, borramos la tarea.
                 todo.remove('fix-class prev_child_cname')
+
+            if 'fix-iface newclass' in todo:
+                fix_iface(iface, flbase, clbase, new_iface_class)
+                todo.remove('fix-iface newclass')
+                
             
         for task in todo:
             iface.warn("La tarea %s no se ejecutó o se desconoce cómo hacerlo." % repr(task))
@@ -527,7 +533,18 @@ def patch_qs(iface, base, patch):
     
     return True
     
-    
+def fix_iface(iface, flbase, clbase, newclass):
+    oldclass = clbase['iface']['classname']
+    oldtext = clbase['iface']['text']
+    newtext = oldtext.replace(" %s(" % oldclass, " %s(" % newclass, 1)
+    line = clbase['iface']['line']
+    oldline = flbase[line]
+    newline = oldline.replace(oldtext,newtext, 1)
+    iface.debug("%d: %s -> %s" % (line, oldline, newline))
+    flbase[line] = newline
+    clbase['iface']['text'] = newtext
+    clbase['iface']['classname'] = newclass
+
 def fix_class(iface, flbase, clbase, cdbase, classname, **updates):
     """
         Busca en $base la clase $class_name y modifica el código según los
