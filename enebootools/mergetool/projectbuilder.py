@@ -16,8 +16,9 @@ class BuildInstructions(object):
         self.target = self.instructions.get("target")
         self.dstpath = os.path.join(self.path, self.dstfolder)
         
-    def execute(self):
+    def execute(self, rebuild = True):
         if os.path.exists(self.dstpath):
+            if rebuild == False: return True
             self.iface.msg("Borrando carpeta %s . . . "  % self.dstpath)
             shutil.rmtree(self.dstpath)
         os.mkdir(self.dstpath)
@@ -26,6 +27,8 @@ class BuildInstructions(object):
                 self.copyFolder(**instruction.attrib)
             elif instruction.tag == "ApplyPatchAction":
                 self.applyPatch(**instruction.attrib)
+            elif instruction.tag == "CreatePatchAction":
+                self.createPatch(**instruction.attrib)
             else:
                 self.iface.warn("Accion %s desconocida" % instruction.tag)
         
@@ -54,7 +57,11 @@ class BuildInstructions(object):
         self.iface.msg("Aplicando parche (...)%s . . ." % (src[-48:]))
         flpatchdir.patch_folder_inplace(self.iface, src, self.dstpath)
 
-def build_xml_file(iface, xmlfile):
+    def createPatch(self,src,dst):
+        self.iface.msg("Creando parche (...)%s - (...)%s . . ." % (src[-32:],dst[-32:]))
+        flpatchdir.diff_folder(self.iface, src, dst, self.dstpath, inplace = True)
+
+def build_xml_file(iface, xmlfile, rebuild = True):
     parser = etree.XMLParser(
                     ns_clean=False,
                     encoding="UTF-8",
@@ -63,8 +70,8 @@ def build_xml_file(iface, xmlfile):
     bitree = etree.parse(xmlfile, parser)
     build_instructions = bitree.getroot()
     bi = BuildInstructions(iface, build_instructions)
-    bi.execute()
+    bi.execute(rebuild)
     
-def build_xml(iface, xml):
+def build_xml(iface, xml, rebuild = True):
     bi = BuildInstructions(iface, xml)
-    bi.execute()
+    bi.execute(rebuild)

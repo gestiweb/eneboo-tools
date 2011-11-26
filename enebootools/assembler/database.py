@@ -134,21 +134,34 @@ def do_howto_build(iface,target, feat):
     
     
 
+def is_target_built(iface, target, feat):
+    # TODO: Revisar si $target.build.xml existe
+    # TODO: Si existe, preguntar a mergetool si cree que está construido.
+    return False # Asumir que nunca una dependencia está cumplida
 
-
-def do_build(iface,target, feat):
+def do_build(iface,target, feat, rebuild=True):
     db = init_database()
     oi = ObjectIndex(iface)
     oi.analyze_objects()
     build_instructions = oi.get_build_actions(target,feat)
+    if build_instructions is None: return False
     buildpath = os.path.join(build_instructions.get("path"), "build")
     if not os.path.exists(buildpath):
         os.mkdir(buildpath)
     dstfile = os.path.join(buildpath, "%s.build.xml" % target)
     build_instructions.getroottree().write(dstfile, pretty_print=True)
+    depends = build_instructions.get("depends", "").split(" ")
+    if depends:
+        for dep in depends: 
+            dep = dep.strip()
+            if dep == "": continue
+            if not is_target_built(iface, dep, feat):
+                # Si tiene una dependencia, y no está cumplida, recompilarla:
+                do_build(iface, dep, feat, rebuild = False)
+                
     mtool_iface = MergeToolInterface()
     mtool_iface.verbosity = iface.verbosity
-    projectbuilder.build_xml(mtool_iface,build_instructions)
+    projectbuilder.build_xml(mtool_iface,build_instructions,rebuild)
     
     
 

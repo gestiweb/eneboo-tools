@@ -154,7 +154,9 @@ class FeatureObject(BaseObject):
         self.patch_series = read_file_list(self.fullpath, "conf/patch_series", errlog = self.iface.warn)
         
         self.iface.debug2(u"Se ha parseado la funcionalidad %s" % self.name)
-    
+
+    # * base: compila las dependencias del proyecto (todo lo que necesitamos 
+    #         para poder aplicar los parches luego)
     def get_base_actions(self):
         dst_folder = os.path.join(self.fullpath, "build/base")
         binstr = etree.Element("BuildInstructions")
@@ -182,8 +184,106 @@ class FeatureObject(BaseObject):
                 
                 apatch.set("src",srcpath)
         
-        # print etree.tostring(binstr, pretty_print=True)
         return binstr
+        
+    # * final: todo lo que lleva base, mas los parches que existen para este 
+    #          proyecto. (esto es lo que se envía al cliente)
+    def get_final_actions(self):
+        dst_folder = os.path.join(self.fullpath, "build/final")
+        dep_folder = os.path.join(self.fullpath, "build/base")
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","final")
+        binstr.set("depends","base")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/final")
+        
+        for modulename in self.all_required_modules:
+            module = ModuleObject.find(modulename)
+            cpfolder = etree.SubElement(binstr,"CopyFolderAction")
+            cpfolder.set("src",os.path.join(dep_folder,module.obj.relpath))
+            cpfolder.set("dst",module.obj.relpath)
+            cpfolder.set("create_dst", "yes")
+        
+        featurename = self.formal_name()
+        feature = self
+        patch_list = read_file_list(feature.fullpath, "conf/patch_series", errlog=self.iface.warn)
+        if len(patch_list) == 0: self.iface.debug("No hay parches para aplicar en %s" % featurename)
+        for patchdir in patch_list:
+            apatch = etree.SubElement(binstr,"ApplyPatchAction")
+            srcpath = os.path.join(feature.fullpath,"patches",patchdir)
+            if not os.path.exists(srcpath):
+                self.iface.warn("La ruta %s no existe." % srcpath)
+            
+            apatch.set("src",srcpath)
+        
+        return binstr
+
+    # * src: una copia del target final, donde realizar los 
+    #        cambios a la extensión
+    def get_src_actions(self):
+        dst_folder = os.path.join(self.fullpath, "build/src")
+        dep_folder = os.path.join(self.fullpath, "build/final")
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","src")
+        binstr.set("depends","final")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/src")
+        
+        for modulename in self.all_required_modules:
+            module = ModuleObject.find(modulename)
+            cpfolder = etree.SubElement(binstr,"CopyFolderAction")
+            cpfolder.set("src",os.path.join(dep_folder,module.obj.relpath))
+            cpfolder.set("dst",module.obj.relpath)
+            cpfolder.set("create_dst", "yes")
+        
+        return binstr
+
+    # * patch: calcula el parche de las diferencias entre src y final.
+    def get_patch_actions(self):
+        dst_folder = os.path.join(self.fullpath, "build/patch")
+        dep1_folder = os.path.join(self.fullpath, "build/final")
+        dep2_folder = os.path.join(self.fullpath, "build/src")
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","src")
+        binstr.set("depends","final src")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/patch")
+        
+        cpatch = etree.SubElement(binstr,"CreatePatchAction")
+        cpatch.set("src",dep1_folder)
+        cpatch.set("dst",dep2_folder)
+        
+        return binstr
+
+    # * test: el resultado de aplicar el parche "patch" sobre "final", sirve 
+    #         para realizar las pruebas convenientes antes de guardar 
+    #         el nuevo parche
+    def get_test_actions(self):
+        dst_folder = os.path.join(self.fullpath, "build/test")
+        dep1_folder = os.path.join(self.fullpath, "build/final")
+        dep2_folder = os.path.join(self.fullpath, "build/patch")
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","test")
+        binstr.set("depends","final patch")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/test")
+        
+        for modulename in self.all_required_modules:
+            module = ModuleObject.find(modulename)
+            cpfolder = etree.SubElement(binstr,"CopyFolderAction")
+            cpfolder.set("src",os.path.join(dep1_folder,module.obj.relpath))
+            cpfolder.set("dst",module.obj.relpath)
+            cpfolder.set("create_dst", "yes")
+        
+        apatch = etree.SubElement(binstr,"ApplyPatchAction")
+        apatch.set("src",dep2_folder)
+        
+        return binstr
+
 
 
 class ObjectIndex(object):
@@ -219,6 +319,18 @@ class ObjectIndex(object):
             return None
         if target == 'base':
             return feature.get_base_actions()
+            
+        if target == 'final':
+            return feature.get_final_actions()
+            
+        if target == 'src':
+            return feature.get_src_actions()
+            
+        if target == 'patch':
+            return feature.get_patch_actions()
+            
+        if target == 'test':
+            return feature.get_test_actions()
             
         self.iface.error("Target %s desconocido." % target)
         return None

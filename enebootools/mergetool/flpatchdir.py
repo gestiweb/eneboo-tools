@@ -86,12 +86,19 @@ class FolderApplyPatch(object):
     def add_file(self, addfile, folder):            
         path = addfile.get("path")
         filename = addfile.get("name")
+        module_path = path
+        while module_path.count("/") > 1:
+            module_path = os.path.dirname(module_path)
+        if not os.path.exists(os.path.join(folder,module_path)):
+            self.iface.warn("Ignorando la creación de fichero %s (el módulo no existe)" % filename)
+            return
         
         pathname = os.path.join(path, filename)
-        self.iface.debug("Copiando %s . . ." % filename)
         src = os.path.join(self.patch_dir,filename)
         dst = os.path.join(folder,pathname)
         dst_parent = os.path.dirname(dst)
+        
+        self.iface.debug("Copiando %s . . ." % filename)
         if not os.path.exists(dst_parent):
             os.makedirs(dst_parent)
         
@@ -383,15 +390,12 @@ class FolderCreatePatch(object):
         
 
 
-def diff_folder(iface, basedir, finaldir, patchdir):
+def diff_folder(iface, basedir, finaldir, patchdir, inplace = False):
     iface.debug(u"Folder Diff $basedir:%s $finaldir:%s $patchdir:%s" % (basedir,finaldir,patchdir))
     # patchdir no debe existir
     parent_patchdir = os.path.abspath(os.path.join(patchdir,".."))
     if not os.path.exists(parent_patchdir):
         iface.error("La ruta %s no existe" % parent_patchdir)
-        return
-    if os.path.lexists(patchdir):
-        iface.error("La ruta a $finaldir %s ya existía. No se continua. " % patchdir)
         return
     if not os.path.exists(basedir):
         iface.error("La ruta %s no existe" % basedir)
@@ -399,8 +403,12 @@ def diff_folder(iface, basedir, finaldir, patchdir):
     if not os.path.exists(finaldir):
         iface.error("La ruta %s no existe" % finaldir)
         return
-        
-    os.mkdir(patchdir)
+    if not inplace:
+        if os.path.lexists(patchdir):
+            iface.error("La ruta a $finaldir %s ya existía. No se continua. " % patchdir)
+            return
+    if not os.path.lexists(patchdir):
+        os.mkdir(patchdir)
 
     fpatch = FolderCreatePatch(iface, basedir, finaldir, patchdir)
     fpatch.create_patch()
@@ -444,3 +452,4 @@ def patch_folder(iface, basedir, finaldir, patchdir):
 def patch_folder_inplace(iface, patchdir, finaldir):
     fpatch = FolderApplyPatch(iface, patchdir)
     fpatch.patch_folder(finaldir)
+
