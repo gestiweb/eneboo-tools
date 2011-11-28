@@ -1,17 +1,178 @@
 <h1 id="proyecto-eneboo-tools-gu&#237;a-superrapida">Proyecto Eneboo-tools (Guía superrapida)</h1>
-<p>Actualmente solo se provee del comando eneboo-mergetool.</p>
+<p>Actualmente solo se proveen los comandos eneboo-mergetool y eneboo-assembler.</p>
+<p>Otros comandos que no están listados aquí pueden ser pruebas de concepto o estar en desarrollo.</p>
+<h2 id="dependencias">Dependencias</h2>
+<dl>
+<dt>Como mínimo, se necesita:</dt>
+<dd><ul>
+<li><dl>
+<dt>python 2.5</dt>
+<dd><ul>
+<li>sqlite3</li>
+</ul>
+</dd>
+</dl></li>
+<li><dl>
+<dt>lxml (python-lxml)</dt>
+<dd><ul>
+<li>libxml2</li>
+<li>libxslt</li>
+</ul>
+</dd>
+</dl></li>
+</ul>
+</dd>
+<dt>Para tener el programa funcionando, se recomienda:</dt>
+<dd><ul>
+<li>python 2.6 o superior. (no es compatible con Python 3.X)</li>
+<li>lxml (python-lxml) (Parser de XML)</li>
+<li>psycopg (python-psycopg) (Driver de base de datos PostgreSQL)</li>
+<li>pyqt4 (python-pyqt4) (Enlace de Qt4 para GUI)</li>
+</ul>
+</dd>
+</dl>
 <h2 id="instalaci&#243;n">Instalación</h2>
-<p>Se recomienda enlazarlo a /usr/local/bin para poder llamarlo desde cualuquier sitio:</p>
+<p>La instalación recomendada es enlazar los comandos en /usr/local/bin</p>
+<p>Hemos creado un Makefile que lo hace automáticamente al lanzar el comando:</p>
+<pre><code>$ sudo make install
+</code></pre>
+<p>Si se quiere realizar manualmente, se puede hacer del siguiente modo:</p>
 <pre><code>$ sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
 </code></pre>
-<h2 id="uso">Uso</h2>
+<h2 id="assembler-introducci&#243;n">Assembler: Introducción</h2>
+<p>eneboo-assembler es una herramienta de &quot;collage&quot; de código fuente. Toma como base unos módulos y les aplica una serie de parches en un orden determiando para conseguir un proyecto modificado de cierta forma, que cumpla ciertas especificaciones.</p>
+<p>Es una buena forma para mantener centenares de versiones distintas del mismo programa al día, gestionando correctamente los cambios propios que tiene cada versión.</p>
+<h2 id="assembler-uso">Assembler: Uso</h2>
+<p>Para empezar, necesitaremos 2 repositorios adicionales:</p>
+<blockquote>
+<ul>
+<li>Módulos Oficiales</li>
+<li>Extensiones</li>
+</ul>
+</blockquote>
+<p>El procedimiento estándar para clonar los dos repositorios es el siguiente:</p>
+<pre><code>$ cd ~/git
+$ ssh-add
+$ git clone git@github.com:gestiweb/eneboo-modules
+$ git clone git@github.com:gestiweb/eneboo-features
+</code></pre>
+<p>Para instalar los comandos que tenemos en eneboo-tools es suficiente con ejecutar &quot;sudo make install&quot; desde la carpeta del proyecto.</p>
+<p>El comando &quot;eneboo-assembler&quot; es el que usaremos normalmente para realizar las mezclas desde consola. Es muy sencillo y práctico.</p>
+<p>Este comando tiene unas configuraciones y una base de datos de caché. Para que genere los primeros ficheros es conveniente lanzar la acción &quot;dbupdate&quot;:</p>
+<pre><code>$ eneboo-assembler dbupdate
+</code></pre>
+<p>Cabe destacar que eneboo-assembler no depende de en qué carpeta lo ejecutes. Todas sus acciones leen los directorios de las configuraciones. Para que esto funcione como debe, es necesario revisar la configuración que nos crea en $HOME/.eneboo-tools/assembler-config.ini</p>
+<p>En ese fichero, que es muy sencillo de editar a mano, debemos incluir las rutas donde hemos puesto los módulos y las funcionalidades (extensiones). Se deben modificar las rutas si no son las mismas en nuestro caso, o si tenemos repositorios privados, se pueden agregar también. Hay que tener en cuenta que las líneas de abajo toman preferencia sobre las de arriba. Se recomienda poner al final siempre los repositorios públicos para que tomen preferencia.</p>
+<p>Este sería un ejemplo de configuración:</p>
+<pre><code>[module]
+modulefolders = 
+        ~/git/eneboo-modules
+featurefolders = 
+        ~/git/eneboo-features
+buildcache = ~/.eneboo-tools/buildcache
+</code></pre>
+<p>Siempre que modificamos la ruta de una extensión, o ponemos o quitamos alguna, es necesario ejecutar &quot;dbupdate&quot;, que almacenará en caché dónde están los módulos y extensiones. Si no lo hacéis luego os dará errores de que no encuentra las extensiones nuevas:</p>
+<pre><code>$ eneboo-assembler dbupdate -v
+</code></pre>
+<p>Las extensiones si os fijáis son carpetas con ficheros de configuración y con los parches para aplicar dentro. Hay un proyecto de ejemplo creado que une cuatro extensiones muy básicas.</p>
+<p>Para crear un proyecto (lo que llamamos &quot;compilar&quot;) se lanza la acción &quot;build&quot; seguida del proyecto y del target. El &quot;target&quot; es qué es lo que se quiere crear, la idea es muy similar al make.</p>
+<p>Los targets son:</p>
+<blockquote>
+<ul>
+<li><dl>
+<dt><strong>base:</strong></dt>
+<dd><p>compila las dependencias del proyecto (todo lo que necesitamos para poder aplicar los parches luego)</p>
+</dd>
+</dl></li>
+<li><dl>
+<dt><strong>final:</strong></dt>
+<dd><p>todo lo que lleva base, mas los parches que existen para este proyecto. (esto es lo que se envía al cliente)</p>
+</dd>
+</dl></li>
+<li><dl>
+<dt><strong>src:</strong></dt>
+<dd><p>una copia del target final, donde realizar los cambios a la extensión</p>
+</dd>
+</dl></li>
+<li><dl>
+<dt><strong>patch:</strong></dt>
+<dd><p>calcula el parche de las diferencias entre src y final.</p>
+</dd>
+</dl></li>
+<li><dl>
+<dt><strong>test:</strong></dt>
+<dd><p>el resultado de aplicar el parche &quot;patch&quot; sobre &quot;final&quot;, sirve para realizar las pruebas convenientes antes de guardar el nuevo parche.</p>
+</dd>
+</dl></li>
+</ul>
+</blockquote>
+<p>Cuando compilamos algo, nos deja dentro de la carpeta build/ en la carpeta de la extensión que habíamos compilado.</p>
+<p>Por ejemplo:</p>
+<pre><code>deavid:~$ eneboo-assembler build basic base
+Borrando carpeta /home/deavid/git/eneboo-features-ext1/prj001-basic/build/base . . . 
+Copiando facturacion/principal . . . 
+Copiando facturacion/facturacion . . . 
+Copiando contabilidad/informes . . . 
+Copiando contabilidad/principal . . . 
+Copiando facturacion/informes . . . 
+Copiando facturacion/tesoreria . . . 
+Copiando facturacion/almacen . . . 
+Aplicando parche (...)oo-features-ext1/ext0224-pgc2008/patches/pgc2008 . . .
+Aplicando parche (...)res-ext1/ext0014-recibosprov/patches/recibosprov . . .
+WARN: No hemos encontrado el bloque de código para las definiciones de la clase ifaceCtx, pondremos las nuevas al final del fichero.
+Aplicando parche (...)/ext0020-co_renumasiento/patches/co_renumasiento . . .
+WARN: No hemos encontrado el bloque de código para las definiciones de la clase ifaceCtx, pondremos las nuevas al final del fichero.
+Aplicando parche (...)/ext0048-listadoscliprov/patches/listadoscliprov . . .
+
+deavid:~$ cd /home/deavid/git/eneboo-features-ext1/prj001-basic/build/
+deavid:~/git/eneboo-features-ext1/prj001-basic/build$ ls
+base  base.build.xml
+
+deavid:~/git/eneboo-features-ext1/prj001-basic/build$ cat base.build.xml 
+&lt;BuildInstructions feature=&quot;prj001-basic&quot; target=&quot;base&quot; path=&quot;/home/deavid/git/eneboo-features-ext1/prj001-basic&quot; dstfolder=&quot;build/base&quot;&gt;
+  &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/facturacion/principal&quot; dst=&quot;facturacion/principal&quot; create_dst=&quot;yes&quot;/&gt;
+  &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/facturacion/facturacion&quot; dst=&quot;facturacion/facturacion&quot; create_dst=&quot;yes&quot;/&gt;
+  &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/contabilidad/informes&quot; dst=&quot;contabilidad/informes&quot; create_dst=&quot;yes&quot;/&gt;
+  &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/contabilidad/principal&quot; dst=&quot;contabilidad/principal&quot; create_dst=&quot;yes&quot;/&gt;
+  &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/facturacion/informes&quot; dst=&quot;facturacion/informes&quot; create_dst=&quot;yes&quot;/&gt;
+  &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/facturacion/tesoreria&quot; dst=&quot;facturacion/tesoreria&quot; create_dst=&quot;yes&quot;/&gt;
+  &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/facturacion/almacen&quot; dst=&quot;facturacion/almacen&quot; create_dst=&quot;yes&quot;/&gt;
+  &lt;ApplyPatchAction src=&quot;/home/deavid/git/eneboo-features-ext1/ext0224-pgc2008/patches/pgc2008&quot;/&gt;
+  &lt;ApplyPatchAction src=&quot;/home/deavid/git/eneboo-features-ext1/ext0014-recibosprov/patches/recibosprov&quot;/&gt;
+  &lt;ApplyPatchAction src=&quot;/home/deavid/git/eneboo-features-ext1/ext0020-co_renumasiento/patches/co_renumasiento&quot;/&gt;
+  &lt;ApplyPatchAction src=&quot;/home/deavid/git/eneboo-features-ext1/ext0048-listadoscliprov/patches/listadoscliprov&quot;/&gt;
+&lt;/BuildInstructions&gt;
+
+deavid:~/git/eneboo-features-ext1/prj001-basic/build$ find base -maxdepth 2 -type d
+base/facturacion
+base/facturacion/principal
+base/facturacion/facturacion
+base/facturacion/informes
+base/facturacion/tesoreria
+base/facturacion/almacen
+base/contabilidad
+base/contabilidad/informes
+base/contabilidad/principal
+</code></pre>
+<p>Si os fijáis, la idea es &quot;apilar&quot; parches, es decir, que cuando modificamos una extensión creamos otro parche <strong>distinto</strong>, que tiene que ser aplicado <strong>después</strong> del original. Esto ayudará a que si dos personas trabajan a la vez sobre el mismo parche, sea mucho más fácil mezclarlo.</p>
+<p>Aún faltan cosas básicas por desarrollar, como por ejemplo:</p>
+<blockquote>
+<ul>
+<li>Comando &quot;save-patch&quot; para guardar los cambios realizados en un parche adicional con un nombre dado</li>
+<li>Comando &quot;blend-patches&quot; para unir todos los parches en uno solo. (excepto los N últimos)</li>
+<li>Comando &quot;export&quot; para generar un tar.gz de los módulos (del target final)</li>
+</ul>
+</blockquote>
+<h2 id="mergetool-introducci&#243;n">MergeTool: Introducción</h2>
+<p>eneboo-mergetool es una herramienta orientada a calcular diferencias entre ficheros y a aplicarlas en diferentes contextos. Generalmente siempre se le proveerá de la ruta exacta a los ficheros y carpetas. Esta herramienta se usa internamente por eneboo-assembler, aunque puede ser conveniente usarla en determinados casos donde el assembler no cubre el uso exacto que queremos darle.</p>
+<h2 id="mergetool-uso">MergeTool: Uso</h2>
 <p>Para sacar una ayuda y listado de acciones:</p>
 <pre><code>$ eneboo-mergetool --help
 </code></pre>
 <p>Para sacar más ayuda de una acción:</p>
 <pre><code>$ eneboo-mergetool --help nombre-accion
 </code></pre>
-<h2 id="acciones-disponibles">Acciones disponibles</h2>
+<h2 id="mergetool-acciones-disponibles">MergeTool: Acciones disponibles</h2>
 <p><strong>Utilidades para carpetas:</strong></p>
 <p><em>folder-diff</em> lee dos carpetas recursivamente y obtiene una diferencia. A partir de esta diferencia, genera una colección de parches en una tercera carpeta.</p>
 <p><em>folder-patch</em> lee una carpeta de parches (flpatch) y una carpeta de ficheros originales. Aplica los parches en a estos ficheros y el resultado se guarda en una tercera carpeta.</p>
@@ -20,7 +181,7 @@
 <p><em>file-patch</em> muestra el resultado de aplicar un parche a un fichero por la salida estándar o guarda el resultado en el fichero indicado por --output-file. Tiene un argumento de modo que condiciona el algoritmo que se lanza para aplicar el parche. Están soportados <em>qs</em> y <em>xml</em>.</p>
 <p><em>file-check</em> realiza comprobaciones rutinarias sobre el fichero dado. Actualmente sólo está soportado el modo <em>qs-classes</em>, que comprobará la correcta herencia de éstas.</p>
 <p><em>qs-extract</em> es una utilidad para extraer clases que se especifiquen de un fichero qs directamente, sin necesidad de comparar con otro fichero.</p>
-<h2 id="folder-diff">FOLDER DIFF</h2>
+<h2 id="mergetool-folder-diff">MergeTool: FOLDER DIFF</h2>
 <p>Extrae las modificaciones realizadas en un proyecto y guarda una carpeta de parche.</p>
 <p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una contendrá un backup del proyecto antes de realizar los cambios y la otra será donde hayamos realizado nuestras modificaciones. Llamamos <em>basedir</em> a la carpeta de backup y <em>finaldir</em> a la carpeta donde están los cambios realizados.</p>
 <p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro todas las diferencias encontradas, así como las instrucciones de aplicación.</p>
@@ -29,7 +190,7 @@
     proyecto1_original/ proyecto1_modificado/
 </code></pre>
 <p>Esto crearía la carpeta <em>parches/mi_parche</em> y contendría las instrucciones para generar <em>proyecto1_modificado</em> a partir del <em>proyecto1_original</em>.</p>
-<h2 id="folder-patch">FOLDER PATCH</h2>
+<h2 id="mergetool-folder-patch">MergeTool: FOLDER PATCH</h2>
 <p>Lee una carpeta de parche y aplica las modificaciones en el proyecto generando una carpeta nueva.</p>
 <p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una contendrá proyecto a aplicar los cambios y la otra será donde hayamos guardado el parche. Llamamos <em>basedir</em> a la carpeta del proyecto original y <em>patchdir</em> a la carpeta donde están guardados los parches.</p>
 <p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro el nuevo proyecto que será el resultado de la aplicación de los parches.</p>
@@ -38,7 +199,7 @@
     proyecto1_original/ proyecto1_parcheado/
 </code></pre>
 <p>Esto crearía la carpeta <em>proyecto1_parcheado/</em> y contendría <em>proyecto1_original/</em> pero con los parches aplicados.</p>
-<h2 id="diff-qs">DIFF QS</h2>
+<p>MergeTool: DIFF QS ---------------</p>
 <p>Obtener diff de un fichero QS:</p>
 <pre><code>$ eneboo-mergetool file-diff qs \
     antiguo/facturacion/facturacion/scripts/flfactalma.qs \
@@ -51,7 +212,7 @@
     patches/flfactalma.qs \
     --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.qs
 </code></pre>
-<h2 id="diff-xml">DIFF XML</h2>
+<h2 id="mergetool-diff-xml">MergeTool: DIFF XML</h2>
 <p>Obtener diff de un fichero XML:</p>
 <pre><code>$ eneboo-mergetool file-diff xml \
     antiguo/facturacion/facturacion/forms/flfactalma.ui \
