@@ -124,6 +124,9 @@ def do_howto_build(iface,target, feat):
     oi = ObjectIndex(iface)
     oi.analyze_objects()
     build_instructions = oi.get_build_actions(target,feat)
+    if build_instructions is None:
+        iface.error("Error al buscar %s -> %s" % (feat,target))
+        return False
     iface.info("Acciones para compilar funcionalidad %s %s:" % (feat, target))
     iface.msg(etree.tostring(build_instructions, pretty_print=True))
     buildpath = os.path.join(build_instructions.get("path"), "build")
