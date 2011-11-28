@@ -40,7 +40,7 @@ Si se quiere realizar manualmente, se puede hacer del siguiente modo::
 Assembler: Introducción
 ------------------------
 eneboo-assembler es una herramienta de "collage" de código fuente. Toma como base
-unos módulos y les aplica una serie de parches en un orden determiando para 
+unos módulos y les aplica una serie de parches en un orden determinado para 
 conseguir un proyecto modificado de cierta forma, que cumpla ciertas especificaciones.
 
 Es una buena forma para mantener centenares de versiones distintas del mismo programa
@@ -132,7 +132,7 @@ carpeta de la extensión que habíamos compilado.
 Por ejemplo::
 
     deavid:~$ eneboo-assembler build basic base
-    Borrando carpeta /home/deavid/git/eneboo-features-ext1/prj001-basic/build/base . . . 
+    Borrando carpeta /home/deavid/git/eneboo-features/prj001-basic/build/base . . . 
     Copiando facturacion/principal . . . 
     Copiando facturacion/facturacion . . . 
     Copiando contabilidad/informes . . . 
@@ -140,19 +140,19 @@ Por ejemplo::
     Copiando facturacion/informes . . . 
     Copiando facturacion/tesoreria . . . 
     Copiando facturacion/almacen . . . 
-    Aplicando parche (...)oo-features-ext1/ext0224-pgc2008/patches/pgc2008 . . .
-    Aplicando parche (...)res-ext1/ext0014-recibosprov/patches/recibosprov . . .
+    Aplicando parche (...)oo-features/ext0224-pgc2008/patches/pgc2008 . . .
+    Aplicando parche (...)res/ext0014-recibosprov/patches/recibosprov . . .
     WARN: No hemos encontrado el bloque de código para las definiciones de la clase ifaceCtx, pondremos las nuevas al final del fichero.
     Aplicando parche (...)/ext0020-co_renumasiento/patches/co_renumasiento . . .
     WARN: No hemos encontrado el bloque de código para las definiciones de la clase ifaceCtx, pondremos las nuevas al final del fichero.
     Aplicando parche (...)/ext0048-listadoscliprov/patches/listadoscliprov . . .
 
-    deavid:~$ cd /home/deavid/git/eneboo-features-ext1/prj001-basic/build/
-    deavid:~/git/eneboo-features-ext1/prj001-basic/build$ ls
+    deavid:~$ cd /home/deavid/git/eneboo-features/prj001-basic/build/
+    deavid:~/git/eneboo-features/prj001-basic/build$ ls
     base  base.build.xml
 
-    deavid:~/git/eneboo-features-ext1/prj001-basic/build$ cat base.build.xml 
-    <BuildInstructions feature="prj001-basic" target="base" path="/home/deavid/git/eneboo-features-ext1/prj001-basic" dstfolder="build/base">
+    deavid:~/git/eneboo-features/prj001-basic/build$ cat base.build.xml 
+    <BuildInstructions feature="prj001-basic" target="base" path="/home/deavid/git/eneboo-features/prj001-basic" dstfolder="build/base">
       <CopyFolderAction src="/home/deavid/git/eneboo-modules/facturacion/principal" dst="facturacion/principal" create_dst="yes"/>
       <CopyFolderAction src="/home/deavid/git/eneboo-modules/facturacion/facturacion" dst="facturacion/facturacion" create_dst="yes"/>
       <CopyFolderAction src="/home/deavid/git/eneboo-modules/contabilidad/informes" dst="contabilidad/informes" create_dst="yes"/>
@@ -160,13 +160,13 @@ Por ejemplo::
       <CopyFolderAction src="/home/deavid/git/eneboo-modules/facturacion/informes" dst="facturacion/informes" create_dst="yes"/>
       <CopyFolderAction src="/home/deavid/git/eneboo-modules/facturacion/tesoreria" dst="facturacion/tesoreria" create_dst="yes"/>
       <CopyFolderAction src="/home/deavid/git/eneboo-modules/facturacion/almacen" dst="facturacion/almacen" create_dst="yes"/>
-      <ApplyPatchAction src="/home/deavid/git/eneboo-features-ext1/ext0224-pgc2008/patches/pgc2008"/>
-      <ApplyPatchAction src="/home/deavid/git/eneboo-features-ext1/ext0014-recibosprov/patches/recibosprov"/>
-      <ApplyPatchAction src="/home/deavid/git/eneboo-features-ext1/ext0020-co_renumasiento/patches/co_renumasiento"/>
-      <ApplyPatchAction src="/home/deavid/git/eneboo-features-ext1/ext0048-listadoscliprov/patches/listadoscliprov"/>
+      <ApplyPatchAction src="/home/deavid/git/eneboo-features/ext0224-pgc2008/patches/pgc2008"/>
+      <ApplyPatchAction src="/home/deavid/git/eneboo-features/ext0014-recibosprov/patches/recibosprov"/>
+      <ApplyPatchAction src="/home/deavid/git/eneboo-features/ext0020-co_renumasiento/patches/co_renumasiento"/>
+      <ApplyPatchAction src="/home/deavid/git/eneboo-features/ext0048-listadoscliprov/patches/listadoscliprov"/>
     </BuildInstructions>
 
-    deavid:~/git/eneboo-features-ext1/prj001-basic/build$ find base -maxdepth 2 -type d
+    deavid:~/git/eneboo-features/prj001-basic/build$ find base -maxdepth 2 -type d
     base/facturacion
     base/facturacion/principal
     base/facturacion/facturacion
