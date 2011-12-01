@@ -99,7 +99,7 @@ def file_reader(filename):
     try:
         f1 = open(filename, "r")
     except IOError,e: 
-        iface.error("File Not Found: %s" % repr(filename))
+        raise ValueError("File Not Found: %s" % repr(filename))
         return
     name = os.path.basename(filename)
     return name, [line.rstrip() for line in f1.readlines()]

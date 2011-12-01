@@ -693,7 +693,7 @@ class XMLDiffer(object):
             else:
                 newelement = element.xpath("*[@ctx-id=$ctxid]",ctxid = p0)
                 if newelement: 
-                    newelement = newelement[-1]
+                    newelement = newelement[0]
                 else: 
                     newelement = None
                     toupdate = element.xpath("*[not(@ctx-id)]")
@@ -712,6 +712,17 @@ class XMLDiffer(object):
                             except Exception, e: 
                                 self.iface.warn(e)
                                 newelement = None
+                                
+                    if newelement is None: # Intentar con nombre *muy* parecido:
+                        alternatives = element.xpath("*/@ctx-id")
+                        close_matches = difflib.get_close_matches(p0, alternatives, 1, 0.92)
+                        if close_matches:
+                            newelement = element.xpath("*[@ctx-id=$ctxid]",ctxid = close_matches[0])
+                            if newelement: 
+                                newelement = newelement[0]
+                            else: 
+                                newelement = None
+                    
                     
             if newelement is None: return element, "/".join([p0] + path)
             elif newelement.get("ctx-id") != p0:

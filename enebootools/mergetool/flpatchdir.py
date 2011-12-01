@@ -420,30 +420,40 @@ def diff_folder(iface, basedir, finaldir, patchdir, inplace = False):
     
 def patch_folder(iface, basedir, finaldir, patchdir):
     iface.debug(u"Folder Patch $basedir:%s $finaldir:%s $patchdir:%s" % (basedir,finaldir,patchdir))
-    # finaldir no debe existir
-    parent_finaldir = os.path.abspath(os.path.join(finaldir,".."))
-    if not os.path.exists(parent_finaldir):
-        iface.error("La ruta %s no existe" % parent_finaldir)
-        return
-    if os.path.lexists(finaldir):
-        iface.error("La ruta a $finaldir %s ya existía. No se continua. " % finaldir)
-        return
     if not os.path.exists(basedir):
         iface.error("La ruta %s no existe" % basedir)
         return
     if not os.path.exists(patchdir):
         iface.error("La ruta %s no existe" % patchdir)
         return
+    if finaldir == ":inplace":
+        basedir, finaldir = finaldir , basedir
         
-    os.mkdir(finaldir)
+        # finaldir no debe existir
+        parent_finaldir = os.path.abspath(os.path.join(finaldir,".."))
+        if not os.path.exists(parent_finaldir):
+            iface.error("La ruta %s no existe" % parent_finaldir)
+            return
+    else:
+        # finaldir no debe existir
+        parent_finaldir = os.path.abspath(os.path.join(finaldir,".."))
+        if not os.path.exists(parent_finaldir):
+            iface.error("La ruta %s no existe" % parent_finaldir)
+            return
+        if os.path.lexists(finaldir):
+            iface.error("La ruta a $finaldir %s ya existía. No se continua. " % finaldir)
+            return
     
-    for node in os.listdir(basedir):
-        if node.startswith("."): continue
-        src = os.path.join(basedir, node)
-        if not os.path.isdir(src): continue
-        dst = os.path.join(finaldir, node)
-        iface.debug("Copiando %s . . . " % node)
-        shutil.copytree(src,dst)
+        os.mkdir(finaldir)
+
+        for node in os.listdir(basedir):
+            if node.startswith("."): continue
+            src = os.path.join(basedir, node)
+            if not os.path.isdir(src): continue
+            dst = os.path.join(finaldir, node)
+            iface.debug("Copiando %s . . . " % node)
+            shutil.copytree(src,dst)
+        
     
     fpatch = FolderApplyPatch(iface, patchdir)
     fpatch.patch_folder(finaldir)
