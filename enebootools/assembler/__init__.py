@@ -11,6 +11,15 @@ class AssemblerInterface(EnebooToolsInterface):
         
     def setup_parser(self):
         EnebooToolsInterface.setup_parser(self)
+
+        self.new_action = self.parser.declare_action(
+            name = "new",
+            args = [],
+            options = [],
+            description = u"Crea una nueva plantilla de funcionalidad",
+            call_function = self.do_new,
+            )
+
         
         self.build_action = self.parser.declare_action(
             name = "build",
@@ -33,7 +42,6 @@ class AssemblerInterface(EnebooToolsInterface):
             call_function = self.do_save_fullpatch,
             )
         self.build_action.set_help_arg(
-            target = "Objetivo a construir",
             feat = "Funcionalidad a construir",
             )                
             
@@ -96,6 +104,12 @@ class AssemblerInterface(EnebooToolsInterface):
     def do_save_fullpatch(self, feat):
         try:
             return asmdb.do_save_fullpatch(self, feat)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_new(self):
+        try:
+            return asmdb.do_new(self)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 

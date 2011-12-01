@@ -168,6 +168,10 @@ def do_build(iface,target, feat, rebuild=True, dstfolder = None):
     mtool_iface.verbosity = iface.verbosity
     projectbuilder.build_xml(mtool_iface,build_instructions,rebuild)
     
+def uinput(question):
+    import sys
+    text= raw_input(unicode(question).encode(sys.stdout.encoding)).decode(sys.stdin.encoding)
+    return text
     
 def do_save_fullpatch(iface, feat):
     db = init_database()
@@ -178,5 +182,28 @@ def do_save_fullpatch(iface, feat):
     do_build(iface, target = "fullpatch", feat = feat, rebuild = True, dstfolder = patch_folder)
     oi.set_patch_name(feat, patchname)
     
+def select_option(title,question, options, answers, default = None):
+    print title
+    for answer, option in zip(answers,options):
+        print u"    %s) %s" % (answer, option)
+    def ask():
+        answer = uinput(question).lower()
+        if answer == "": answer = default
+        if answer not in answers: return None
+        else: return answer
+    answer = None
+    while answer is None: answer = ask()
+    
+    return answer, options[answers.index(answer)]
 
-
+def do_new(iface):
+    db = init_database()
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    a,o = select_option( 
+            title = u"Qué tipo de funcionalidad va a crear?", 
+            question = u"Seleccione una opción: ", 
+            options = [u"extensión",u"proyecto", u"conjunto de extensiones"],
+            answers = ["ext","prj","set"],
+            )
+    print a,o
