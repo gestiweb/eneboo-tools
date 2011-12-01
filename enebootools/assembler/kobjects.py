@@ -147,14 +147,26 @@ class FeatureObject(BaseObject):
         self.code = cfg.feature.code
         self.description = cfg.feature.description
         self.type = cfg.feature.type
-        
+        self.dstfolder = None
         self.required_modules = read_file_list(self.fullpath, "conf/required_modules", errlog = self.iface.warn)
         self.required_features = read_file_list(self.fullpath, "conf/required_features", errlog = self.iface.warn)
 
         self.patch_series = read_file_list(self.fullpath, "conf/patch_series", errlog = self.iface.warn)
         
         self.iface.debug2(u"Se ha parseado la funcionalidad %s" % self.name)
+        
+    def get_patch_list(self):
+        patch_list = read_file_list(self.fullpath, "conf/patch_series", errlog=self.iface.warn)
+        return patch_list
+        
+    def set_patch_list(self, patchlist):
+        f1 = open(os.path.join(self.fullpath, "conf/patch_series"), "w")
+        for patch in patchlist:         
+            f1.write(patch + "\n")
 
+    def set_dstfolder(self, folder):
+        self.dstfolder = folder
+        
     # * base: compila las dependencias del proyecto (todo lo que necesitamos 
     #         para poder aplicar los parches luego)
     def get_base_actions(self):
@@ -164,7 +176,9 @@ class FeatureObject(BaseObject):
         binstr.set("target","base")
         binstr.set("path",self.fullpath)
         binstr.set("dstfolder", "build/base")
-        
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
+            
         for modulename in self.all_required_modules:
             module = ModuleObject.find(modulename)
             cpfolder = etree.SubElement(binstr,"CopyFolderAction")
@@ -174,7 +188,7 @@ class FeatureObject(BaseObject):
         
         for featurename in self.all_required_features:
             feature = FeatureObject.find(featurename)
-            patch_list = read_file_list(feature.fullpath, "conf/patch_series", errlog=self.iface.warn)
+            patch_list = feature.get_patch_list()
             if len(patch_list) == 0: self.iface.warn("No encontramos parches para aplicar en %s" % featurename)
             for patchdir in patch_list:
                 apatch = etree.SubElement(binstr,"ApplyPatchAction")
@@ -197,7 +211,9 @@ class FeatureObject(BaseObject):
         binstr.set("depends","base")
         binstr.set("path",self.fullpath)
         binstr.set("dstfolder", "build/final")
-        
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
+                    
         for modulename in self.all_required_modules:
             module = ModuleObject.find(modulename)
             cpfolder = etree.SubElement(binstr,"CopyFolderAction")
@@ -207,7 +223,7 @@ class FeatureObject(BaseObject):
         
         featurename = self.formal_name()
         feature = self
-        patch_list = read_file_list(feature.fullpath, "conf/patch_series", errlog=self.iface.warn)
+        patch_list = feature.get_patch_list()
         if len(patch_list) == 0: self.iface.debug("No hay parches para aplicar en %s" % featurename)
         for patchdir in patch_list:
             apatch = etree.SubElement(binstr,"ApplyPatchAction")
@@ -230,6 +246,8 @@ class FeatureObject(BaseObject):
         binstr.set("depends","final")
         binstr.set("path",self.fullpath)
         binstr.set("dstfolder", "build/src")
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
         
         for modulename in self.all_required_modules:
             module = ModuleObject.find(modulename)
@@ -251,6 +269,8 @@ class FeatureObject(BaseObject):
         binstr.set("depends","final src")
         binstr.set("path",self.fullpath)
         binstr.set("dstfolder", "build/patch")
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
         
         cpatch = etree.SubElement(binstr,"CreatePatchAction")
         cpatch.set("src",dep1_folder)
@@ -258,10 +278,10 @@ class FeatureObject(BaseObject):
         
         return binstr
 
-    # * test: el resultado de aplicar el parche "patch" sobre "final", sirve 
+    # * test-patch: el resultado de aplicar el parche "patch" sobre "final", sirve 
     #         para realizar las pruebas convenientes antes de guardar 
     #         el nuevo parche
-    def get_test_actions(self):
+    def get_testpatch_actions(self):
         dst_folder = os.path.join(self.fullpath, "build/test")
         dep1_folder = os.path.join(self.fullpath, "build/final")
         dep2_folder = os.path.join(self.fullpath, "build/patch")
@@ -270,7 +290,57 @@ class FeatureObject(BaseObject):
         binstr.set("target","test")
         binstr.set("depends","final patch")
         binstr.set("path",self.fullpath)
-        binstr.set("dstfolder", "build/test")
+        binstr.set("dstfolder", "build/test-patch")
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
+        
+        for modulename in self.all_required_modules:
+            module = ModuleObject.find(modulename)
+            cpfolder = etree.SubElement(binstr,"CopyFolderAction")
+            cpfolder.set("src",os.path.join(dep1_folder,module.obj.relpath))
+            cpfolder.set("dst",module.obj.relpath)
+            cpfolder.set("create_dst", "yes")
+        
+        apatch = etree.SubElement(binstr,"ApplyPatchAction")
+        apatch.set("src",dep2_folder)
+        
+        return binstr
+
+    # * fullpatch: calcula el parche de las diferencias entre src y base.
+    def get_fullpatch_actions(self):
+        dst_folder = os.path.join(self.fullpath, "build/patch")
+        dep1_folder = os.path.join(self.fullpath, "build/base")
+        dep2_folder = os.path.join(self.fullpath, "build/src")
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","src")
+        binstr.set("depends","base src")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/fullpatch")
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
+        
+        cpatch = etree.SubElement(binstr,"CreatePatchAction")
+        cpatch.set("src",dep1_folder)
+        cpatch.set("dst",dep2_folder)
+        
+        return binstr
+
+    # * test-fullpatch: el resultado de aplicar el parche "patch" sobre "base", sirve 
+    #         para realizar las pruebas convenientes antes de guardar 
+    #         el nuevo parche
+    def get_testfullpatch_actions(self):
+        dst_folder = os.path.join(self.fullpath, "build/test")
+        dep1_folder = os.path.join(self.fullpath, "build/base")
+        dep2_folder = os.path.join(self.fullpath, "build/patch")
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","test")
+        binstr.set("depends","base patch")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/test-fullpatch")
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
         
         for modulename in self.all_required_modules:
             module = ModuleObject.find(modulename)
@@ -285,12 +355,24 @@ class FeatureObject(BaseObject):
         return binstr
 
 
-
+class Singleton(type):
+    def __init__(cls, name, bases, dct):
+        cls.__instance = None
+        type.__init__(cls, name, bases, dct)
+ 
+    def __call__(cls, *args, **kw):
+        if cls.__instance is None:
+            cls.__instance = type.__call__(cls, *args,**kw)
+        return cls.__instance
+        
 class ObjectIndex(object):
+    __metaclass__ = Singleton
     def __init__(self, iface):
         self.iface = iface
+        self.analyze_done = False
         
     def analyze_objects(self):
+        if self.analyze_done: return True
         for kobj in KnownObjects.select():
             if kobj.objtype == "module": self.load_module(kobj)
             elif kobj.objtype == "feature": self.load_feature(kobj)
@@ -299,7 +381,8 @@ class ObjectIndex(object):
                 self.iface.warn(kobj.format())
         ModuleObject.cls_finish_setup()
         FeatureObject.cls_finish_setup()
-                
+        self.analyze_done =True
+        
     def load_module(self, obj):
         mod = ModuleObject(self.iface, obj)
 
@@ -312,11 +395,35 @@ class ObjectIndex(object):
     def features(self): 
         return FeatureObject.items()
         
-    def get_build_actions(self, target, func):
+    def get_patch_name(self, func, default = False):
         feature = FeatureObject.find(func)
         if not feature: 
             self.iface.error("Funcionalidad %s desconocida." % func)
             return None
+        patch_list = feature.get_patch_list()
+        if len(patch_list) == 0: 
+            if default: 
+                return feature.name
+            else:
+                return None
+        return patch_list[0]
+             
+    def set_patch_name(self, func, newname):
+        feature = FeatureObject.find(func)
+        if not feature: 
+            self.iface.error("Funcionalidad %s desconocida." % func)
+            return None
+        feature.set_patch_list([newname])
+             
+    
+    def get_build_actions(self, target, func, dstfolder = None):
+        feature = FeatureObject.find(func)
+        if not feature: 
+            self.iface.error("Funcionalidad %s desconocida." % func)
+            return None
+            
+        feature.set_dstfolder(dstfolder)
+            
         if target == 'base':
             return feature.get_base_actions()
             
@@ -329,8 +436,14 @@ class ObjectIndex(object):
         if target == 'patch':
             return feature.get_patch_actions()
             
-        if target == 'test':
-            return feature.get_test_actions()
+        if target == 'test-patch':
+            return feature.get_testpatch_actions()
+            
+        if target == 'fullpatch':
+            return feature.get_fullpatch_actions()
+            
+        if target == 'test-fullpatch':
+            return feature.get_testfullpatch_actions()
             
         self.iface.error("Target %s desconocido." % target)
         return None

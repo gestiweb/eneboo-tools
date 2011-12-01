@@ -142,12 +142,14 @@ def is_target_built(iface, target, feat):
     # TODO: Si existe, preguntar a mergetool si cree que está construido.
     return False # Asumir que nunca una dependencia está cumplida
 
-def do_build(iface,target, feat, rebuild=True):
+def do_build(iface,target, feat, rebuild=True, dstfolder = None):
     db = init_database()
     oi = ObjectIndex(iface)
     oi.analyze_objects()
-    build_instructions = oi.get_build_actions(target,feat)
-    if build_instructions is None: return False
+    build_instructions = oi.get_build_actions(target,feat,dstfolder)
+    if build_instructions is None: 
+        iface.error("Error al generar las instrucciones de compilado.")
+        return False
     buildpath = os.path.join(build_instructions.get("path"), "build")
     if not os.path.exists(buildpath):
         os.mkdir(buildpath)
@@ -166,6 +168,15 @@ def do_build(iface,target, feat, rebuild=True):
     mtool_iface.verbosity = iface.verbosity
     projectbuilder.build_xml(mtool_iface,build_instructions,rebuild)
     
+    
+def do_save_fullpatch(iface, feat):
+    db = init_database()
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    patchname = oi.get_patch_name(feat, default = True)
+    patch_folder = os.path.join("patches", patchname)
+    do_build(iface, target = "fullpatch", feat = feat, rebuild = True, dstfolder = patch_folder)
+    oi.set_patch_name(feat, patchname)
     
 
 

@@ -25,6 +25,19 @@ class AssemblerInterface(EnebooToolsInterface):
             )                
             
         
+        self.save_fullpatch_action = self.parser.declare_action(
+            name = "save-fullpatch",
+            args = ["feat"],
+            options = [],
+            description = u"Para la funcionalidad $feat guarda los cambios como parche completo",
+            call_function = self.do_save_fullpatch,
+            )
+        self.build_action.set_help_arg(
+            target = "Objetivo a construir",
+            feat = "Funcionalidad a construir",
+            )                
+            
+        
         self.dbupdate_action = self.parser.declare_action(
             name = "dbupdate",
             args = [],
@@ -77,6 +90,12 @@ class AssemblerInterface(EnebooToolsInterface):
     def do_build(self, target, feat):
         try:
             return asmdb.do_build(self,target, feat)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_save_fullpatch(self, feat):
+        try:
+            return asmdb.do_save_fullpatch(self, feat)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 
