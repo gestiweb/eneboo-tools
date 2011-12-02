@@ -582,7 +582,16 @@ def do_new(iface, subfoldername = None, description = None):
             print u"Guardando ... "
             
             # GUARDAR AQUI
-            
+            create_new_feature(
+                path = fdstpath,
+                fcode = fcode,
+                fname = fname,
+                ftype = ftype,
+                fdesc = fdesc,
+                fdep_modules = fdep_modules,
+                fdep_features = fdep_features,
+                fload_patch = fload_patch,
+                )
             print
             break
         if a1 == "q": 
@@ -591,3 +600,5 @@ def do_new(iface, subfoldername = None, description = None):
             print
             break
         
+def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_features, fload_patch):
+    return
