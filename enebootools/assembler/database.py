@@ -303,16 +303,18 @@ def do_new(iface):
         print u"**** Asistente de creación de nueva funcionalidad ****"
         print 
         print u" : Carpeta destino : %s" % fdstpath
-        print u" : Tipo            : %s " % ftype_idx[ftype]
-        print u" : Código y nombre : %s - %s" % (fcode, fname)
+        print u" : Nombre          : %s - %s - %s " % (ftype_idx[ftype], fcode, fname)
         print u" : Descripción     : %s " % (fdesc)
+        print
+        print u" : Dependencias    : %d módulos, %d funcionalidades" % (len(fdep_modules),fdep_features)
+        print u" : Importar Parche : %s" % (fload_patch)
         print
         menu1_options = []
         menu1_answers = []
         menu1_options += [ u"Cambiar datos básicos"]
         menu1_answers += [ "c" ]
-        menu1_options += [ u"Dependencias", u"Importar parche" ]
-        menu1_answers += [ "d"           , "i" ]
+        menu1_options += [ u"Dependencias", u"Importar parche", u"Eliminar parche" ]
+        menu1_answers += [ "d"           , "i"                , "e"]
         menu1_options += [ u"Aceptar y crear", u"Cancelar y Salir" ]
         menu1_answers += [ "a"              , "q" ]
         a1,o1 = select_option( 
@@ -321,6 +323,21 @@ def do_new(iface):
                 options = menu1_options,
                 answers = menu1_answers,
                 )
+        if a1 == "i":
+            t,m = uinput_mask(
+                        question = u"Ruta hasta el parche: ",
+                        mask = r"^([\w-./]+)$", 
+                        errortext = u"ERROR: El valor debe ser una ruta válida",
+                        )
+            fload_patch = t
+            
+        if a1 == "e":
+            fload_patch = e
+                
+        if a1 == "d":
+            print
+            print "Dependencias..."
+                
         if a1 == "c":
             menu2_options = []
             menu2_answers = []
@@ -363,8 +380,8 @@ def do_new(iface):
                     fdesc = change_fdesc()
                 if a2 == "q":
                     break
-             
             continue
+            
         if a1 == "a": 
             print
             print u"Guardando ... "
