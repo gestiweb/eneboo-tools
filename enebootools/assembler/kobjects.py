@@ -130,6 +130,7 @@ class ModuleObject(BaseObject):
         self.tree = etree.parse(self.fullfilename, self.parser)
         self.root = self.tree.getroot()
         
+        self.code = None
         self.name = one(self.root.xpath("name/text()"))
         self.description = one(self.root.xpath("description/text()"))
         self.type = "mod"

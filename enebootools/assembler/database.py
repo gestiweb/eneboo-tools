@@ -3,6 +3,7 @@ import os
 import os.path
 import sqlite3
 import re
+import readline, fnmatch
 
 from lxml import etree
 
@@ -169,9 +170,15 @@ def do_build(iface,target, feat, rebuild=True, dstfolder = None):
     mtool_iface.verbosity = iface.verbosity
     projectbuilder.build_xml(mtool_iface,build_instructions,rebuild)
     
-def uinput(question):
+def uinput(question, possible_values = None):
     import sys
+    if isinstance(possible_values, list):
+        completer1.enable_value_completer(possible_values)
+    elif isinstance(possible_values, basestring):       
+        if possible_values == "os.path":
+            completer1.enable_path_completer()
     text= raw_input(unicode(question).encode(sys.stdout.encoding)).decode(sys.stdin.encoding)
+    completer1.disable_completer()
     return text
 
 def uinput_mask(question, mask, errortext = None):
@@ -195,7 +202,7 @@ def do_save_fullpatch(iface, feat):
     do_build(iface, target = "fullpatch", feat = feat, rebuild = True, dstfolder = patch_folder)
     oi.set_patch_name(feat, patchname)
     
-def select_option(title, options, answers, question = None, errortext = None, default = None, accept_invalid = False):
+def select_option(title, options, answers, question = None, errortext = None, default = "", accept_invalid = False, callback = None):
     if question is None:
         question = u"Seleccione una opción: "
     if errortext is None:
@@ -205,27 +212,109 @@ def select_option(title, options, answers, question = None, errortext = None, de
     for answer, option in zip(answers,options):
         print u"    %s) %s" % (answer, option)
     def ask():
-        answer = uinput(question).lower()
+        answer = uinput(question, possible_values = answers).lower()
         if answer == "": answer = default
-        if answer not in answers: 
-            print errortext % answer
-            return None
-        return answer
-    answer = None
-    while answer is None: 
-        answer = ask()
-        if answer is None:
+        answerlist = [ x.strip() for x in answer.split(" ") if x.strip() ]
+        for answer in answerlist:
+            if answer not in answers: 
+                print errortext % answer
+                return []
+        return answerlist
+    answerlist = []
+    while len(answerlist) == 0: 
+        answerlist = ask()
+        if len(answerlist) == 0:
             if accept_invalid:
                 return None, None
-    
-    return answer, options[answers.index(answer)]
+        elif len(answerlist) > 1 and callback is None:
+            print u"No se acepta más de una respuesta."
+            answerlist[:] = []
+        
+    if callback:
+        for answer in answerlist:
+            try:
+                callback(answer, options[answers.index(answer)])
+            except Exception, e:
+                print e
+    else:
+        answer = answerlist[0]
+        return answer, options[answers.index(answer)]
 
-def do_new(iface):
+
+class MyCompleter(object):
+    def __init__(self):
+        self.possible_complete_values = []
+        self.last_search_text = None
+        self.last_matchlist = None
+
+    def set_complete_values(self,valuelist):
+        self.last_search_text = None
+        self.last_matchlist = None
+        self.possible_complete_values[:] = valuelist
+        
+    def enable_value_completer(self, valuelist):
+        readline.set_completer(None)
+        readline.set_completer(completer1.value_completer)
+        readline.set_completer_delims(", ")
+        readline.parse_and_bind('tab: menu-complete')
+        self.set_complete_values(valuelist)
+        
+    def enable_path_completer(self):
+        readline.set_completer(None)
+        readline.set_completer(completer1.path_completer)
+        readline.set_completer_delims("")
+        readline.parse_and_bind('tab: menu-complete')
+        self.set_complete_values([])
+        
+    def disable_completer(self):
+        readline.set_completer(None)
+        self.set_complete_values([])
+    
+    def value_completer(self,text, state):
+        try:
+            manual = False
+            if '*' not in text:
+                text = "*" + text + "*"
+            else:
+                manual = True
+            if text == self.last_search_text:
+                matches = self.last_matchlist
+            else:
+                matches = fnmatch.filter(self.possible_complete_values, text) 
+                self.last_matchlist = matches
+                self.last_search_text = text
+            if manual:
+                if state == 0:
+                    return " ".join(matches)
+                else:
+                    return
+                
+            try:
+                return matches[state]
+            except IndexError:
+                return None
+        except Exception,e:
+            print e
+            
+    def path_completer(self,text, state):
+        return None # <- por defecto hace ya lo que queremos 
+            
+completer1 = MyCompleter()
+
+
+def do_new(iface, subfoldername = None, description = None):
     letters = list("abcdefghijklmnopqrstuvwxyz123456789")
     db = init_database()
     oi = ObjectIndex(iface)
     oi.analyze_objects()
-    
+    fpath = ftype = fcode = fname = fdesc = None
+    if description: fdesc = description
+    if subfoldername:
+        match = re.match("^([a-z]+)([A-Z0-9][0-9]{3})-([a-z][a-z0-9]{3,12})$", subfoldername)
+        if not match:
+            print "El nombre de subcarpeta '%s' no es válido" % subfoldername
+            return False
+        ftype, fcode, fname = match.groups()
     # SELECCIONAR CARPETA DONDE SE GUARDARA:
     folders = []
     for path in cfg.module.featurefolders:
@@ -236,7 +325,7 @@ def do_new(iface):
     if len(folders) == 0:
         iface.error("No hay carpetas válidas donde guardar extensiones. Imposible continuar.")
         return False
-    fpath = None
+
     def change_fpath():
         print
         if len(folders) == 1:
@@ -250,7 +339,7 @@ def do_new(iface):
                     answers = letters,
                     )
         return fpath
-    fpath = change_fpath()
+    fpath = folders[0]
     
     ftype_options = [u"extensión",u"proyecto", u"conjunto de extensiones"]
     ftype_answers = ["ext","prj","set"]
@@ -264,7 +353,8 @@ def do_new(iface):
                 answers = ftype_answers,
                 )
         return ftype
-    ftype = change_ftype()
+        
+    if ftype is None: ftype = change_ftype()
     
     def change_fcode():
         print
@@ -275,7 +365,7 @@ def do_new(iface):
                     )
         fcode = m.group(0)
         return fcode
-    fcode = change_fcode()
+    if fcode is None: fcode = change_fcode()
     
     def change_fname():    
         print
@@ -286,13 +376,13 @@ def do_new(iface):
                     )
         fname = m.group(0)
         return fname
-    fname = change_fname()
+    if fname is None: fname = change_fname()
     
     def change_fdesc():
         print
         fdesc = uinput(u"Descripción de la funcionalidad: ")
         return fdesc
-    fdesc = change_fdesc()
+    if fdesc is None: fdesc = change_fdesc()
     
     fdep_modules = []
     fdep_features = []
@@ -306,7 +396,7 @@ def do_new(iface):
         print u" : Nombre          : %s - %s - %s " % (ftype_idx[ftype], fcode, fname)
         print u" : Descripción     : %s " % (fdesc)
         print
-        print u" : Dependencias    : %d módulos, %d funcionalidades" % (len(fdep_modules),fdep_features)
+        print u" : Dependencias    : %d módulos, %d funcionalidades" % (len(fdep_modules),len(fdep_features))
         print u" : Importar Parche : %s" % (fload_patch)
         print
         menu1_options = []
@@ -326,17 +416,122 @@ def do_new(iface):
         if a1 == "i":
             t,m = uinput_mask(
                         question = u"Ruta hasta el parche: ",
-                        mask = r"^([\w-./]+)$", 
+                        mask = r"^([\w./-]+)$", 
                         errortext = u"ERROR: El valor debe ser una ruta válida",
                         )
-            fload_patch = t
+            if os.path.exists(t):
+                fload_patch = t
+            else:
+                print "ERROR: La ruta '%s' no existe." % t
             
         if a1 == "e":
-            fload_patch = e
+            fload_patch = None
                 
         if a1 == "d":
-            print
-            print "Dependencias..."
+            menu2_options = []
+            menu2_answers = []
+            kvs = menu2_answers, menu2_options
+            def agregar_opcion2(kvs, k,v):
+                ks, vs = kvs
+                ks += [ k ]
+                vs += [ v ]
+            agregar_opcion2(kvs, "+m", u"Agregar módulo")
+            agregar_opcion2(kvs, "-m", u"Eliminar módulo")
+            agregar_opcion2(kvs, "+f", u"Agregar funcionalidad")
+            agregar_opcion2(kvs, "-f", u"Eliminar funcionalidad")
+            agregar_opcion2(kvs, "q", u"Finalizar edición")
+            while True:
+                print
+                print u"**** Dependencias ****"
+                print 
+                print u" : Módulos :"
+                for d in fdep_modules:
+                    print u"    - %s" % d
+                print
+                print u" : Funcionalidades :"
+                for d in fdep_features:
+                    print u"    - %s" % d
+                print
+                a2,o2 = select_option( 
+                        title = u"--  Menú de dependencias --", 
+                        question = u"Seleccione una opción: ", 
+                        options = menu2_options,
+                        answers = menu2_answers,
+                        )
+                if a2 == "+m":
+                    # Agregar dependencia modulo
+                    k1 = []
+                    v1 = []
+                    for module in oi.modules():
+                        k, v = module.code or module.name, module.formal_name()
+                        if v in fdep_modules: continue
+                        k1.append(k)
+                        v1.append(v)
+                        
+                    select_option( 
+                            title = u"--  Agregar dependencia de módulo --", 
+                            question = u"Seleccione un módulo: ", 
+                            answers = k1,
+                            options = v1,
+                            accept_invalid = True,
+                            callback = lambda a,o: fdep_modules.append(o),
+                            )
+                    
+                if a2 == "-m":
+                    # Eliminar dependencia modulo
+                    k1 = []
+                    v1 = []
+                    for module in oi.modules():
+                        k, v = module.code or module.name, module.formal_name()
+                        if v not in fdep_modules: continue
+                        k1.append(k)
+                        v1.append(v)
+                    select_option( 
+                            title = u"--  Eliminar dependencia de módulo --", 
+                            question = u"Seleccione un módulo: ", 
+                            answers = k1,
+                            options = v1,
+                            accept_invalid = True,
+                            callback = lambda a,o: fdep_modules.remove(o),
+                            )
+                if a2 == "+f":
+                    # Agregar dependencia funcionalidad
+                    k1 = []
+                    v1 = []
+                    for feature in oi.features():
+                        k, v = feature.code or feature.name, feature.formal_name()
+                        if v in fdep_features: continue
+                        k1.append(k)
+                        v1.append(v)
+                        
+                    select_option( 
+                            title = u"--  Agregar dependencia de funcionalidad --", 
+                            question = u"Seleccione una funcionalidad: ", 
+                            answers = k1,
+                            options = v1,
+                            accept_invalid = True,
+                            callback = lambda a,o: fdep_features.append(o),
+                            )
+                if a2 == "-f":
+                    # Eliminar dependencia funcionalidad
+                    k1 = []
+                    v1 = []
+                    for feature in oi.features():
+                        k, v = feature.code or feature.name, feature.formal_name()
+                        if v not in fdep_features: continue
+                        k1.append(k)
+                        v1.append(v)
+                        
+                    select_option( 
+                            title = u"--  Eliminar dependencia de funcionalidad --", 
+                            question = u"Seleccione una funcionalidad: ", 
+                            answers = k1,
+                            options = v1,
+                            accept_invalid = True,
+                            callback = lambda a,o: fdep_features.remove(o),
+                            )
+                if a2 == "q":
+                    break
                 
         if a1 == "c":
             menu2_options = []
@@ -385,8 +580,14 @@ def do_new(iface):
         if a1 == "a": 
             print
             print u"Guardando ... "
+            
+            # GUARDAR AQUI
+            
+            print
             break
         if a1 == "q": 
+            print
             print u"Se ha cancelado la operación."
+            print
             break
         

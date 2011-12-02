@@ -14,13 +14,18 @@ class AssemblerInterface(EnebooToolsInterface):
 
         self.new_action = self.parser.declare_action(
             name = "new",
-            args = [],
+            args = ["subfoldername","description"],
             options = [],
+            min_argcount = 0,
             description = u"Crea una nueva plantilla de funcionalidad",
             call_function = self.do_new,
             )
 
-        
+        self.new_action.set_help_arg(
+            subfoldername = "Nombre de la subcarpeta que será creada. Debe seguir la plantilla extA999-codename.",
+            description = "Nombre descriptivo para la funcionalidad",
+            )
+            
         self.build_action = self.parser.declare_action(
             name = "build",
             args = ["feat","target"],
@@ -107,9 +112,9 @@ class AssemblerInterface(EnebooToolsInterface):
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 
-    def do_new(self):
+    def do_new(self, subfoldername = None, description = None):
         try:
-            return asmdb.do_new(self)
+            return asmdb.do_new(self, subfoldername, description )
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 
