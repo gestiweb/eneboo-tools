@@ -4,6 +4,7 @@ import os.path
 import sqlite3
 import re
 import readline, fnmatch
+import shutil
 
 from lxml import etree
 
@@ -601,4 +602,55 @@ def do_new(iface, subfoldername = None, description = None):
             break
         
 def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_features, fload_patch):
+    os.mkdir(path)
+    f_ini = open(os.path.join(path, "%s.feature.ini" % fname),"w")
+    f_ini.write("[feature]\n")
+    f_ini.write("type=%s\n" % ftype)
+    f_ini.write("code=%s\n" % fcode)
+    f_ini.write("name=%s\n" % fname)
+    f_ini.write("description=%s\n" % fdesc)
+    f_ini.write("\n")
+    f_ini.close()
+    patchespath = os.path.join(path, "patches")
+    os.mkdir(patchespath)
+
+    confpath = os.path.join(path, "conf")
+    os.mkdir(confpath)
+    f_req_mod = open(os.path.join(confpath, "required_modules"),"w")
+    for mod in fdep_modules:
+        f_req_mod.write("%s\n" % mod)
+    
+    f_req_mod.write("\n")
+    f_req_mod.close()
+    
+    f_req_feat = open(os.path.join(confpath, "required_features"),"w")
+    for feat in fdep_features:
+        f_req_feat.write("%s\n" % feat)
+    
+    f_req_feat.write("\n")
+    f_req_feat.close()
+    
+    f_patch = open(os.path.join(confpath, "patch_series"),"w")
+    if fload_patch:
+        if fload_patch.endswith("/"):
+            fload_patch = fload_patch[:-1]
+        basename = os.path.basename(fload_patch)
+        f_patch.write("%s\n" % basename)
+        # TODO:: Debería obviar las carpetas ocultas como .svn
+        shutil.copytree(fload_patch,os.path.join(patchespath, basename),
+            ignore=shutil.ignore_patterns('*.pyc', 'tmp*', '.*'))
+    else:
+        f_patch_readme = open(os.path.join(patchespath, "README"), "w")
+        f_patch_readme.write("""
+        Esta carpeta es donde se deben ubicar los parches. Este fichero sirve
+        únicamente para que los VCS como GIT guarden la carpeta al existir al
+        menos un fichero en ella.
+        \n""")
+        f_patch_readme.close()
+        
+    f_patch.write("\n")
+    f_patch.close()
+    
+    
+
     return
