@@ -132,7 +132,7 @@ Los targets son:
         "final", sirve para realizar las pruebas convenientes antes de 
         guardar el nuevo parche.
 
-Cuando compilamos algo, nos deja dentro de la carpeta build/ en la 
+Cuando compilamos algo, nos lo deja dentro de la carpeta build/ en la 
 carpeta de la extensión que habíamos compilado.
 
 Por ejemplo::
@@ -281,7 +281,7 @@ una carpeta nueva.
 Para trabajar con esta herramienta, debemos contar con dos carpetas. Una 
 contendrá proyecto a aplicar los cambios y la otra será donde hayamos guardado
 el parche. Llamamos *basedir* a la carpeta del proyecto original y *patchdir* 
- a la carpeta donde están guardados los parches.
+a la carpeta donde están guardados los parches.
 
 Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro
 el nuevo proyecto que será el resultado de la aplicación de los parches.
