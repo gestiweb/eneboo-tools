@@ -54,12 +54,18 @@ Para empezar, necesitaremos 2 repositorios adicionales:
     * Módulos Oficiales
     * Extensiones
 
-El procedimiento estándar para clonar los dos repositorios es el siguiente::
+Si tenemos cuenta en github, el procedimiento estándar para clonar los dos repositorios es el siguiente:
 
     $ cd ~/git
     $ ssh-add
     $ git clone git@github.com:gestiweb/eneboo-modules
     $ git clone git@github.com:gestiweb/eneboo-features
+
+Si no tenemos cuenta en github, el procedimiento es:
+    
+    $ cd ~/git
+    $ git clone git://github.com/gestiweb/eneboo-tools.git
+
 
 Para instalar los comandos que tenemos en eneboo-tools es suficiente con 
 ejecutar "sudo make install" desde la carpeta del proyecto.
