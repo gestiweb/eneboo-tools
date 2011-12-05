@@ -25,6 +25,10 @@ class BaseObject(object):
         self.__class__._by_relpath[ ( self.__class__.__name__ , unicode(obj.relpath)) ] = self
         self.__class__._by_formal_name[ ( self.__class__.__name__ , self.formal_name()) ] = self
     
+    def get_info(self):
+        self.info = {"provides" : [], "requires" : []}
+        return self.info
+
     def formal_name(self):
         return unicode(self.obj.relpath)
     
@@ -143,7 +147,7 @@ class ModuleObject(BaseObject):
         
     def get_info(self):
         if self.info: return self.info
-        self.info = {"provides" : [ os.path.join(self.obj.relpath, x) for x in find_files(self.fullpath)], "requires" : []}
+        self.info = {"provides" : [ os.path.normpath(os.path.join(self.obj.relpath, x)) for x in find_files(self.fullpath)], "requires" : []}
         
         return self.info
 
@@ -185,8 +189,8 @@ class FeatureObject(BaseObject):
             srcpath = os.path.join(self.fullpath,"patches",patchdir)
             fpatch = FolderApplyPatch(self.iface, srcpath)
             info = fpatch.get_patch_info()
-            self.info["provides"].append(info["provides"])
-            self.info["requires"].append(info["requires"])
+            self.info["provides"] += info["provides"]
+            self.info["requires"] += info["requires"]
         return self.info
         
     # * base: compila las dependencias del proyecto (todo lo que necesitamos 
@@ -392,6 +396,7 @@ class ObjectIndex(object):
     def __init__(self, iface):
         self.iface = iface
         self.analyze_done = False
+        self.file_index = None
         
     def analyze_objects(self):
         if self.analyze_done: return True
@@ -404,6 +409,38 @@ class ObjectIndex(object):
         ModuleObject.cls_finish_setup()
         FeatureObject.cls_finish_setup()
         self.analyze_done =True
+
+    def index_by_file(self):
+        if not self.analyze_done: self.analyze_objects()
+        if self.file_index: return self.file_index
+        self.file_index = {}
+        
+        for kobj in ModuleObject.items() + FeatureObject.items():
+            index = kobj.get_info()
+            fname = "%s" % (kobj.formal_name())
+            ftype = "module" if kobj.type == "mod" else "feature"
+            
+            def declare_filename(filename):
+                if filename in self.file_index: return
+                self.file_index[filename] = { 
+                        "provided-by-module" : [] , 
+                        "provided-by-feature" : [] , 
+                        "required-by-module" : [] ,
+                        "required-by-feature" : [] ,
+                        }
+                
+            for filename in index["provides"]:
+                declare_filename(filename)
+                self.file_index[filename]["provided-by-" + ftype].append(fname)
+                
+            for filename in index["requires"]:
+                declare_filename(filename)
+                self.file_index[filename]["required-by-" + ftype].append(fname)
+            
+        
+        return self.file_index
+        
+        
         
     def load_module(self, obj):
         mod = ModuleObject(self.iface, obj)

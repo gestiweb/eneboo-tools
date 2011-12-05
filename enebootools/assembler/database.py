@@ -117,12 +117,10 @@ def list_objects(iface):
     iface.msg(u"\nMódulos cargados:")
     for obj in oi.modules():
         iface.msg(u" - %s" % obj.formal_name())
-        print obj.get_info()
 
     iface.msg(u"\nFuncionalidades cargadas:")
     for obj in oi.features():
         iface.msg(u" - %s" % obj.formal_name())
-        print obj.get_info()
 
 def do_howto_build(iface,target, feat):
     db = init_database()
@@ -342,7 +340,7 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
                     answers = letters,
                     )
         return fpath
-    fpath = folders[0]
+    fpath = folders[-1]
     
     ftype_options = [u"extensión",u"proyecto", u"conjunto de extensiones"]
     ftype_answers = ["ext","prj","set"]
@@ -404,6 +402,28 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
     fdep_modules = []
     fdep_features = []
     fload_patch = patchurl
+    def checkpatch_deps(fload_patch):
+        file_index = oi.index_by_file()
+        from enebootools.mergetool.flpatchdir import FolderApplyPatch
+        fpatch = FolderApplyPatch(iface, fload_patch)
+        info = fpatch.get_patch_info()
+        for filename in info["requires"]:
+            if filename not in file_index:
+                print "??? Dependencia no encontrada para:", filename
+                continue
+            modules = file_index[filename]["provided-by-module"]
+            features = file_index[filename]["provided-by-feature"]
+            for m in modules:
+                if m not in fdep_modules:
+                    fdep_modules.append(m)
+                    print u"Se agregó automáticamente la dependencia con el módulo '%s'" % m
+            for f in features:
+                if f not in fdep_features:
+                    fdep_features.append(f)
+                    print u"Se agregó automáticamente la dependencia con la funcionalidad '%s'" % f
+    
+    if fload_patch:
+        checkpatch_deps(fload_patch)
     
     while True:
         fdstpath = os.path.join(fpath,"%s%s-%s" % (ftype, fcode, fname))
@@ -433,6 +453,8 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
                 )
         if a1 == "i":
             fload_patch = change_fload_patch()
+            if fload_patch:
+                checkpatch_deps(fload_patch)
         if a1 == "e":
             fload_patch = None
                 
@@ -610,6 +632,9 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
             break
         
 def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_features, fload_patch):
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    
     os.mkdir(path)
     f_ini = open(os.path.join(path, "%s.feature.ini" % fname),"w")
     f_ini.write("[feature]\n")
@@ -632,7 +657,6 @@ def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_feat
             fload_patch = fload_patch[:-1]
         basename = os.path.basename(fload_patch)
         f_patch.write("%s\n" % basename)
-        # TODO:: Debería obviar las carpetas ocultas como .svn
         patch_dstpath = os.path.join(patchespath, basename)
         shutil.copytree(fload_patch,patch_dstpath,
             ignore=shutil.ignore_patterns('*.pyc', 'tmp*', '.*'))
@@ -647,12 +671,6 @@ def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_feat
         
     f_patch.write("\n")
     f_patch.close()
-    
-    if patch_dstpath:
-        # 
-        # TODO: Analizar los ficheros para saber qué modulos necesitamos:
-        # 
-        pass
     
     f_req_mod = open(os.path.join(confpath, "required_modules"),"w")
     for mod in fdep_modules:
