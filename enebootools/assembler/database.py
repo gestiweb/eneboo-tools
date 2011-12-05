@@ -417,8 +417,8 @@ def do_new(iface, subfoldername = None, description = None):
         if a1 == "i":
             t,m = uinput_mask(
                         question = u"Ruta hasta el parche: ",
-                        mask = r"^([\w./-]+)$", 
-                        errortext = u"ERROR: El valor debe ser una ruta válida",
+                        mask = r"^([\w./-]*)$", 
+                        errortext = u"ERROR: El valor '%s' debe ser una ruta válida",
                         )
             if os.path.exists(t):
                 fload_patch = t
