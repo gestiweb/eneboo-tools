@@ -15,6 +15,7 @@ class BaseObject(object):
     def __init__(self, iface, obj):
         self.iface = iface
         self.obj = obj
+        self.info = {}
         self.all_required_modules = None
         self.all_required_features = None
         self.fullpath = os.path.join(obj.abspath, obj.relpath)
@@ -139,6 +140,12 @@ class ModuleObject(BaseObject):
         self.required_modules = self.root.xpath("dependencies/dependency/text()")
         self.required_features = []
         self.iface.debug2(u"Se ha parseado el módulo %s" % self.name)
+        
+    def get_info(self):
+        if self.info: return self.info
+        self.info = {"provides" : [ os.path.join(self.obj.relpath, x) for x in find_files(self.fullpath)], "requires" : []}
+        
+        return self.info
 
 class FeatureObject(BaseObject):
     def setup(self):
@@ -167,6 +174,20 @@ class FeatureObject(BaseObject):
 
     def set_dstfolder(self, folder):
         self.dstfolder = folder
+      
+    def get_info(self):
+        from enebootools.mergetool.flpatchdir import FolderApplyPatch
+        if self.info: return self.info
+        patch_list = self.get_patch_list()
+        self.info = {"provides" : [], "requires" : []}
+
+        for patchdir in patch_list:
+            srcpath = os.path.join(self.fullpath,"patches",patchdir)
+            fpatch = FolderApplyPatch(self.iface, srcpath)
+            info = fpatch.get_patch_info()
+            self.info["provides"].append(info["provides"])
+            self.info["requires"].append(info["requires"])
+        return self.info
         
     # * base: compila las dependencias del proyecto (todo lo que necesitamos 
     #         para poder aplicar los parches luego)

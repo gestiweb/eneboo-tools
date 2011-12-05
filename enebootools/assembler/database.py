@@ -117,10 +117,12 @@ def list_objects(iface):
     iface.msg(u"\nMódulos cargados:")
     for obj in oi.modules():
         iface.msg(u" - %s" % obj.formal_name())
+        print obj.get_info()
 
     iface.msg(u"\nFuncionalidades cargadas:")
     for obj in oi.features():
         iface.msg(u" - %s" % obj.formal_name())
+        print obj.get_info()
 
 def do_howto_build(iface,target, feat):
     db = init_database()
