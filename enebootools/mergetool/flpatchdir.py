@@ -241,14 +241,21 @@ class FolderCreatePatch(object):
         #print "=" , self.common_files
         
         iface.info("Calculando diferencias . . . ")
-        for filename in self.added_files:
-            self.add_file(filename)
-
-        for filename in self.common_files:
-            self.compare_file(filename)
         
-        for filename in self.deleted_files:
-            self.remove_file(filename)
+        file_actions = []
+        file_actions += [ (os.path.dirname(f),f, "add") for f in self.added_files ]
+        file_actions += [ (os.path.dirname(f),f, "common") for f in self.common_files ]
+        file_actions += [ (os.path.dirname(f),f, "delete") for f in self.deleted_files ]
+        # Intentar guardarlos de forma ordenada, para minimizar las diferencias entre parches.
+        for path, filename, action in sorted(file_actions):
+            if action == "add":
+                self.add_file(filename)
+            elif action == "common":
+                self.compare_file(filename)
+            elif action == "delete":
+                self.remove_file(filename)
+            else: raise ValueError
+
         
     def create_action(self, actionname, filename):
         path, name = os.path.split(filename)
@@ -300,7 +307,7 @@ class FolderCreatePatch(object):
             if path:
                 if path.endswith("/"):
                     path = path[:-1]
-                    action.set("path",path)
+                action.set("path",path + "/")
             ret = 1
             if actionname == "addfile": ret = self.compute_add_file(action)
             elif actionname == "replacefile": ret = self.compute_replace_file(action)
