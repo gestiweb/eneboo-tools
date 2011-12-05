@@ -333,11 +333,11 @@ class FeatureObject(BaseObject):
     def get_testfullpatch_actions(self):
         dst_folder = os.path.join(self.fullpath, "build/test")
         dep1_folder = os.path.join(self.fullpath, "build/base")
-        dep2_folder = os.path.join(self.fullpath, "build/patch")
+        dep2_folder = os.path.join(self.fullpath, "build/fullpatch")
         binstr = etree.Element("BuildInstructions")
         binstr.set("feature",self.formal_name())
         binstr.set("target","test")
-        binstr.set("depends","base patch")
+        binstr.set("depends","base fullpatch")
         binstr.set("path",self.fullpath)
         binstr.set("dstfolder", "build/test-fullpatch")
         if self.dstfolder:
