@@ -14,7 +14,7 @@ class AssemblerInterface(EnebooToolsInterface):
 
         self.new_action = self.parser.declare_action(
             name = "new",
-            args = ["subfoldername","description"],
+            args = ["subfoldername","description","patchurl"],
             options = [],
             min_argcount = 0,
             description = u"Crea una nueva plantilla de funcionalidad",
@@ -24,6 +24,7 @@ class AssemblerInterface(EnebooToolsInterface):
         self.new_action.set_help_arg(
             subfoldername = "Nombre de la subcarpeta que será creada. Debe seguir la plantilla extA999-codename.",
             description = "Nombre descriptivo para la funcionalidad",
+            patchurl = "Ruta para importar un parche",
             )
             
         self.build_action = self.parser.declare_action(
@@ -112,9 +113,9 @@ class AssemblerInterface(EnebooToolsInterface):
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 
-    def do_new(self, subfoldername = None, description = None):
+    def do_new(self, subfoldername = None, description = None, patchurl = None):
         try:
-            return asmdb.do_new(self, subfoldername, description )
+            return asmdb.do_new(self, subfoldername, description, patchurl )
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 

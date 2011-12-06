@@ -126,10 +126,16 @@ Los targets son:
         una copia del target final, donde realizar los cambios 
         a la extensión
     * **patch:** 
-        calcula el parche de las diferencias entre src y final.
-    * **test:** 
+        calcula el parche de las diferencias entre src y final. (incremental)
+    * **test-patch:** 
         el resultado de aplicar el parche "patch" sobre 
         "final", sirve para realizar las pruebas convenientes antes de 
+        guardar el nuevo parche.
+    * **fullpatch:** 
+        calcula el parche de las diferencias entre src y base. (completo)
+    * **test-fullpatch:** 
+        el resultado de aplicar el parche "fullpatch" sobre 
+        "base", sirve para realizar las pruebas convenientes antes de 
         guardar el nuevo parche.
 
 Cuando compilamos algo, nos lo deja dentro de la carpeta build/ en la 
@@ -184,17 +190,73 @@ Por ejemplo::
     base/contabilidad/principal
 
 
-Si os fijáis, la idea es "apilar" parches, es decir, que cuando modificamos una 
+Si os fijáis, la idea es en el futuro, "apilar" parches, es decir, que cuando modificamos una 
 extensión creamos otro parche **distinto**, que tiene que ser aplicado **después** 
 del original. Esto ayudará a que si dos personas trabajan a la vez sobre el 
 mismo parche, sea mucho más fácil mezclarlo. 
 
+De momento, no hay soporte para parche incremental, pues casi todos los diff y 
+patch contextuales son incapaces de realizar un patch incremental (la única
+excepción es el de XML). Así que de momento sólo se pueden guardar cambios 
+reemplazando todos los anteriores (con fullpatch).
+
+Para guardar un cambio, después de haberlo probado con test-fullpatch y habiendo
+comprobado que no hemos perdido nada, se usa la acción "save-fullpatch" del siguiente
+modo::
+
+    $ eneboo-assembler save-fullpatch prj001-basic
+    
+Eso sí, la operación **ES DESTRUCTIVA** y reemplazará lo que había antes sin que
+se pueda recuperar. No recomiento usar esto si no tenemos la carpeta bajo control
+de versiones (GIT, SVN, etc), porque en un descuido nos podemos quedar sin parche.
+
+
 Aún faltan cosas básicas por desarrollar, como por ejemplo:
 
-    * Comando "save-patch" para guardar los cambios realizados en un parche adicional con un nombre dado
+    * Comando "save-patch" para guardar los cambios realizados en un parche incremental
     * Comando "blend-patches" para unir todos los parches en uno solo. (excepto los N últimos) 
     * Comando "export" para generar un tar.gz de los módulos (del target final)
+
+
+Assembler: Creando extensiones nuevas
+-----------------------------------------
+
+Hasta hace poco para crear las extensiones nuevas que el assembler pueda leer
+había que crear los ficheros y carpetas a mano. Como son unas cuantas, esto era
+un tanto costoso.
+
+Para facilitar las cosas hemos creado una acción "new" que contiene un asistente
+que realizará las preguntas necesarias y luego escribirá en disco la extensión.
+
+Si se ejecuta sin argumentos, preguntará los datos mínimos para crear la plantilla::
+
+    $ eneboo-assembler new
+
+    Qué tipo de funcionalidad va a crear?
+        ext) extensión
+        prj) proyecto
+        set) conjunto de extensiones
+    Seleccione una opción: ext
+
+    Código para la nueva funcionalidad: A002
+
+    Nombre corto de funcionalidad: mifun02
+
+    Descripción de la funcionalidad: Funcionalidad 02 
     
+Si se le pasa el nombre de la carpeta y la descripción, omite los pasos 
+iniciales y pasa directamente al menú::
+    
+    $ eneboo-assembler new extA003-mifun03 "Funcionalidad 03" 
+    
+A la hora de elegir una opción en el menú, existe autocompletado con el tabulador.
+Si introducimos "flfact*" y pulsamos tabulador, pondrá todos los módulos que coincidan.
+
+En el caso de las rutas, también existe autocompletado con el sistema de ficheros.
+
+Por defecto las extensiones se crean en la primera carpeta de extensiones que
+haya en la configuración, se puede cambiar la carpeta de destino en una opción del
+menú.
 
 MergeTool: Introducción
 ------------------------

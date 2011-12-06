@@ -15,6 +15,7 @@ class BaseObject(object):
     def __init__(self, iface, obj):
         self.iface = iface
         self.obj = obj
+        self.info = {}
         self.all_required_modules = None
         self.all_required_features = None
         self.fullpath = os.path.join(obj.abspath, obj.relpath)
@@ -24,6 +25,10 @@ class BaseObject(object):
         self.__class__._by_relpath[ ( self.__class__.__name__ , unicode(obj.relpath)) ] = self
         self.__class__._by_formal_name[ ( self.__class__.__name__ , self.formal_name()) ] = self
     
+    def get_info(self):
+        self.info = {"provides" : [], "requires" : []}
+        return self.info
+
     def formal_name(self):
         return unicode(self.obj.relpath)
     
@@ -139,6 +144,12 @@ class ModuleObject(BaseObject):
         self.required_modules = self.root.xpath("dependencies/dependency/text()")
         self.required_features = []
         self.iface.debug2(u"Se ha parseado el módulo %s" % self.name)
+        
+    def get_info(self):
+        if self.info: return self.info
+        self.info = {"provides" : [ os.path.normpath(os.path.join(self.obj.relpath, x)) for x in find_files(self.fullpath)], "requires" : []}
+        
+        return self.info
 
 class FeatureObject(BaseObject):
     def setup(self):
@@ -167,6 +178,20 @@ class FeatureObject(BaseObject):
 
     def set_dstfolder(self, folder):
         self.dstfolder = folder
+      
+    def get_info(self):
+        from enebootools.mergetool.flpatchdir import FolderApplyPatch
+        if self.info: return self.info
+        patch_list = self.get_patch_list()
+        self.info = {"provides" : [], "requires" : []}
+
+        for patchdir in patch_list:
+            srcpath = os.path.join(self.fullpath,"patches",patchdir)
+            fpatch = FolderApplyPatch(self.iface, srcpath)
+            info = fpatch.get_patch_info()
+            self.info["provides"] += info["provides"]
+            self.info["requires"] += info["requires"]
+        return self.info
         
     # * base: compila las dependencias del proyecto (todo lo que necesitamos 
     #         para poder aplicar los parches luego)
@@ -333,11 +358,11 @@ class FeatureObject(BaseObject):
     def get_testfullpatch_actions(self):
         dst_folder = os.path.join(self.fullpath, "build/test")
         dep1_folder = os.path.join(self.fullpath, "build/base")
-        dep2_folder = os.path.join(self.fullpath, "build/patch")
+        dep2_folder = os.path.join(self.fullpath, "build/fullpatch")
         binstr = etree.Element("BuildInstructions")
         binstr.set("feature",self.formal_name())
         binstr.set("target","test")
-        binstr.set("depends","base patch")
+        binstr.set("depends","base fullpatch")
         binstr.set("path",self.fullpath)
         binstr.set("dstfolder", "build/test-fullpatch")
         if self.dstfolder:
@@ -371,6 +396,7 @@ class ObjectIndex(object):
     def __init__(self, iface):
         self.iface = iface
         self.analyze_done = False
+        self.file_index = None
         
     def analyze_objects(self):
         if self.analyze_done: return True
@@ -383,6 +409,38 @@ class ObjectIndex(object):
         ModuleObject.cls_finish_setup()
         FeatureObject.cls_finish_setup()
         self.analyze_done =True
+
+    def index_by_file(self):
+        if not self.analyze_done: self.analyze_objects()
+        if self.file_index: return self.file_index
+        self.file_index = {}
+        
+        for kobj in ModuleObject.items() + FeatureObject.items():
+            index = kobj.get_info()
+            fname = "%s" % (kobj.formal_name())
+            ftype = "module" if kobj.type == "mod" else "feature"
+            
+            def declare_filename(filename):
+                if filename in self.file_index: return
+                self.file_index[filename] = { 
+                        "provided-by-module" : [] , 
+                        "provided-by-feature" : [] , 
+                        "required-by-module" : [] ,
+                        "required-by-feature" : [] ,
+                        }
+                
+            for filename in index["provides"]:
+                declare_filename(filename)
+                self.file_index[filename]["provided-by-" + ftype].append(fname)
+                
+            for filename in index["requires"]:
+                declare_filename(filename)
+                self.file_index[filename]["required-by-" + ftype].append(fname)
+            
+        
+        return self.file_index
+        
+        
         
     def load_module(self, obj):
         mod = ModuleObject(self.iface, obj)

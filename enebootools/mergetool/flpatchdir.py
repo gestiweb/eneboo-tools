@@ -36,7 +36,7 @@ class FolderApplyPatch(object):
     def __init__(self, iface, patchdir):
         self.iface = iface
         if patchdir[-1] == "/": patchdir = patchdir[:-1]
-        if self.iface.patch_name:
+        if getattr(self.iface,"patch_name",None):
             self.patch_name = self.iface.patch_name
         else:
             self.patch_name = os.path.basename(patchdir)
@@ -51,18 +51,22 @@ class FolderApplyPatch(object):
             self.patch_dir = patchdir
 
         patch_file = os.path.join(self.patch_dir, expected_file)
-        
-        self.encoding = "iso-8859-15"
-        self.parser = etree.XMLParser(
-                        ns_clean=False,
-                        encoding=self.encoding,
-                        recover=True, # .. recover funciona y parsea cuasi cualquier cosa.
-                        remove_blank_text=True,
-                        )
-        self.tree = etree.parse(patch_file, self.parser)
-        self.root = self.tree.getroot()
+        try:
+            self.encoding = "iso-8859-15"
+            self.parser = etree.XMLParser(
+                            ns_clean=False,
+                            encoding=self.encoding,
+                            recover=True, # .. recover funciona y parsea cuasi cualquier cosa.
+                            remove_blank_text=True,
+                            )
+            self.tree = etree.parse(patch_file, self.parser)
+            self.root = self.tree.getroot()
+        except IOError, e:
+            self.root = None
+            iface.error("No se pudo leer el parche: " + str(e))
     
     def patch_folder(self, folder):
+        if self.root is None: return
         for action in self.root:
             actionname = action.tag
             if actionname.startswith("{"):
@@ -81,6 +85,27 @@ class FolderApplyPatch(object):
             tdelta = tend - tbegin
             if tdelta > 1:
                 self.iface.debug("La operación tomó %.2f segundos" % tdelta)
+    
+    def get_patch_info(self):
+        if self.root is None: return
+        info = {"provides" : [], "requires" : []}
+        
+        for action in self.root:
+            actionname = action.tag
+            if actionname.startswith("{"):
+                actionname = action.tag.split("}")[1]
+            actionname = actionname.lower()
+            
+            pathname = os.path.join(action.get("path"),action.get("name"))
+            
+            atype = None
+            if actionname == "addfile": atype = "provides"
+            elif actionname == "replacefile": atype = "requires"
+            elif actionname == "patchscript": atype = "requires"
+            elif actionname == "patchxml": atype = "requires"
+            info[atype].append(pathname)
+        return info
+            
             
     
     def add_file(self, addfile, folder):            
@@ -241,14 +266,21 @@ class FolderCreatePatch(object):
         #print "=" , self.common_files
         
         iface.info("Calculando diferencias . . . ")
-        for filename in self.added_files:
-            self.add_file(filename)
-
-        for filename in self.common_files:
-            self.compare_file(filename)
         
-        for filename in self.deleted_files:
-            self.remove_file(filename)
+        file_actions = []
+        file_actions += [ (os.path.dirname(f),f, "add") for f in self.added_files ]
+        file_actions += [ (os.path.dirname(f),f, "common") for f in self.common_files ]
+        file_actions += [ (os.path.dirname(f),f, "delete") for f in self.deleted_files ]
+        # Intentar guardarlos de forma ordenada, para minimizar las diferencias entre parches.
+        for path, filename, action in sorted(file_actions):
+            if action == "add":
+                self.add_file(filename)
+            elif action == "common":
+                self.compare_file(filename)
+            elif action == "delete":
+                self.remove_file(filename)
+            else: raise ValueError
+
         
     def create_action(self, actionname, filename):
         path, name = os.path.split(filename)
@@ -300,7 +332,7 @@ class FolderCreatePatch(object):
             if path:
                 if path.endswith("/"):
                     path = path[:-1]
-                    action.set("path",path)
+                action.set("path",path + "/")
             ret = 1
             if actionname == "addfile": ret = self.compute_add_file(action)
             elif actionname == "replacefile": ret = self.compute_replace_file(action)
@@ -462,4 +494,9 @@ def patch_folder(iface, basedir, finaldir, patchdir):
 def patch_folder_inplace(iface, patchdir, finaldir):
     fpatch = FolderApplyPatch(iface, patchdir)
     fpatch.patch_folder(finaldir)
+
+
+def get_patch_info(iface, patchdir):
+    fpatch = FolderApplyPatch(iface, patchdir)
+    return fpatch.get_patch_info()
 

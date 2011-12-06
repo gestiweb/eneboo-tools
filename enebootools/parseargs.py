@@ -70,14 +70,14 @@ class Action(object):
             print          
             print tw1.fill(self.description)
             
-	tw2 = textwrap.TextWrapper(
-	  initial_indent='  * ',  
-	  subsequent_indent=' '*12,  
-	  )
+        tw2 = textwrap.TextWrapper(
+          initial_indent='  * ',  
+          subsequent_indent=' '*12,  
+          )
         print
         print " arguments:"
         for arg in self.args:
-	    print tw2.fill( self.get_arg_help(arg) )
+            print tw2.fill( self.get_arg_help(arg) )
         print
         if not self.parent: return
         tw2.initial_indent = '    '
@@ -94,7 +94,7 @@ class Action(object):
         
       
     def parse(self, p, parse_count = 0):
-	self.parse = p
+        self.parse = p
         self.pcount = parse_count
         if 'help' in self.parse.options:
             self.help()

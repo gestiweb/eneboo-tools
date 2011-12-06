@@ -303,7 +303,7 @@ class MyCompleter(object):
 completer1 = MyCompleter()
 
 
-def do_new(iface, subfoldername = None, description = None):
+def do_new(iface, subfoldername = None, description = None, patchurl = None):
     letters = list("abcdefghijklmnopqrstuvwxyz123456789")
     db = init_database()
     oi = ObjectIndex(iface)
@@ -340,7 +340,7 @@ def do_new(iface, subfoldername = None, description = None):
                     answers = letters,
                     )
         return fpath
-    fpath = folders[0]
+    fpath = folders[-1]
     
     ftype_options = [u"extensión",u"proyecto", u"conjunto de extensiones"]
     ftype_answers = ["ext","prj","set"]
@@ -385,9 +385,46 @@ def do_new(iface, subfoldername = None, description = None):
         return fdesc
     if fdesc is None: fdesc = change_fdesc()
     
+    def change_fload_patch():
+        t,m = uinput_mask(
+                question = u"Ruta hasta el parche: ",
+                mask = r"^([\w./-]*)$", 
+                errortext = u"ERROR: El valor '%s' debe ser una ruta válida",
+                )
+        if os.path.exists(t):
+            return t
+        else:
+            print "ERROR: La ruta '%s' no existe." % t
+            return None
+        
+
+    
     fdep_modules = []
     fdep_features = []
-    fload_patch = None
+    fload_patch = patchurl
+    def checkpatch_deps(fload_patch):
+        file_index = oi.index_by_file()
+        from enebootools.mergetool.flpatchdir import FolderApplyPatch
+        fpatch = FolderApplyPatch(iface, fload_patch)
+        info = fpatch.get_patch_info()
+        for filename in info["requires"]:
+            if filename not in file_index:
+                print "??? Dependencia no encontrada para:", filename
+                continue
+            modules = file_index[filename]["provided-by-module"]
+            features = file_index[filename]["provided-by-feature"]
+            for m in modules:
+                if m not in fdep_modules:
+                    fdep_modules.append(m)
+                    print u"Se agregó automáticamente la dependencia con el módulo '%s'" % m
+            for f in features:
+                if f not in fdep_features:
+                    fdep_features.append(f)
+                    print u"Se agregó automáticamente la dependencia con la funcionalidad '%s'" % f
+    
+    if fload_patch:
+        checkpatch_deps(fload_patch)
+    
     while True:
         fdstpath = os.path.join(fpath,"%s%s-%s" % (ftype, fcode, fname))
         print
@@ -415,16 +452,9 @@ def do_new(iface, subfoldername = None, description = None):
                 answers = menu1_answers,
                 )
         if a1 == "i":
-            t,m = uinput_mask(
-                        question = u"Ruta hasta el parche: ",
-                        mask = r"^([\w./-]+)$", 
-                        errortext = u"ERROR: El valor debe ser una ruta válida",
-                        )
-            if os.path.exists(t):
-                fload_patch = t
-            else:
-                print "ERROR: La ruta '%s' no existe." % t
-            
+            fload_patch = change_fload_patch()
+            if fload_patch:
+                checkpatch_deps(fload_patch)
         if a1 == "e":
             fload_patch = None
                 
@@ -602,6 +632,9 @@ def do_new(iface, subfoldername = None, description = None):
             break
         
 def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_features, fload_patch):
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    
     os.mkdir(path)
     f_ini = open(os.path.join(path, "%s.feature.ini" % fname),"w")
     f_ini.write("[feature]\n")
@@ -616,28 +649,16 @@ def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_feat
 
     confpath = os.path.join(path, "conf")
     os.mkdir(confpath)
-    f_req_mod = open(os.path.join(confpath, "required_modules"),"w")
-    for mod in fdep_modules:
-        f_req_mod.write("%s\n" % mod)
-    
-    f_req_mod.write("\n")
-    f_req_mod.close()
-    
-    f_req_feat = open(os.path.join(confpath, "required_features"),"w")
-    for feat in fdep_features:
-        f_req_feat.write("%s\n" % feat)
-    
-    f_req_feat.write("\n")
-    f_req_feat.close()
     
     f_patch = open(os.path.join(confpath, "patch_series"),"w")
+    patch_dstpath = None
     if fload_patch:
         if fload_patch.endswith("/"):
             fload_patch = fload_patch[:-1]
         basename = os.path.basename(fload_patch)
         f_patch.write("%s\n" % basename)
-        # TODO:: Debería obviar las carpetas ocultas como .svn
-        shutil.copytree(fload_patch,os.path.join(patchespath, basename),
+        patch_dstpath = os.path.join(patchespath, basename)
+        shutil.copytree(fload_patch,patch_dstpath,
             ignore=shutil.ignore_patterns('*.pyc', 'tmp*', '.*'))
     else:
         f_patch_readme = open(os.path.join(patchespath, "README"), "w")
@@ -651,6 +672,19 @@ def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_feat
     f_patch.write("\n")
     f_patch.close()
     
+    f_req_mod = open(os.path.join(confpath, "required_modules"),"w")
+    for mod in fdep_modules:
+        f_req_mod.write("%s\n" % mod)
+    
+    f_req_mod.write("\n")
+    f_req_mod.close()
+    
+    f_req_feat = open(os.path.join(confpath, "required_features"),"w")
+    for feat in fdep_features:
+        f_req_feat.write("%s\n" % feat)
+    
+    f_req_feat.write("\n")
+    f_req_feat.close()
     
 
     return
