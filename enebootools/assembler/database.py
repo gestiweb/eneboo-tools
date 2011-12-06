@@ -632,8 +632,6 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
             break
         
 def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_features, fload_patch):
-    oi = ObjectIndex(iface)
-    oi.analyze_objects()
     
     os.mkdir(path)
     f_ini = open(os.path.join(path, "%s.feature.ini" % fname),"w")
