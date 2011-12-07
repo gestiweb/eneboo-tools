@@ -683,6 +683,7 @@ class XMLDiffer(object):
         self.xfinal.clean_ctxid()
         
     def resolve_select(self, element, select):
+        if select is None: return element, None
         path = select.split("/")
         while path:
             p0 = path.pop(0) 
@@ -767,6 +768,9 @@ class XMLDiffer(object):
             self.iface.warn("Tipo de tag no esperado: " + action.tag)
             return
         select = _select = action.get("select")
+        if select is None:
+            self.iface.warn("Falta atributo 'select' en " + etree.tostring(action))
+            return
         element, select = self.resolve_select2(self.xfinal.root, select)
         #if '/' in select:
         #    self.xfinal.load_entities()

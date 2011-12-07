@@ -311,7 +311,7 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
     fpath = ftype = fcode = fname = fdesc = None
     if description: fdesc = description
     if subfoldername:
-        match = re.match("^([a-z]+)([A-Z0-9][0-9]{3})-([a-z][a-z0-9]{3,12})$", subfoldername)
+        match = re.match("^([a-z]+)([A-Z0-9][0-9]{3})-([a-z][a-z0-9_]{3,20})$", subfoldername)
         if not match:
             print "El nombre de subcarpeta '%s' no es válido" % subfoldername
             return False
@@ -372,8 +372,8 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
         print
         t,m = uinput_mask(
                     question = u"Nombre corto de funcionalidad: ",
-                    mask = r"^([a-z][a-z0-9_]{3,15})$", 
-                    errortext = u"ERROR: El valor '%s' debe tener entre 4 y 16 carácteres, ser minúsculas y tener solo letras y números (empezando siempre por letra)",
+                    mask = r"^([a-z][a-z0-9_]{3,19})$", 
+                    errortext = u"ERROR: El valor '%s' debe tener entre 4 y 20 carácteres, ser minúsculas y tener solo letras y números (empezando siempre por letra)",
                     )
         fname = m.group(0)
         return fname
