@@ -354,7 +354,8 @@ Veamos un ejemplo::
         proyecto1_original/ proyecto1_parcheado/
         
 Esto crearía la carpeta *proyecto1_parcheado/* y contendría *proyecto1_original/*
-pero con los parches aplicados.
+pero con los parches aplicados. El fichero XML del parche debe encontrarse en la
+carpeta *mi_parche*.
 
 
 
