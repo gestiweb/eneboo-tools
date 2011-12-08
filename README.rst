@@ -249,7 +249,7 @@ iniciales y pasa directamente al menú::
     
     $ eneboo-assembler new extA003-mifun03 "Funcionalidad 03" 
     
-A continuación aparecerá el menú principal como se muestra a continuación::
+Aparecerá el menú principal como se muestra a continuación::
 
     **** Asistente de creación de nueva funcionalidad ****
 
