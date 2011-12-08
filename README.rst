@@ -249,9 +249,30 @@ iniciales y pasa directamente al menú::
     
     $ eneboo-assembler new extA003-mifun03 "Funcionalidad 03" 
     
-La opción d, *"Dependencias"* sirve para añadir módulos y funcionalidades. Una vez dentro del menú de dependencias, para facilitar la tarea de agregado podemos utilizar caracteres comodín. Por ejemplo, si introducimos "flfact*" y pulsamos tabulador, pondrá todos los módulos que coincidan.
+A continuación aparecerá el menú principal como se muestra a continuación::
 
-En el caso de las rutas, también existe autocompletado con el sistema de ficheros.
+    **** Asistente de creación de nueva funcionalidad ****
+
+     : Carpeta destino : /home/david/git/eneboo-features/extA003-mifun03
+     : Nombre          : extensión - A003 - mifun03 
+     : Descripción     : Funcionalidad 03 
+
+     : Dependencias    : 0 módulos, 0 funcionalidades
+     : Importar Parche : None
+
+    --  Menú de opciones generales --
+        c) Cambiar datos básicos
+        d) Dependencias
+        i) Importar parche
+        e) Eliminar parche
+        a) Aceptar y crear
+        q) Cancelar y Salir
+    Seleccione una opción: 
+
+
+La opción *d) Dependencias* sirve para añadir módulos y funcionalidades. Una vez dentro del menú de dependencias, para facilitar la tarea de agregado podemos utilizar caracteres comodín. Por ejemplo, si introducimos "flfact*" y pulsamos tabulador, pondrá todos los módulos que empiecen por "flfact".
+
+En el caso de las rutas, también existe autocompletado con el sistema de ficheros, que se activa con la tecla de tabulador.
 
 Por defecto las extensiones se crean en la primera carpeta de extensiones que
 haya en la configuración, se puede cambiar la carpeta de destino en una opción del
