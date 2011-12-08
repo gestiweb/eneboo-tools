@@ -249,8 +249,7 @@ iniciales y pasa directamente al menú::
     
     $ eneboo-assembler new extA003-mifun03 "Funcionalidad 03" 
     
-A la hora de elegir una opción en el menú, existe autocompletado con el tabulador.
-Si introducimos "flfact*" y pulsamos tabulador, pondrá todos los módulos que coincidan.
+La opción d, *"Dependencias"* sirve para añadir módulos y funcionalidades. Una vez dentro del menú de dependencias, para facilitar la tarea de agregado podemos utilizar caracteres comodín. Por ejemplo, si introducimos "flfact*" y pulsamos tabulador, pondrá todos los módulos que coincidan.
 
 En el caso de las rutas, también existe autocompletado con el sistema de ficheros.
 
