@@ -2,7 +2,7 @@
 import os
 import os.path
 import sqlite3
-import re
+import re, sys
 import readline, fnmatch
 import shutil
 
@@ -172,7 +172,6 @@ def do_build(iface,target, feat, rebuild=True, dstfolder = None):
     projectbuilder.build_xml(mtool_iface,build_instructions,rebuild)
     
 def uinput(question, possible_values = None):
-    import sys
     if isinstance(possible_values, list):
         completer1.enable_value_completer(possible_values)
     elif isinstance(possible_values, basestring):       
@@ -309,9 +308,9 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
     oi = ObjectIndex(iface)
     oi.analyze_objects()
     fpath = ftype = fcode = fname = fdesc = None
-    if description: fdesc = description
+    if description: fdesc = unicode(description, sys.stdin.encoding)
     if subfoldername:
-        match = re.match("^([a-z]+)([A-Z0-9][0-9]{3})-([a-z][a-z0-9_]{3,20})$", subfoldername)
+        match = re.match(u"^([a-z]+)([A-Z0-9][0-9]{3})-([a-z][a-z0-9_]{3,20})$", unicode(subfoldername, sys.stdin.encoding))
         if not match:
             print "El nombre de subcarpeta '%s' no es válido" % subfoldername
             return False
@@ -610,6 +609,10 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
             
         if a1 == "a": 
             print
+            if os.path.exists(fdstpath):
+                print u"La carpeta '%s' ya existe. Borrela o cambie el nombre de la carpeta de destino." % fdstpath
+                continue
+                
             print u"Guardando ... "
             
             # GUARDAR AQUI
@@ -636,10 +639,10 @@ def create_new_feature(path, fcode, fname, ftype, fdesc, fdep_modules, fdep_feat
     os.mkdir(path)
     f_ini = open(os.path.join(path, "%s.feature.ini" % fname),"w")
     f_ini.write("[feature]\n")
-    f_ini.write("type=%s\n" % ftype)
-    f_ini.write("code=%s\n" % fcode)
-    f_ini.write("name=%s\n" % fname)
-    f_ini.write("description=%s\n" % fdesc)
+    f_ini.write("type=%s\n" % ftype.encode("UTF-8"))
+    f_ini.write("code=%s\n" % fcode.encode("UTF-8"))
+    f_ini.write("name=%s\n" % fname.encode("UTF-8"))
+    f_ini.write("description=%s\n" % fdesc.encode("UTF-8"))
     f_ini.write("\n")
     f_ini.close()
     patchespath = os.path.join(path, "patches")
