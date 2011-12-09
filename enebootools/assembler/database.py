@@ -422,7 +422,10 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
                     print u"Se agregó automáticamente la dependencia con la funcionalidad '%s'" % f
     
     if fload_patch:
-        checkpatch_deps(fload_patch)
+        try:
+            checkpatch_deps(fload_patch)
+        except Exception, e:
+            print u"Hubo un problema al intentar comprobar el parche. Probablemente la carpeta sea incorrecta."
     
     while True:
         fdstpath = os.path.join(fpath,"%s%s-%s" % (ftype, fcode, fname))
@@ -453,7 +456,11 @@ def do_new(iface, subfoldername = None, description = None, patchurl = None):
         if a1 == "i":
             fload_patch = change_fload_patch()
             if fload_patch:
-                checkpatch_deps(fload_patch)
+                try:
+                    checkpatch_deps(fload_patch)
+                except Exception, e:
+                    print u"Hubo un problema al intentar comprobar el parche. Probablemente la carpeta sea incorrecta."
+                    
         if a1 == "e":
             fload_patch = None
                 
