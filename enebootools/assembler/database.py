@@ -149,6 +149,10 @@ def do_build(iface,target, feat, rebuild=True, dstfolder = None):
     db = init_database()
     oi = ObjectIndex(iface)
     oi.analyze_objects()
+    if target == "src-fullpatch":
+        dstfolder = "build/src"
+        target = "test-fullpatch"
+        
     build_instructions = oi.get_build_actions(target,feat,dstfolder)
     if build_instructions is None: 
         iface.error("Error al generar las instrucciones de compilado.")
