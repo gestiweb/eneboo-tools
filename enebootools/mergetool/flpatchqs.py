@@ -368,9 +368,25 @@ def patch_qs(iface, base, patch):
             #            u"pero se ignora y dejamos el extends %s" % (
             #            newclass, cfrom, extends) )
         if extends not in clbase['classes']:
-            iface.error(u"La clase %s debía heredar de %s, pero no "
-                        u"la encontramos en el fichero base." % (newclass,extends))
-            continue
+            clsheur = 1 # <- cambiar modo de heuristica
+            if clsheur == 1 : 
+                # Modo heuristico basico:
+                if newclass.startswith("pub"): testclass = "iface"
+                elif newclass.startswith("base"): testclass = "interna"
+                else: testclass = "oficial"
+                if testclass not in clbase['classes']:
+                    testclass = clbase['classes'][-1]
+                    
+                iface.warn(u"La clase %s debía heredar de %s, pero no "
+                            u"la encontramos en el fichero base. "
+                            u"En su lugar, heredará de %s." % (newclass,extends, testclass))
+                extends = testclass
+                
+            else:
+                # Modo antiguo:
+                iface.error(u"La clase %s debía heredar de %s, pero no "
+                            u"la encontramos en el fichero base." % (newclass,extends))
+                continue
         iface.debug(u"La clase %s deberá heredar de %s" % (newclass,extends))
         
         # Buscar la clase más inferior que heredó originalmente de "extends"
@@ -392,13 +408,24 @@ def patch_qs(iface, base, patch):
             # Vamos a asumir que estos bloques están juntos y que child_class heredaba de parent_class.
             parent_class = clbase['decl'][extending]
             # Dónde guardar el código de definición: (después de la clase que extendimos)
-            try:
-                child_def_block = clbase['def'][extending] + 1 
-            except KeyError:
-                iface.warn(u"No hemos encontrado el bloque de código para las "
-                           u"definiciones de la clase %s, pondremos las nuevas al"
-                           u" final del fichero." % (extending))
+            ext_class_idx = clbase["classes"].index(extending)
+            if newclass in clpatch['def']:
+                while True: 
+                    ext_cname = clbase["classes"][ext_class_idx]
+                    try:
+                        child_def_block = clbase['def'][ext_cname] + 1 
+                        break
+                    except KeyError:
+                        ext_class_idx += 1
+                        if ext_class_idx >= len(clbase["classes"]):
+                            iface.info2(u"Se va a colocar el código de las "
+                                       u"definiciones de la clase %s al"
+                                       u" final del fichero." % (newclass))
+                            child_def_block = max(clbase['def'].values()) + 1 
+                            break
+            else:
                 child_def_block = max(clbase['def'].values()) + 1 
+            
            
             assert(clbase['list'][parent_class][1] == extending) # <- este calculo deberia ser correcto. 
         
@@ -450,21 +477,22 @@ def patch_qs(iface, base, patch):
         # Bloques a insertar:
         newblocklist = clbase['list'][:]
         if iface.patch_qs_rewrite != "reverse":
-            try:
-                from_def_block = clpatch['list'][clpatch['def'][newclass]]
-                # incrustamos en posicion $child_def_block
-                if newclass in clbase['classes']:
-                    # Sobreescribimos el bloque si ya existe la clase.
-                    assert(auth_overwrite_class)
-                    newblocklist[clbase['def'][newclass]] = from_def_block 
-                else: newblocklist.insert(child_def_block, from_def_block)
+            if newclass in clpatch['def']:
+                try:
+                    from_def_block = clpatch['list'][clpatch['def'][newclass]]
+                    # incrustamos en posicion $child_def_block
+                    if newclass in clbase['classes']:
+                        # Sobreescribimos el bloque si ya existe la clase.
+                        assert(auth_overwrite_class)
+                        newblocklist[clbase['def'][newclass]] = from_def_block 
+                    else: newblocklist.insert(child_def_block, from_def_block)
             
-                # Se hace en orden inverso (primero abajo, luego arriba) para evitar
-                # descuadres, por tanto asumimos:
-                assert(child_def_block > child_class)
+                    # Se hace en orden inverso (primero abajo, luego arriba) para evitar
+                    # descuadres, por tanto asumimos:
+                    assert(child_def_block > child_class)
             
-            except KeyError:
-                iface.info2(u"La clase %s carece de bloque de definición." % newclass)
+                except KeyError:
+                    iface.info2(u"La clase %s carece de bloque de definición." % newclass)
             
             from_decl_block = clpatch['list'][clpatch['decl'][newclass]]
             # incrustamos en posicion $child_class
