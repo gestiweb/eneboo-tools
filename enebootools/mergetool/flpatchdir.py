@@ -74,13 +74,16 @@ class FolderApplyPatch(object):
             actionname = actionname.lower()
             
             tbegin = time.time()
+            try:
+                if actionname == "addfile": self.add_file(action, folder)
+                elif actionname == "replacefile": self.replace_file(action, folder)
+                elif actionname == "patchscript": self.patch_script(action, folder)
+                elif actionname == "patchxml": self.patch_xml(action, folder)
+                # TODO: actionname == "patchphp" 
+                else: self.iface.warn("** Se ha ignorado acción desconocida %s **" % repr(actionname))
+            except Exception, e:
+                self.iface.exception("ComputePatch", "No se pudo aplicar el parche para %s" % action.get("name"))
             
-            if actionname == "addfile": self.add_file(action, folder)
-            elif actionname == "replacefile": self.replace_file(action, folder)
-            elif actionname == "patchscript": self.patch_script(action, folder)
-            elif actionname == "patchxml": self.patch_xml(action, folder)
-            # TODO: actionname == "patchphp" 
-            else: self.iface.warn("** Se ha ignorado acción desconocida %s **" % repr(actionname))
             tend = time.time()
             tdelta = tend - tbegin
             if tdelta > 1:
@@ -334,12 +337,16 @@ class FolderCreatePatch(object):
                     path = path[:-1]
                 action.set("path",path + "/")
             ret = 1
-            if actionname == "addfile": ret = self.compute_add_file(action)
-            elif actionname == "replacefile": ret = self.compute_replace_file(action)
-            elif actionname == "patchscript": ret = self.compute_patch_script(action)
-            elif actionname == "patchxml": ret = self.compute_patch_xml(action)
-            # TODO: actionname == "patchphp" 
-            else: self.iface.warn("** Se ha ignorado acción desconocida %s **" % repr(actionname))
+            try:
+                if actionname == "addfile": ret = self.compute_add_file(action)
+                elif actionname == "replacefile": ret = self.compute_replace_file(action)
+                elif actionname == "patchscript": ret = self.compute_patch_script(action)
+                elif actionname == "patchxml": ret = self.compute_patch_xml(action)
+                # TODO: actionname == "patchphp" 
+                else: self.iface.warn("** Se ha ignorado acción desconocida %s **" % repr(actionname))
+            except Exception, e:
+                self.iface.exception("ComputePatch", "No se pudo computar el parche para %s" % action.get("name"))
+                
             if ret == -1:
                 self.root.remove(action)
             tend = time.time()

@@ -116,6 +116,7 @@ class AutoConfigTemplate:
         self._params = {}
         self._sectionname = None
         self.configReader = configreader
+        self.debug = False
         self.autoConfig()
         if section:
             self.loadSection(section)
@@ -164,7 +165,8 @@ class AutoConfigTemplate:
     
     def setParam(self,name,value):
         if name not in self._params:
-            print "WARN: Opcion %s en seccion %s no reconocida" % (repr(name),repr(self._sectionname))
+            if self.debug:
+                print "WARN: Opcion %s en seccion %s no reconocida" % (repr(name),repr(self._sectionname))
             return False
         try:
             self._params[name].setValue(value)

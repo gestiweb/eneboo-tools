@@ -19,7 +19,10 @@ from enebootools.mergetool import MergeToolInterface
 from databasemodels import KnownObjects
 
 from mypeewee import transactional
-from kobjects import ObjectIndex
+from kobjects import ObjectIndex, FeatureObject
+
+from enebootools import output_encoding
+
 
 class Database(object):
     def __init__(self, filename):
@@ -115,11 +118,11 @@ def list_objects(iface):
     oi = ObjectIndex(iface)
     oi.analyze_objects()
     iface.msg(u"\nMódulos cargados:")
-    for obj in oi.modules():
+    for obj in sorted(oi.modules(), key=lambda obj:obj.formal_name()):
         iface.msg(u" - %s" % obj.formal_name())
 
     iface.msg(u"\nFuncionalidades cargadas:")
-    for obj in oi.features():
+    for obj in sorted(oi.features(), key=lambda obj:obj.formal_name()):
         iface.msg(u" - %s" % obj.formal_name())
 
 def do_howto_build(iface,target, feat):
@@ -181,7 +184,7 @@ def uinput(question, possible_values = None):
     elif isinstance(possible_values, basestring):       
         if possible_values == "os.path":
             completer1.enable_path_completer()
-    text= raw_input(unicode(question).encode(sys.stdout.encoding)).decode(sys.stdin.encoding)
+    text= raw_input(unicode(question).encode(output_encoding)).decode(output_encoding)
     completer1.disable_completer()
     return text
 
@@ -205,6 +208,69 @@ def do_save_fullpatch(iface, feat):
     patch_folder = os.path.join("patches", patchname)
     do_build(iface, target = "fullpatch", feat = feat, rebuild = True, dstfolder = patch_folder)
     oi.set_patch_name(feat, patchname)
+    
+def test_deps(iface, feat):
+    db = init_database()
+    oi = ObjectIndex(iface)
+    oi.analyze_objects()
+    patchname = oi.get_patch_name(feat, default = True)
+    feature = FeatureObject.find(feat)
+    patch_folder = os.path.join("patches", patchname)
+    file_index = oi.index_by_file()
+    from enebootools.mergetool.flpatchdir import FolderApplyPatch
+    fpatch = FolderApplyPatch(iface, patch_folder)
+    info = fpatch.get_patch_info()
+    fdep_features = feature._get_full_required_features()[:]
+    fdep_modules = feature._get_full_required_modules()[:]
+    fdep_features.append( feature.formal_name() )
+    orig_fdep_features = fdep_features[:]
+    orig_fdep_modules = fdep_modules[:]
+    
+    for filename in info["requires"]:
+        if filename not in file_index:
+            print "??? Dependencia no encontrada para:", filename
+            continue
+        modules = file_index[filename]["provided-by-module"]
+        features = file_index[filename]["provided-by-feature"]
+        for m in modules:
+            if m not in fdep_modules:
+                fdep_modules.append(m)
+        for f in features:
+            if f not in fdep_features:
+                fdep_features.append(f)
+
+    for filename in info["provides"]:
+        if filename not in file_index:
+            continue
+        modules = file_index[filename]["provided-by-module"]
+        features = file_index[filename]["provided-by-feature"]
+        for m in modules:
+            if m not in fdep_modules:
+                fdep_modules.append(m)
+        for f in features:
+            if f not in fdep_features:
+                fdep_features.append(f)
+    
+    new_modules = list(set(fdep_modules) - set(orig_fdep_modules))
+    new_modules.sort()
+    new_features = list(set(fdep_features) - set(orig_fdep_features))
+    new_features.sort()
+    
+    if new_modules:
+        print u"La funcionalidad requiere además de los siguientes módulos:"
+        for m in new_modules:
+            print " - %s" % m
+        print
+        
+    if new_features:
+        print u"La funcionalidad requiere además de las siguientes funcionalidades:"
+        try: new_features.remove(feature.formal_name())
+        except ValueError: pass
+        for m in new_features:
+            print " - %s" % m
+        print
+        
+            
     
 def select_option(title, options, answers, question = None, errortext = None, default = "", accept_invalid = False, callback = None):
     if question is None:
@@ -306,15 +372,16 @@ class MyCompleter(object):
 completer1 = MyCompleter()
 
 
+
 def do_new(iface, subfoldername = None, description = None, patchurl = None):
     letters = list("abcdefghijklmnopqrstuvwxyz123456789")
     db = init_database()
     oi = ObjectIndex(iface)
     oi.analyze_objects()
     fpath = ftype = fcode = fname = fdesc = None
-    if description: fdesc = unicode(description, sys.stdin.encoding)
+    if description: fdesc = unicode(description, output_encoding)
     if subfoldername:
-        match = re.match(u"^([a-z]+)([A-Z0-9][0-9]{3})-([a-z][a-z0-9_]{3,20})$", unicode(subfoldername, sys.stdin.encoding))
+        match = re.match(u"^([a-z]+)([A-Z0-9][0-9]{3})-([a-z][a-z0-9_]{3,20})$", unicode(subfoldername, output_encoding))
         if not match:
             print "El nombre de subcarpeta '%s' no es válido" % subfoldername
             return False

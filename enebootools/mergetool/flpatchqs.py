@@ -370,17 +370,22 @@ def patch_qs(iface, base, patch):
         if extends not in clbase['classes']:
             clsheur = 1 # <- cambiar modo de heuristica
             if clsheur == 1 : 
-                # Modo heuristico basico:
-                if newclass.startswith("pub"): testclass = "iface"
-                elif newclass.startswith("base"): testclass = "interna"
-                else: testclass = "oficial"
-                if testclass not in clbase['classes']:
-                    testclass = clbase['classes'][-1]
+                try:
+                    # Modo heuristico basico:
+                    if newclass.startswith("pub"): testclass = "iface"
+                    elif newclass.startswith("base"): testclass = "interna"
+                    else: testclass = "oficial"
+                    if testclass not in clbase['classes']:
+                        testclass = clbase['classes'][-1]
                     
-                iface.warn(u"La clase %s debía heredar de %s, pero no "
-                            u"la encontramos en el fichero base. "
-                            u"En su lugar, heredará de %s." % (newclass,extends, testclass))
-                extends = testclass
+                    iface.warn(u"La clase %s debía heredar de %s, pero no "
+                                u"la encontramos en el fichero base. "
+                                u"En su lugar, heredará de %s." % (newclass,extends, testclass))
+                    extends = testclass
+                except IndexError:
+                    iface.error(u"La clase %s debía heredar de %s, pero no "
+                                u"la encontramos en el fichero base." % (newclass,extends))
+                    continue
                 
             else:
                 # Modo antiguo:
@@ -551,7 +556,7 @@ def patch_qs(iface, base, patch):
             
         for task in todo:
             iface.warn("La tarea %s no se ejecutó o se desconoce cómo hacerlo." % repr(task))
-    
+    line = ""
     for line in flbase:
         iface.output.write(line)
         iface.output.write("\n")

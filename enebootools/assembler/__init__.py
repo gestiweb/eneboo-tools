@@ -52,6 +52,19 @@ class AssemblerInterface(EnebooToolsInterface):
             )                
             
         
+        
+        self.test_deps_action = self.parser.declare_action(
+            name = "test-deps",
+            args = ["feat"],
+            options = [],
+            description = u"Para la funcionalidad $feat analiza qué dependencias faltan",
+            call_function = self.do_test_deps,
+            )
+        self.test_deps_action.set_help_arg(
+            feat = "Funcionalidad a analizar",
+            )                
+            
+        
         self.dbupdate_action = self.parser.declare_action(
             name = "dbupdate",
             args = [],
@@ -110,6 +123,12 @@ class AssemblerInterface(EnebooToolsInterface):
     def do_save_fullpatch(self, feat):
         try:
             return asmdb.do_save_fullpatch(self, feat)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_test_deps(self, feat):
+        try:
+            return asmdb.test_deps(self, feat)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 

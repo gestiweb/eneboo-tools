@@ -2,6 +2,12 @@
 import sys, traceback
 import enebootools.parseargs as pa
 
+output_encoding = sys.stdout.encoding
+if output_encoding is None: 
+    import codecs
+    sys.stdout = codecs.getwriter('utf8')(sys.stdout)
+    output_encoding = "UTF-8"
+
 class EnebooToolsInterface(object):
     module_description = u"Descripción genérica"
     def __init__(self, setup_parser = True):
