@@ -173,9 +173,12 @@ class FolderApplyPatch(object):
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
         if not ret:
-            self.iface.warn("Pudo haber algún problema aplicando el parche QS para %s" % filename)
-        os.unlink(dst)
-        os.rename(dst+".patched",dst)
+            self.iface.warn("Hubo algún problema aplicando el parche QS para %s" % filename)
+            try: os.unlink(dst+".patched")
+            except IOError: pass
+        else:
+            os.unlink(dst)
+            os.rename(dst+".patched",dst)
                 
     def patch_xml(self, patchxml, folder):
         path = patchxml.get("path")
@@ -198,10 +201,12 @@ class FolderApplyPatch(object):
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
         if not ret:
-            self.iface.warn("Pudo haber algún problema aplicando el parche XML para %s" % filename)
-
-        os.unlink(dst)
-        os.rename(dst+".patched",dst)
+            self.iface.warn("Hubo algún problema aplicando el parche XML para %s" % filename)
+            try: os.unlink(dst+".patched")
+            except IOError: pass
+        else:
+            os.unlink(dst)
+            os.rename(dst+".patched",dst)
         
         
 class FolderCreatePatch(object):

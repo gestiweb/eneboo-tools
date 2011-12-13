@@ -337,7 +337,7 @@ def patch_qs(iface, base, patch):
             if iface.patch_qs_rewrite == "abort":
                 iface.error(u"La clase %s ya estaba insertada en el fichero, "
                             u"abortamos la operación." % newclass)
-                return
+                return False
             if iface.patch_qs_rewrite == "no":
                 iface.warn(u"La clase %s ya estaba insertada en el fichero, "
                             u"omitimos el parcheo de esta clase." % newclass)
