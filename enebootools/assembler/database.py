@@ -215,7 +215,8 @@ def test_deps(iface, feat):
     oi.analyze_objects()
     patchname = oi.get_patch_name(feat, default = True)
     feature = FeatureObject.find(feat)
-    patch_folder = os.path.join("patches", patchname)
+    patch_folder = os.path.join(feature.fullpath, "patches", patchname)
+    
     file_index = oi.index_by_file()
     from enebootools.mergetool.flpatchdir import FolderApplyPatch
     fpatch = FolderApplyPatch(iface, patch_folder)

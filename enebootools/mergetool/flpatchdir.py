@@ -18,6 +18,10 @@ def hash_file(dirname, filename):
         if not chunk: break
         sha.update(chunk)
     return sha.hexdigest()
+
+def hash_none():
+    sha = hashlib.sha224()
+    return sha.hexdigest()
     
 def _xf(x, cstring = False, **kwargs): #xml-format
     if type(x) is list: return "\n---\n\n".join([ _xf(x1) for x1 in x ])
@@ -299,7 +303,13 @@ class FolderCreatePatch(object):
         # Hay que comparar si son iguales o no
         base_hexdigest = hash_file(self.basedir, filename)
         final_hexdigest = hash_file(self.finaldir, filename)
+        none_hexdigest = hash_none()
         if final_hexdigest == base_hexdigest: return
+        if base_hexdigest == none_hexdigest: 
+            self.create_action("replaceFile",filename)
+            return
+        if final_hexdigest == none_hexdigest: 
+            return
         
         script_exts = ".qs".split(" ")
         xml_exts = ".xml .ui .mtd".split(" ")
