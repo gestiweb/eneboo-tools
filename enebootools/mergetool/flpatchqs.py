@@ -332,8 +332,8 @@ def patch_qs(iface, base, patch):
             
             clbase['classes'].remove(newclass)
             del cdbase[newclass]
-            
-        if newclass in clbase['classes']:
+	lower_classes = [ str(x).lower() for x in clbase['classes'] ]
+        if str(newclass).lower() in lower_classes:
             if iface.patch_qs_rewrite == "abort":
                 iface.error(u"La clase %s ya estaba insertada en el fichero, "
                             u"abortamos la operación." % newclass)
@@ -350,7 +350,8 @@ def patch_qs(iface, base, patch):
                 iface.warn(u"La clase %s ya estaba insertada en el fichero, "
                             u"se sobreescribirá la clase." % newclass)
             auth_overwrite_class = True
-                            
+	    idx = lower_classes.index(str(newclass).lower())
+	    oldclass = clbase['classes'][idx]
         # debería heredar de su extends, o su from (si existe). 
         # si carece de extends es un error y se omite.
         extends = cdpatch[newclass]['extends']
@@ -396,8 +397,8 @@ def patch_qs(iface, base, patch):
         
         # Buscar la clase más inferior que heredó originalmente de "extends"
         if auth_overwrite_class:
-            extends = cdbase[newclass]['from']
-            extending = cdbase[newclass]['extends']
+            extends = cdbase[oldclass]['from']
+            extending = cdbase[oldclass]['extends']
         else:
             extending = extends
             for classname in reversed(clbase['classes']):

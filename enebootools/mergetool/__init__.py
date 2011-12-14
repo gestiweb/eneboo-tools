@@ -61,7 +61,7 @@ class MergeToolInterface(EnebooToolsInterface):
     module_description = u"Herramientas para la ayuda de resolución de conflictos de mezcla"
     def __init__(self, setup_parser = True):
         EnebooToolsInterface.__init__(self, False)
-        self.patch_qs_rewrite = "abort"
+        self.patch_qs_rewrite = "warn"
         self.patch_xml_style_name = "legacy1"
         self.diff_xml_search_move = False
         self.patch_name = None
