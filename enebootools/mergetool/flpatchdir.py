@@ -80,6 +80,7 @@ class FolderApplyPatch(object):
             tbegin = time.time()
             try:
                 if actionname == "addfile": self.add_file(action, folder)
+                elif actionname == "deletefile": self.delete_file(action, folder)
                 elif actionname == "replacefile": self.replace_file(action, folder)
                 elif actionname == "patchscript": self.patch_script(action, folder)
                 elif actionname == "patchxml": self.patch_xml(action, folder)
@@ -135,6 +136,25 @@ class FolderApplyPatch(object):
             os.makedirs(dst_parent)
         
         shutil.copy(src, dst)
+        
+    def delete_file(self, addfile, folder):            
+        path = addfile.get("path")
+        filename = addfile.get("name")
+        module_path = path
+        while module_path.count("/") > 1:
+            module_path = os.path.dirname(module_path)
+        if not os.path.exists(os.path.join(folder,module_path)):
+            self.iface.warn("Ignorando la creación de fichero %s (el módulo no existe)" % filename)
+            return
+        
+        pathname = os.path.join(path, filename)
+        src = os.path.join(self.patch_dir,filename)
+        dst = os.path.join(folder,pathname)
+        dst_parent = os.path.dirname(dst)
+        
+        self.iface.debug("Borrando %s . . ." % filename)
+        if os.path.exists(dst_parent):
+            os.unlink(dst)
             
     
     def replace_file(self, replacefile, folder):            
@@ -336,7 +356,8 @@ class FolderCreatePatch(object):
             self.create_action("replaceFile",filename)
         
     def remove_file(self, filename):
-        self.iface.warn("Se detectó borrado del fichero %s, pero flpatch no soporta esto. No se guardará este cambio." % filename)
+        self.create_action("deleteFile",filename)
+        # self.iface.warn("Se detectó borrado del fichero %s, pero flpatch no soporta esto. No se guardará este cambio." % filename)
         
     def create_patch(self):
         for action in self.root:
@@ -354,6 +375,7 @@ class FolderCreatePatch(object):
             ret = 1
             try:
                 if actionname == "addfile": ret = self.compute_add_file(action)
+                elif actionname == "deletefile": ret = self.compute_delete_file(action)
                 elif actionname == "replacefile": ret = self.compute_replace_file(action)
                 elif actionname == "patchscript": ret = self.compute_patch_script(action)
                 elif actionname == "patchxml": ret = self.compute_patch_xml(action)
@@ -372,6 +394,14 @@ class FolderCreatePatch(object):
         f1 = open(self.patch_filename,"w")
         f1.write(_xf(self.root,xml_declaration=False,cstring=True,encoding=self.encoding))
         f1.close()
+
+    def compute_delete_file(self, addfile):            
+        path = addfile.get("path")
+        filename = addfile.get("name")
+        
+        pathname = os.path.join(path, filename)
+        # NO SE HACE NADA.
+        
 
     def compute_add_file(self, addfile):            
         path = addfile.get("path")

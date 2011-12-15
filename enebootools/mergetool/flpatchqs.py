@@ -25,6 +25,7 @@ import re, os.path
 def qsclass_reader(iface, file_name, file_lines):
     linelist = []
     classes = []
+    delclasses = []
     declidx = {}
     defidx = {}
     iface_n = None
@@ -45,6 +46,12 @@ def qsclass_reader(iface, file_name, file_lines):
                     iface.error(u"Hay dos bloques 'class_definition' para la clase %s (file: %s)" % (cname,file_name))
                 else:
                     defidx[cname] = npos
+            elif dtype == "delete_class":
+                # Clase a borrar cuando se aplique el parche.
+                if cname in delclasses:
+                    iface.error(u"Hay dos bloques 'delete_class' para la clase %s (file: %s)" % (cname,file_name))
+                else:
+                    delclasses.append(cname)
             elif dtype == "file":
                 # el tipo @file no lo gestionamos
                 pass 
@@ -72,6 +79,7 @@ def qsclass_reader(iface, file_name, file_lines):
         "decl" : declidx,
         "def" : defidx,
         "classes" : classes,
+        "delclasses" : delclasses,
         "list" : linelist,
         "iface" : iface_n
         }
@@ -119,15 +127,12 @@ def diff_qs(iface, base, final):
     # Mantener el orden en que se encontraron:
     created_classes = [ clname for clname in clfinal['classes'] if clname in created_classes_s ]
     
-    if len(created_classes) == 0:
-        iface.warn(u"No se han detectado clases nuevas. El parche quedará vacío. ($final:%s)" % (final))
+    if len(created_classes) == 0 and len(deleted_classes) == 0:
+        iface.warn(u"No se han detectado clases nuevas ni viejas. El parche quedará vacío. ($final:%s)" % (final))
         return -1
         
-    if len(deleted_classes) > 0:
-        iface.warn(u"Se han borrado clases. Este cambio no se registrará en el parche. ($final:%s)" % (final))
-        
     iface.debug2r(created = created_classes, deleted = deleted_classes)
-    return extract_classes(iface,clfinal,flfinal,created_classes)
+    return extract_classes(iface,clfinal,flfinal,created_classes, deleted_classes)
 
 def extract_classes_qs(iface, final, classlist):
     if isinstance(classlist, basestring):
@@ -145,10 +150,17 @@ def extract_classes_qs(iface, final, classlist):
     return extract_classes(iface,clfinal,flfinal,classlist)
 
 
-def extract_classes(iface,clfinal,flfinal,classes2extract):    
+def extract_classes(iface,clfinal,flfinal,classes2extract, classes2delete = []):    
     iface_line = -1
     if clfinal['iface']:
         iface_line = clfinal['iface']['line']
+
+    for clname in classes2delete:
+        iface.output.write("\n")
+        iface.output.write("/** @delete_class %s */" % clname)
+        iface.output.write("\n")
+    
+        
     for clname in classes2extract:
         block_decl = clfinal['decl'].get(clname,None)
         if block_decl is None:
@@ -176,7 +188,7 @@ def extract_classes(iface,clfinal,flfinal,classes2extract):
     for clname in classes2extract:
         block_def = clfinal['def'].get(clname,None)
         if block_def is None:
-            iface.warn(u"Se esperaba una definición de clase para %s." % clname)
+            iface.debug(u"Se esperaba una definición de clase para %s." % clname)
             continue
         dtype, clname, idx1, idx2 = clfinal['list'][block_def]
         iface.debug2r(exported_block=clfinal['list'][block_def])
@@ -297,17 +309,35 @@ def patch_qs(iface, base, patch):
     #  - En caso de no haber nueva clase hija, entonces "iface" cambia de tipo.
     #       Además, probablemente haya que bajar la definición de iface.
     new_iface_class = None
-    for newclass in clpatch['classes']:
+    for newclass in clpatch['classes'] + clpatch['delclasses']:
         auth_overwrite_class = False
         todo = [] # Diferentes "arreglos" que ejecutar luego.
         clbase = qsclass_reader(iface, base, flbase) 
         cdbase = extract_class_decl_info(iface, flbase) 
         if iface.patch_qs_rewrite == "reverse":
+            mode = "insert" if newclass in clpatch['delclasses'] else "delete"
+        else:
+            mode = "insert" if newclass in clpatch['classes'] else "delete"
+            
+        if mode == "delete":
             iface.debug(u"Procediendo a la *eliminación* de la clase %s" % newclass)
         else:
             iface.debug(u"Procediendo a la inserción de la clase %s" % newclass)
             
-        if newclass in clbase['classes'] and iface.patch_qs_rewrite in ['predelete','reverse']:
+        if mode == "delete" and newclass not in clbase['classes']:
+            iface.info2(u"La clase %s NO estaba insertada en el fichero, "
+                        u"se OMITE el borrado de la clase." % newclass)
+            continue
+
+        # debería heredar de su extends, o su from (si existe). 
+        # si carece de extends es un error y se omite.
+        if mode == "insert": 
+            extends = cdpatch[newclass]['extends']
+        else:
+            extends = cdbase[newclass]['extends']
+
+            
+        if mode == "delete":
             iface.info2(u"La clase %s ya estaba insertada en el fichero, "
                         u"se procede a borrar la clase como se ha solicitado." % newclass)
             old_extends = cdbase[newclass]['extends']
@@ -352,9 +382,6 @@ def patch_qs(iface, base, patch):
             auth_overwrite_class = True
 	    idx = lower_classes.index(str(newclass).lower())
 	    oldclass = clbase['classes'][idx]
-        # debería heredar de su extends, o su from (si existe). 
-        # si carece de extends es un error y se omite.
-        extends = cdpatch[newclass]['extends']
         if extends is None:
             iface.error(u"La clase %s carece de extends y no es insertable como"
                         u" un parche." % newclass)
@@ -409,7 +436,7 @@ def patch_qs(iface, base, patch):
                     iface.debug(u"La clase %s es la última que heredó de %s, pasamos a heredar de ésta." % (extending,extends))
                     break
         
-        if iface.patch_qs_rewrite != "reverse":
+        if mode == "insert":
             # Habrá que insertar el bloque entre dos bloques: parent_class y child_class.
             # Vamos a asumir que estos bloques están juntos y que child_class heredaba de parent_class.
             parent_class = clbase['decl'][extending]
@@ -482,7 +509,7 @@ def patch_qs(iface, base, patch):
             
         # Bloques a insertar:
         newblocklist = clbase['list'][:]
-        if iface.patch_qs_rewrite != "reverse":
+        if mode == "insert":
             if newclass in clpatch['def']:
                 try:
                     from_def_block = clpatch['list'][clpatch['def'][newclass]]
@@ -538,7 +565,7 @@ def patch_qs(iface, base, patch):
         cdbase = extract_class_decl_info(iface, flbase) 
         
         # Procesar tareas (to-do)
-        if iface.patch_qs_rewrite != "reverse":
+        if mode == "insert":
             fix_class(iface, flbase, clbase, cdbase, newclass, set_extends = extending, set_from = extends)
             if 'fix-class newclass' in todo:
                 # Esta tarea se realiza en la linea anterior incondicionalmente. 
