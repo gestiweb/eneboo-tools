@@ -1,9 +1,13 @@
 # encoding: UTF-8
+__version__ = "1.0.0"
+__PROGRAM__NAME__ = "Eneboo Tools Packager"
+
 import enebootools
 from enebootools import EnebooToolsInterface
 import sys, traceback
 
 from enebootools.packager import pkgjoiner, pkgsplitter
+
 
 """
     Packager es una utilidad para Eneboo que realiza paquetes al estilo 
@@ -23,7 +27,19 @@ class PackagerInterface(EnebooToolsInterface):
         
     def setup_parser(self):
         EnebooToolsInterface.setup_parser(self)
+
+        self.create_action = self.parser.declare_action(
+            name = "create",
+            args = ["modulefolder"],
+            options = [],
+            description = u"Lee la carpeta $modulefolder, examina los módulos y los empaqueta",
+            call_function = self.do_create,
+            )
+        self.create_action.set_help_arg(
+            modulefolder = "Carpeta que leer para empaquetar su contenido",
+            )                
             
+
         self.split_action = self.parser.declare_action(
             name = "split",
             args = ["packagefile"],
@@ -42,12 +58,20 @@ class PackagerInterface(EnebooToolsInterface):
             description = u"Lee la carpeta $packagefolder y genera un fichero empaquetando su contenido",
             call_function = self.do_join,
             )
-        self.split_action.set_help_arg(
+        self.join_action.set_help_arg(
             packagefolder = "Carpeta que leer para empaquetar su contenido",
             )                
             
               
     # :::: ACTIONS ::::
+    
+    def do_create(self, modulefolder):
+        try:
+            return pkgjoiner.createpkg(self, modulefolder)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+    
+    
     def do_split(self, packagefile):
         try:
             return pkgsplitter.splitpkg(self, packagefile)
@@ -55,7 +79,6 @@ class PackagerInterface(EnebooToolsInterface):
             self.exception(type(e).__name__,str(e))
     
               
-    # :::: ACTIONS ::::
     def do_join(self, packagefolder):
         try:
             return pkgjoiner.joinpkg(self, packagefolder)
