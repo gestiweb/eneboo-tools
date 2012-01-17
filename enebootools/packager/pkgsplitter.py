@@ -16,7 +16,11 @@ def read_string(f1):
     slen = to_uint32(txtsize)
     
     string = f1.read(slen)
-    assert(len(string) == slen)
+    
+    try: assert(len(string) == slen)
+    except AssertionError:
+        print "ASSERT: len(string) %d == slen %d  ... FAILED" % (len(string), slen)
+        raise
     #print slen, repr(string[:32])
     return string
     
@@ -61,11 +65,13 @@ def splitpkg(iface, packagefile):
             sys.stdout.write(".")
             sys.stdout.flush()
             open(os.path.join(foldername, "%04d.text" % n),"w").write(text[:-1]+"\n")
-        if n%50 == 0:
-            sys.stdout.write("\n")
-            sys.stdout.flush()
+        #if n%50 == 0:
+        #    sys.stdout.write("\n")
+        #    sys.stdout.flush()
+    f1.close()
+        
     print
-    print "Hecho. %d objetos extraidos en %s" % (n+1,foldername)
+    print "Hecho. %d objetos extraidos en %s" % (n,foldername)
     
     
 
