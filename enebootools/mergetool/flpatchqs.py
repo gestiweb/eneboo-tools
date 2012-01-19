@@ -22,6 +22,52 @@ u"""
 
 import re, os.path
 
+def latin1_to_ascii (unicrap):
+    """This replaces UNICODE Latin-1 characters with
+    something equivalent in 7-bit ASCII. All characters in the standard
+    7-bit ASCII range are preserved. In the 8th bit range all the Latin-1
+    accented letters are stripped of their accents. Most symbol characters
+    are converted to something meaningful. Anything not converted is deleted.
+    """
+    xlate = {
+        0xc0:'A', 0xc1:'A', 0xc2:'A', 0xc3:'A', 0xc4:'A', 0xc5:'A',
+        0xc6:'Ae', 0xc7:'C',
+        0xc8:'E', 0xc9:'E', 0xca:'E', 0xcb:'E',
+        0xcc:'I', 0xcd:'I', 0xce:'I', 0xcf:'I',
+        0xd0:'Th', 0xd1:'N',
+        0xd2:'O', 0xd3:'O', 0xd4:'O', 0xd5:'O', 0xd6:'O', 0xd8:'O',
+        0xd9:'U', 0xda:'U', 0xdb:'U', 0xdc:'U',
+        0xdd:'Y', 0xde:'th', 0xdf:'ss',
+        0xe0:'a', 0xe1:'a', 0xe2:'a', 0xe3:'a', 0xe4:'a', 0xe5:'a',
+        0xe6:'ae', 0xe7:'c',
+        0xe8:'e', 0xe9:'e', 0xea:'e', 0xeb:'e',
+        0xec:'i', 0xed:'i', 0xee:'i', 0xef:'i',
+        0xf0:'th', 0xf1:'n',
+        0xf2:'o', 0xf3:'o', 0xf4:'o', 0xf5:'o', 0xf6:'o', 0xf8:'o',
+        0xf9:'u', 0xfa:'u', 0xfb:'u', 0xfc:'u',
+        0xfd:'y', 0xfe:'th', 0xff:'y',
+        0xa1:'!', 0xa2:'{cent}', 0xa3:'{pound}', 0xa4:'{currency}',
+        0xa5:'{yen}', 0xa6:'|', 0xa7:'{section}', 0xa8:'{umlaut}',
+        0xa9:'{C}', 0xaa:'{^a}', 0xab:'<<', 0xac:'{not}',
+        0xad:'-', 0xae:'{R}', 0xaf:'_', 0xb0:'{degrees}',
+        0xb1:'{+/-}', 0xb2:'{^2}', 0xb3:'{^3}', 0xb4:"'",
+        0xb5:'{micro}', 0xb6:'{paragraph}', 0xb7:'*', 0xb8:'{cedilla}',
+        0xb9:'{^1}', 0xba:'{^o}', 0xbb:'>>',
+        0xbc:'{1/4}', 0xbd:'{1/2}', 0xbe:'{3/4}', 0xbf:'?',
+        0xd7:'*', 0xf7:'/'
+    }
+
+    r = ''
+    for i in unicrap:
+        if xlate.has_key(ord(i)):
+            r += xlate[ord(i)]
+        elif ord(i) >= 0x80:
+            pass
+        else:
+            r += i
+    return r
+
+
 def qsclass_reader(iface, file_name, file_lines):
     linelist = []
     classes = []
@@ -30,10 +76,16 @@ def qsclass_reader(iface, file_name, file_lines):
     defidx = {}
     iface_n = None
     for n,line in enumerate(file_lines):
-        m = re.search("/\*\*\s*@(\w+)\s+(\w+)?\s*\*/", line)
+        m = re.search("/\*\*\s*@(\w+)\s+([^ */]+)?\s*\*/", line)
         if m:
             dtype = m.group(1)
             cname = m.group(2)
+            if cname:
+                cname_1 = latin1_to_ascii(cname)
+                if cname_1 != cname:
+                    iface.warn("Carácteres extraños encontrados en la linea: %s", repr(line))
+                    cname = cname_1
+                
             npos = len(linelist)
             if dtype == "class_declaration":
                 if cname in classes:
@@ -259,6 +311,11 @@ def check_qs_classes(iface, base):
                         u"definida (extends de la clase %s, desde: %s)" % 
                         (parent, current_class, prev_class))
             return
+            
+        if not check_class(iface, flbase, clbase, classdict, current_class):
+            iface.error(u"Se detectó algún problema en la clase %s"
+                        u" (clase padre: %s, desde: %s)" % 
+                        (current_class, parent, prev_class))
         
         if classdict[current_class]['line'] < classdict[parent]['line']:
             iface.error(u"La clase %s hereda de una clase %s que está"
@@ -655,4 +712,99 @@ def fix_class(iface, flbase, clbase, cdbase, classname, **updates):
         
     cdbase[classname]['extends'] = extends
     cdbase[classname]['from'] = cfrom
+
+
+
+def check_class(iface, flbase, clbase, cdbase, classname):
+    """
+        Busca en $base la clase $class_name y comprueba que sea correcta.
+    """
+    
+    extends = cdbase[classname]['extends']
+    
+    line_no = cdbase[classname]['line']
+    old_expr = cdbase[classname]['text']
+    new_expr = "class %s" % classname
+    
+    decl_block_no = clbase['decl'][classname]
+    end_line = clbase['list'][decl_block_no][3]
+    found = []
+    line_found = []
+    for n,line in enumerate(flbase[line_no:end_line],line_no):
+        match = list(re.finditer("(?P<fname>\w+)\s*\(\s*context\s*\);", line))
+        if match: 
+            line_found.append(line)
+            found += match 
+        
+    if len(line_found) < 1:
+        iface.error(u"No encontramos lineas candidatas a constructor")
+        return False
+    if len(line_found) > 1:
+        iface.error(u"Encontramos más de una linea candidata a constructor: %s" % repr(line_found))
+        return False
+    for m in found:
+        old = m.group(0)
+        new = str(m.group(0)).replace(m.group(1),extends,1)
+        if extends != m.group(1):
+            iface.error("Leimos %s pero deberia ser %s (%s)" % (old,new,line_found[0]))
+            return False
+            
+    return True
+                
+            
+        
+        
+
+
+
+
+"""
+    Análisis de reordenación de clases:
+
+    Primero eliminamos toda clase en A y B que haya sido agregada o eliminada. 
+    Dejamos solo las clases comunes a las dos versiones.
+
+    Luego, se examina hacia abajo cuantas clases consecutivamente coinciden en 
+    orden hasta que encontramos la primera que no coincide. Eliminamos todo el bloque
+    superior de clases que coinciden. Hacemos lo mismo de abajo a arriba.
+
+    Se realiza un análisis de movimientos mínimos para llegar del set A al set B.
+    
+    Para realizar este análisis, seguimos el algoritmo de ordenación por inserción:
+    
+    http://es.wikipedia.org/wiki/Ordenamiento_por_inserci%C3%B3n
+    
+    Según este sistema, asignamos un número a cada clase del 1 a la 99 según su 
+    orden en B (destino).
+    
+    Luego, usando el algoritmo de ordenacion calculamos los movimientos mínimos
+    para llegar de A a B.
+    
+    Se analiza siempre de del final hacia adelante, buscando cuando un número es
+    menor que su anterior. Ese número se desplaza hacia la izquierda tantas veces
+    hasta que su anterior sea menor o no haya más antes. 
+    
+    Por ejemplo, con la siguente secuencia, tendríamos:
+    
+    ::::   3412576
+    ext 6 : 1 posicion a la izquierda
+
+    ::::   3412567
+    ext 1 : 2 posiciones a la izquierda
+
+    ::::   1342567
+    ext 2 : 2 posiciones a la izquierda
+
+    ::::   1234567
+    Ok.
+    
+    Esto guardará unas instrucciones a modo de parche:
+    
+    clase 6 antes de 7
+    clase 1 antes de 3 y de 4
+    clase 2 después de 1 (este "después" se agrega porque se está moviendo en medio de la anterior)
+    
+
+    
+"""
 
