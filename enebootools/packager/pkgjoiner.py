@@ -93,9 +93,12 @@ def createpkg(iface, modulefolder):
     for module in sorted(modules):
         file_folders.append(os.path.dirname(module))
         modnames.append(os.path.basename(module))
-        modlines.append("<!-- Module %s -->\n" % module)
+        # comentado para evitar posibles fallos:
+        #modlines.append("<!-- Module %s -->\n" % module)
         inittag = False
-        for line in open(os.path.join(modulefolder, module)):
+        for line_iso in open(os.path.join(modulefolder, module)):
+            line_unicode = unicode(line_iso, "ISO-8859-15", "replace")
+            line = line_unicode.encode("UTF-8")
             if line.find("<MODULE>") != -1: inittag = True
             if inittag: modlines.append(line)
             if line.find("</MODULE>") != -1: inittag = False

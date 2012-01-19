@@ -675,8 +675,7 @@ class XMLDiffer(object):
         # self.xfinal.add_context_id()
         self.iface.debug("Aplicando parche . . .")
         patch_fn = self.select_patch_applyfn()
-        if patch_fn is None: return
-        patch_fn()
+        if patch_fn: patch_fn()
         
         self.iface.debug("Limpiando . . .")
         self.xfinal.clean()
