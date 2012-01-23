@@ -76,15 +76,15 @@ def qsclass_reader(iface, file_name, file_lines):
     defidx = {}
     iface_n = None
     for n,line in enumerate(file_lines):
-        m = re.search("/\*\*\s*@(\w+)\s+([^ */]+)?\s*\*/", line)
+        line2 = latin1_to_ascii(line)
+        m = re.search("/\*\*?\s*@(\w+)\s+([^ */]+)?\s*\*/", line2)
         if m:
+        
+            m2 = re.search("^\s*/\*\* @(\w+)( \w+)? \*/\s*$", line)
+            if not m2:
+                iface.warn("Formato incorrecto de la linea %s" % repr(line))
             dtype = m.group(1)
             cname = m.group(2)
-            if cname:
-                cname_1 = latin1_to_ascii(cname)
-                if cname_1 != cname:
-                    iface.warn("Carácteres extraños encontrados en la linea: %s", repr(line))
-                    cname = cname_1
                 
             npos = len(linelist)
             if dtype == "class_declaration":
@@ -164,6 +164,13 @@ def file_reader(filename):
     name = os.path.basename(filename)
     return name, [line.rstrip() for line in f1.readlines()]
     
+def fulldiff_qs(iface, base, final):
+    """
+        Algoritmo que crea una diferencia *completa* del QS, y guarda múltiples
+        ficheros con distintas extensiones:
+        
+    """
+    pass
 
 def diff_qs(iface, base, final):
     iface.debug(u"Procesando Diff QS $base:%s -> $final:%s" % (base, final))
@@ -200,6 +207,99 @@ def extract_classes_qs(iface, final, classlist):
         iface.warn(u"No se han pasado clases. El parche quedará vacío. ($final:%s)" % (final))
         
     return extract_classes(iface,clfinal,flfinal,classlist)
+    
+def split_qs_old(iface, final):
+    iface.debug(u"Separando fichero QS %s . . . " % (final))
+    nfinal, flfinal = file_reader(final)
+    if flfinal is None:
+        iface.info(u"Abortando por error al abrir los ficheros")
+        return
+    flfinal = [ line.replace("\t","        ") for line in flfinal ]
+    clfinal = qsclass_reader(iface, final, flfinal)
+    nameroot, ext = os.path.splitext(final)
+    dstfolder = nameroot+"-splitted"
+    
+    try: os.mkdir(dstfolder)
+    except OSError: pass
+    f1 = open(os.path.join(dstfolder,"index"),"w")
+    f1.write("header\n")
+    
+    f2 = open(os.path.join(dstfolder,"header"),"w")
+    stype, clname, line1, linen = clfinal['list'][0]
+    f2.write("\n".join(flfinal[:line1]) + "\n")
+    f2.close()
+    parent_class = None
+    for item in clfinal['list']:
+        stype, clname, line1, linen = item
+        name = "%s-%s" % (str(stype).lower(), str(clname).lower())
+        
+        f1.write("%s\n" % name)
+        f2 = open(os.path.join(dstfolder,name),"w")
+        text = "\n".join(flfinal[line1:linen]) + "\n"
+        if stype == "class_declaration" and parent_class:
+            text = text.replace(parent_class, "{$parent_class}")
+            
+        f2.write(text)
+        f2.close()
+        parent_class = clname
+        
+        
+    f1.write("tail\n")
+    f2 = open(os.path.join(dstfolder,"tail"),"w")
+    stype, clname, line1, linen = clfinal['list'][-1]
+    f2.write("\n".join(flfinal[linen:]) + "\n")
+    f2.close()
+        
+    
+def split_qs(iface, final):
+    iface.debug(u"Separando fichero QS %s . . . " % (final))
+    nfinal, flfinal = file_reader(final)
+    if flfinal is None:
+        iface.info(u"Abortando por error al abrir los ficheros")
+        return
+    flfinal = [ line.replace("\t","        ") for line in flfinal ]
+    clfinal = qsclass_reader(iface, final, flfinal)
+    nameroot, ext = os.path.splitext(final)
+    dstfolder = nameroot+"-splitted"
+    
+    try: os.mkdir(dstfolder)
+    except OSError: pass
+    
+    f1 = open(os.path.join(dstfolder,"patch_series"),"w")
+    for n,classname in enumerate(clfinal['classes']):
+        f1.write(classname + "\n")
+        f2 = open(os.path.join(dstfolder,classname + ".qs"),"w")
+        if n == 0:
+            stype, clname, line1, linen = clfinal['list'][0]
+            f2.write("\n".join(flfinal[:line1]) + "\n")
+            if stype == "file":
+                f2.write("\n".join(flfinal[line1:linen]) + "\n")
+        nblock1 = clfinal['decl'].get(classname)
+        if nblock1:
+            stype, clname, line1, linen = clfinal['list'][nblock1]
+            f2.write("\n".join(flfinal[line1:linen]) + "\n")
+    
+        nblock2 = clfinal['def'].get(classname)
+        if nblock2:
+            stype, clname, line1, linen = clfinal['list'][nblock2]
+            f2.write("\n".join(flfinal[line1:linen]) + "\n")
+    
+        if n == 0:
+            stype, clname, line1, linen = clfinal['list'][-1]
+            f2.write("\n".join(flfinal[linen:]) + "\n")
+     
+        f2.close()
+        
+    f1.close()
+    
+        
+
+
+def join_qs(iface, final):
+    iface.debug(u"Uniendo fichero QS %s . . . " % (final))
+    
+    
+
 
 
 def extract_classes(iface,clfinal,flfinal,classes2extract, classes2delete = []):    

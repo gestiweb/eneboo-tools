@@ -184,6 +184,17 @@ class MergeToolInterface(EnebooToolsInterface):
             classlist = "Lista de clases a extraer, separadas por coma y sin espacios: class1,class2,...",
             )                
               
+        self.qs_split_action = self.parser.declare_action(
+            name = "qs-split",
+            args = ["final"],
+            description = u"Separa el fichero $final en subficheros en una carpeta",
+            options = [],
+            call_function = self.do_qs_split,
+            )
+        self.qs_split_action.set_help_arg(
+            final = "Fichero QS",
+            )                
+              
     def set_patch_name(self, name):
         if name == "": name = None
         self.patch_name = name
@@ -248,5 +259,11 @@ class MergeToolInterface(EnebooToolsInterface):
     def do_qs_extract(self, final, classlist):
         try:
             return flpatchqs.extract_classes_qs(self,final, classlist)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+            
+    def do_qs_split(self, final):
+        try:
+            return flpatchqs.split_qs(self,final)
         except Exception,e:
             self.exception(type(e).__name__,str(e))

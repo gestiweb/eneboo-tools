@@ -40,6 +40,13 @@ class FolderApplyPatch(object):
     def __init__(self, iface, patchdir):
         self.iface = iface
         if patchdir[-1] == "/": patchdir = patchdir[:-1]
+        try:
+            patchname = open(os.path.join(patchdir,"conf","patch_series")).read().strip()
+            newpatchdir = os.path.join(patchdir,"patches",patchname)
+            iface.warn("Cambiando carpeta de parche a %s" % newpatchdir)
+            patchdir = newpatchdir
+        except Exception:
+            pass
         if getattr(self.iface,"patch_name",None):
             self.patch_name = self.iface.patch_name
         else:
