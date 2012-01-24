@@ -170,13 +170,6 @@ def file_reader(filename):
     name = os.path.basename(filename)
     return name, [line.rstrip() for line in f1.readlines()]
     
-def fulldiff_qs(iface, base, final):
-    """
-        Algoritmo que crea una diferencia *completa* del QS, y guarda múltiples
-        ficheros con distintas extensiones:
-        
-    """
-    pass
 
 def diff_qs(iface, base, final):
     iface.debug(u"Procesando Diff QS $base:%s -> $final:%s" % (base, final))
@@ -389,6 +382,67 @@ def join_qs(iface, dstfolder):
     
     
     
+def diff_qs_dir(iface, base, final):
+    iface.debug(u"Procesando Diff de carpetas QS $base:%s -> $final:%s" % (base, final))
+    
+    iface.debug(u"Comparando clases en patch_series . . .")
+    f1 = open(os.path.join(base,"patch_series"))
+    classlist1 = [ cname.strip() for cname in f1 if len(cname.strip()) ]
+    f1.close()
+    f1 = open(os.path.join(final,"patch_series"))
+    classlist2 = [ cname.strip() for cname in f1 if len(cname.strip()) ]
+    f1.close()
+    classlist1a = classlist1[:]
+    classlist2a = classlist2[:]
+    
+    clases_agregadas = list( set(classlist2) - set(classlist1) )
+    clases_agregadas.sort()
+    clases_eliminadas = list( set(classlist1) - set(classlist2) )
+    clases_eliminadas.sort()
+    
+    if clases_agregadas: 
+        iface.debug("Clases agregadas: " + ", ".join(clases_agregadas))
+    if clases_eliminadas: 
+        iface.debug("Clases eliminadas: " + ", ".join(clases_eliminadas))
+    for c in clases_eliminadas: classlist1a.remove(c)
+    for c in clases_agregadas: classlist2a.remove(c)
+    
+    assert(len(classlist1a) == len(classlist2a))
+    for n1,(a,b) in enumerate(zip(classlist1a,classlist2a)):
+        if a != b: break
+    for n2,(a,b) in reversed(list(enumerate(zip(classlist1a,classlist2a)))):
+        if a != b: break
+    # classlist1b y classlist2b mantienen el listado de clases discrepantes.
+    classlist1b,classlist2b = classlist1a[n1:n2+1],classlist2a[n1:n2+1]
+    classlist1b_n = [ classlist2b.index(c) for c in classlist1b ]
+    
+    print classlist1b_n
+    move_actions = get_move_actions(classlist1b_n)
+    print move_actions
+    
+    
+def get_move_actions(cln1):
+    actions = []
+    cln = cln1[:]
+    for i in reversed(range(len(cln))):
+        if i == 0: break
+        if cln[i-1] < cln[i]: continue
+        for j in reversed(range(-1,i)):
+            if j < 0 or cln[j] < cln[i]: break
+        print i,j+1
+        beforen2 = cln[j+1:i]
+        mbf2 = min(beforen2)
+        for k in range(i,len(cln)):
+            if k > mbf2: break
+        beforen1 = cln[i:k+1]
+        
+        actions.append((beforen1, "before", beforen2))
+        cln[i:k+1] = []
+        cln[j+1:i] = beforen1 + cln[j+1:i]
+        print cln
+        
+    return actions
+        
     
     
 
