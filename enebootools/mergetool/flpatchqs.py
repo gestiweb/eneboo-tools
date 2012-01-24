@@ -80,7 +80,7 @@ def qsclass_reader(iface, file_name, file_lines):
         m = re.search("/\*\*?\s*@(\w+)\s+([^ */]+)?\s*\*/", line2)
         if m:
         
-            m2 = re.search("^\s*/\*\* @(\w+)( \w+)? \*/\s*$", line)
+            m2 = re.search("^\s*/\*\* @(\w+)( \w+)?\s*\*/\s*$", line)
             if not m2:
                 iface.warn("Formato incorrecto de la linea %s" % repr(line))
             dtype = m.group(1)
@@ -368,7 +368,7 @@ def join_qs(iface, dstfolder):
     for cname in classlist:
         p = patch[cname]
         p.write_decl(f1)
-    f1.write("const iface = new %s( this );\n" % classlist[-1])
+    f1.write("const iface = new %s( this );\n\n" % classlist[-1])
     
     for cname in classlist:
         p = patch[cname]
