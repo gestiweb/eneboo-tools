@@ -272,8 +272,15 @@ def split_qs(iface, final):
     try: os.mkdir(dstfolder)
     except OSError: pass
     
+    if clfinal['iface']: 
+        line = clfinal['iface']['line']
+        flfinal[line] = ""
+    
     f1 = open(os.path.join(dstfolder,"patch_series"),"w")
     for n,classname in enumerate(clfinal['classes']):
+        if n > 0:
+            fix_class(iface, flfinal, clfinal, cdfinal, classname, set_extends = "PARENT_CLASS", set_from = None)
+    
         f1.write(classname + "\n")
         f2 = open(os.path.join(dstfolder,classname + ".qs"),"w")
         if n == 0:
