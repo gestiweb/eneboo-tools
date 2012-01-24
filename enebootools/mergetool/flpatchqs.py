@@ -88,6 +88,10 @@ def qsclass_reader(iface, file_name, file_lines):
                 
             npos = len(linelist)
             if dtype == "class_declaration":
+                classdecl = extract_class_decl_info(iface, file_lines[n:n+12])
+                if cname not in classdecl:
+                    iface.error(u"Bloque 'class_declaration' con nombre erroneo clase %s no existe en el bloque (file: %s)" % (cname,file_name))
+                    
                 if cname in classes:
                     iface.error(u"Hay dos bloques 'class_declaration' para la clase %s (file: %s)" % (cname,file_name))
                 else:
@@ -98,6 +102,8 @@ def qsclass_reader(iface, file_name, file_lines):
                     iface.error(u"Hay dos bloques 'class_definition' para la clase %s (file: %s)" % (cname,file_name))
                 else:
                     defidx[cname] = npos
+                    if cname not in classes:
+                        iface.error(u"Bloque 'class_definition' huérfano para la clase %s (file: %s)" % (cname,file_name))
             elif dtype == "delete_class":
                 # Clase a borrar cuando se aplique el parche.
                 if cname in delclasses:
@@ -259,6 +265,7 @@ def split_qs(iface, final):
         return
     flfinal = [ line.replace("\t","        ") for line in flfinal ]
     clfinal = qsclass_reader(iface, final, flfinal)
+    cdfinal = extract_class_decl_info(iface, flfinal) 
     nameroot, ext = os.path.splitext(final)
     dstfolder = nameroot+"-splitted"
     
@@ -311,7 +318,9 @@ class PatchReader(object):
         if parent_class:
             fix_class(iface, self.file, self.classes, self.classdict, cname, set_extends = parent_class)
         if self.classes['iface']: 
-            fix_iface(self.iface, self.file, self.classes, self.last_class)
+            line = self.classes['iface']['line']
+            self.file[line] = ""
+            #fix_iface(self.iface, self.file, self.classes, self.last_class)
     
     def write_head(self, f2):
         stype, clname, line1, linen = self.classes['list'][0]
@@ -359,6 +368,7 @@ def join_qs(iface, dstfolder):
     for cname in classlist:
         p = patch[cname]
         p.write_decl(f1)
+    f1.write("const iface = new %s( this );\n" % classlist[-1])
     
     for cname in classlist:
         p = patch[cname]
