@@ -296,7 +296,8 @@ def split_qs(iface, final):
 
 
 def join_qs(iface, final):
-    iface.debug(u"Uniendo fichero QS %s . . . " % (final))
+    iface.debug(u"Uniendo carpeta %s . . . " % (final))
+    
     
     
 
@@ -519,7 +520,7 @@ def patch_qs(iface, base, patch):
             
             clbase['classes'].remove(newclass)
             del cdbase[newclass]
-	lower_classes = [ str(x).lower() for x in clbase['classes'] ]
+        lower_classes = [ str(x).lower() for x in clbase['classes'] ]
         if str(newclass).lower() in lower_classes:
             if iface.patch_qs_rewrite == "abort":
                 iface.error(u"La clase %s ya estaba insertada en el fichero, "
@@ -537,8 +538,8 @@ def patch_qs(iface, base, patch):
                 iface.warn(u"La clase %s ya estaba insertada en el fichero, "
                             u"se sobreescribirá la clase." % newclass)
             auth_overwrite_class = True
-	    idx = lower_classes.index(str(newclass).lower())
-	    oldclass = clbase['classes'][idx]
+            idx = lower_classes.index(str(newclass).lower())
+            oldclass = clbase['classes'][idx]
         if extends is None:
             iface.error(u"La clase %s carece de extends y no es insertable como"
                         u" un parche." % newclass)

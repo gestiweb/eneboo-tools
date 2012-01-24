@@ -195,6 +195,17 @@ class MergeToolInterface(EnebooToolsInterface):
             final = "Fichero QS",
             )                
               
+        self.qs_join_action = self.parser.declare_action(
+            name = "qs-join",
+            args = ["folder"],
+            description = u"Une la carpeta $folder en un fichero",
+            options = [],
+            call_function = self.do_qs_join,
+            )
+        self.qs_join_action.set_help_arg(
+            folder = "Carpeta con los subficheros QS",
+            )                
+              
     def set_patch_name(self, name):
         if name == "": name = None
         self.patch_name = name
@@ -265,5 +276,11 @@ class MergeToolInterface(EnebooToolsInterface):
     def do_qs_split(self, final):
         try:
             return flpatchqs.split_qs(self,final)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+            
+    def do_qs_join(self, folder):
+        try:
+            return flpatchqs.join_qs(self,folder)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
