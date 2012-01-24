@@ -294,9 +294,83 @@ def split_qs(iface, final):
     
         
 
+class PatchReader(object):
+    def __init__(self, iface, folder, cname, parent_class, last_class):
+        self.iface = iface
+        self.last_class = last_class
+        self.folder = folder
+        self.cname = cname
+        self.parent_class = parent_class
+        self.filename = os.path.join(folder,cname + ".qs")
+        self.name, self.file = file_reader(self.filename)
+        if self.file is None:
+            iface.info(u"Abortando por error al abrir los ficheros")
+            return
+        self.classes = qsclass_reader(iface, self.filename, self.file)
+        self.classdict = extract_class_decl_info(iface, self.file) 
+        if parent_class:
+            fix_class(iface, self.file, self.classes, self.classdict, cname, set_extends = parent_class)
+        if self.classes['iface']: 
+            fix_iface(self.iface, self.file, self.classes, self.last_class)
+    
+    def write_head(self, f2):
+        stype, clname, line1, linen = self.classes['list'][0]
+        f2.write("\n".join(self.file[:line1]) + "\n")
+        if stype == "file":
+            f2.write("\n".join(self.file[line1:linen]) + "\n")
+    
+    def write_tail(self, f2):
+        stype, clname, line1, linen = self.classes['list'][-1]
+        f2.write("\n".join(self.file[linen:]) + "\n")
+        
+    def write_decl(self, f2):
+        for classname, nblock1 in self.classes['decl'].items():
+            stype, clname, line1, linen = self.classes['list'][nblock1]
+            f2.write("\n".join(self.file[line1:linen]) + "\n")
+            
+    def write_def(self, f2):
+        for classname, nblock1 in self.classes['def'].items():
+            stype, clname, line1, linen = self.classes['list'][nblock1]
+            f2.write("\n".join(self.file[line1:linen]) + "\n")
+            
+    
 
-def join_qs(iface, final):
-    iface.debug(u"Uniendo carpeta %s . . . " % (final))
+def join_qs(iface, dstfolder):
+    head, foldername = os.path.split(dstfolder)
+    filename = foldername.replace("-splitted",".joined") + ".qs"
+    filepath = os.path.join(head,filename)
+    iface.debug(u"Uniendo carpeta %s . . . " % (dstfolder))
+    f1 = open(os.path.join(dstfolder,"patch_series"))
+    classlist = [ cname.strip() for cname in f1 if len(cname.strip()) ]
+    f1.close()
+    
+    patch = {}
+    parent_class = None
+    p_iface = None
+    for cname in classlist:
+        patch[cname] = PatchReader(iface,dstfolder,cname,parent_class,classlist[-1])
+        parent_class = cname
+        
+
+    f1 = open(filepath, "w")
+    p0 = patch[classlist[0]]
+    p0.write_head(f1)
+    
+    for cname in classlist:
+        p = patch[cname]
+        p.write_decl(f1)
+    
+    for cname in classlist:
+        p = patch[cname]
+        p.write_def(f1)
+        
+    p0.write_tail(f1)
+    f1.close()
+    iface.info(u"El fichero %s ha sido escrito correctamente." % (filepath))
+        
+    
+    
+    
     
     
     
