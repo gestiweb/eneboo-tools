@@ -474,7 +474,7 @@ def diff_qs_dir(iface, base, final):
                 prev_lines, post_lines = unprinted_lines[:idx] , unprinted_lines[idx+1:]
                 if len(prev_lines) > 3:
                     for j in reversed(prev_lines):
-                        if re.search("function",diff[j]): break
+                        if re.search("^\s*(function|class) ",diff[j]): break
                     omitted = len(prev_lines[:prev_lines.index(j)])
                     if omitted > 5: iface.output.write("== %d lines ==\n" % omitted)
                     else:
