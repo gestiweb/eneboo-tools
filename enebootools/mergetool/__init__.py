@@ -255,6 +255,7 @@ class MergeToolInterface(EnebooToolsInterface):
         try:
             ext = str(ext).upper()
             if ext == 'QS': return flpatchqs.patch_qs(self,base,patch)
+            if ext == 'QSDIR': return flpatchqs.patch_qs_dir(self,base,patch)
             if ext == 'XML': return flpatchlxml.patch_lxml(self,patch,base)
             print "Unknown $ext %s" % (repr(ext))
         except Exception,e:

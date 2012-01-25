@@ -380,7 +380,54 @@ def join_qs(iface, dstfolder):
         
     
     
-    
+def patch_qs_dir(iface, base, patch):
+    iface.debug(u"Procesando Patch sobre carpeta QS $base:%s + $patch:%s" % (base, patch))
+    f1 = open(patch)
+    section = None
+    sections = {}
+    seclist = []
+    for line in f1:
+        if line[-1] == "\n": line = line[:-1]
+        code = line[:2]
+        text = line[2:]
+        if code == "@@":
+            section = text
+            if section in sections:
+                iface.error(u"Sección @@%s redeclarada" % section)
+            else:
+                sections[section] = []
+            seclist.append(section)
+            continue
+        if code == "..":
+            section = None
+            continue
+        if section:
+            sections[section].append( (code, text) )
+
+    sec_rmcls = sections.get("remove-classes")
+    if sec_rmcls:
+        iface.error("TODO: Remove Classes")
+        for code, line in sec_rmcls:
+            print code, ":", line
+
+    sec_mvcls = sections.get("move-classes")
+    if sec_mvcls:
+        iface.error("TODO: Move Classes")
+        for code, line in sec_mvcls:
+            print code, ":", line
+            
+            
+    sec_addcls = sections.get("add-classes")
+    if sec_addcls:
+        iface.error("TODO: Add Classes")
+        for code, line in sec_addcls:
+            print code, ":", line
+            
+                    
+            
+        
+        
+        
     
 def diff_qs_dir(iface, base, final):
     iface.debug(u"Procesando Diff de carpetas QS $base:%s -> $final:%s" % (base, final))
