@@ -20,7 +20,7 @@ u"""
     
 """
 
-import re, os.path
+import re, os.path, difflib
 
 def latin1_to_ascii (unicrap):
     """This replaces UNICODE Latin-1 characters with
@@ -395,15 +395,29 @@ def diff_qs_dir(iface, base, final):
     classlist1a = classlist1[:]
     classlist2a = classlist2[:]
     
-    clases_agregadas = list( set(classlist2) - set(classlist1) )
-    clases_agregadas.sort()
-    clases_eliminadas = list( set(classlist1) - set(classlist2) )
-    clases_eliminadas.sort()
-    
-    if clases_agregadas: 
-        iface.debug("Clases agregadas: " + ", ".join(clases_agregadas))
+    clases_eliminadas = [ c for c in classlist1 if c not in classlist2 ]
+    clases_agregadas = [ c for c in classlist2 if c not in classlist1 ]
+    # El sentido de la operación debe ser:
+    # 1.- Eliminar clases 
+    # 2.- Mover clases
+    # 3.- Parchear clases
+    # 4.- Agregar clases
     if clases_eliminadas: 
         iface.debug("Clases eliminadas: " + ", ".join(clases_eliminadas))
+        iface.output.write("@@remove-classes\n")
+        pending_write = list(range(len(classlist1)))
+        for cls in clases_eliminadas:
+            idx = classlist1.index(cls)
+            pending_write.remove(idx)
+            if idx - 1 in pending_write:
+                iface.output.write("  %s\n" % classlist1[idx - 1])
+                pending_write.remove(idx - 1)
+            iface.output.write("- %s\n" % cls)
+            if idx + 1 in pending_write and classlist1[idx + 1] not in clases_eliminadas:
+                iface.output.write("  %s\n" % classlist1[idx + 1])
+                pending_write.remove(idx + 1)
+        iface.output.write("..\n")
+        
     for c in clases_eliminadas: classlist1a.remove(c)
     for c in clases_agregadas: classlist2a.remove(c)
     
@@ -416,12 +430,103 @@ def diff_qs_dir(iface, base, final):
     classlist1b,classlist2b = classlist1a[n1:n2+1],classlist2a[n1:n2+1]
     classlist1b_n = [ classlist2b.index(c) for c in classlist1b ]
     
-    print classlist1b_n
-    move_actions = get_move_actions(classlist1b_n)
-    print move_actions
+    move_actions = get_move_actions(classlist1b_n,classlist2b)
+    if move_actions:
+        iface.output.write("@@move-classes\n")
+        for move_action in move_actions:
+            iface.debug("Clases movidas: " + repr(move_action))
+            cl2move, relation, clctx = move_action
+            iface.output.write("  %s (%s) %s\n" % (",".join(cl2move),relation,",".join(clctx)))
+        iface.output.write("..\n")
+        
+    if clases_agregadas: 
+        iface.debug("Clases agregadas: " + ", ".join(clases_agregadas))
+        iface.output.write("@@add-classes\n")
+        pending_write = list(range(len(classlist2)))
+        for cls in clases_agregadas:
+            idx = classlist2.index(cls)
+            pending_write.remove(idx)
+            if idx - 1 in pending_write:
+                iface.output.write("  %s\n" % classlist2[idx - 1])
+                pending_write.remove(idx - 1)
+            iface.output.write("+ %s\n" % cls)
+            if idx + 1 in pending_write and classlist2[idx + 1] not in clases_agregadas:
+                iface.output.write("  %s\n" % classlist2[idx + 1])
+                pending_write.remove(idx + 1)
+        iface.output.write("..\n")
+
+
+    
+    clases_comunes = [ c for c in classlist2 if c in classlist1 ]
+    
+    for cls in clases_comunes:
+        file1 = list(open(os.path.join(base,cls + ".qs")))
+        file2 = list(open(os.path.join(final,cls + ".qs")))
+        diff = list(difflib.ndiff(file1, file2))
+        changed_lines = [ (n,line) for n,line in enumerate(diff) if line[0:2] not in ['  '] and len(line[1:].rstrip())>1 ]
+        if changed_lines:
+            iface.debug(" ##### FICHERO %s.qs #####" % cls)
+            iface.output.write("@@patch-class %s\n" % cls)
+            unprinted_lines = list(range(len(diff)))
+            for n,ld in changed_lines:
+                if n not in unprinted_lines: continue
+                idx = unprinted_lines.index(n)
+                prev_lines, post_lines = unprinted_lines[:idx] , unprinted_lines[idx+1:]
+                if len(prev_lines) > 3:
+                    for j in reversed(prev_lines):
+                        if re.search("function",diff[j]): break
+                    omitted = len(prev_lines[:prev_lines.index(j)])
+                    if omitted > 5: iface.output.write("== %d lines ==\n" % omitted)
+                    else:
+                        for k in prev_lines[:prev_lines.index(j)]:
+                            iface.output.write(diff[k])
+                    for k in prev_lines[prev_lines.index(j):]:
+                        iface.output.write(diff[k])
+                else:
+                    for k in prev_lines:
+                        iface.output.write(diff[k])
+                unprinted_lines[:idx+1] = []
+                iface.output.write(diff[n])
+
+                post_lines = [ x for x in unprinted_lines if x > n ]
+                end = False
+                count = 0
+                for b in post_lines:
+                    if re.search("function",diff[b]): 
+                        end = True
+                    if end and count > 1: break
+                    
+                    iface.output.write(diff[b])
+                    unprinted_lines.remove(b)
+                    if diff[b][0:2] == "  ": count += 1
+                    else: 
+                        count = 0
+                        end = False
+                
+                        
+                
+            iface.output.write("..\n")
+            iface.debug("-")
+            
+    for cls in clases_eliminadas:
+        file1 = open(os.path.join(base,cls + ".qs"))
+        iface.output.write("@@removed-class %s\n" % cls)        
+        for line in file1:
+            iface.output.write("  %s" % line)        
+        iface.output.write("..\n")
+            
+    for cls in clases_agregadas:
+        file1 = open(os.path.join(final,cls + ".qs"))
+        iface.output.write("@@added-class %s\n" % cls)        
+        for line in file1:
+            iface.output.write("  %s" % line)        
+        iface.output.write("..\n")
+            
+    iface.output.write("\n")
+            
     
     
-def get_move_actions(cln1):
+def get_move_actions(cln1, names):
     actions = []
     cln = cln1[:]
     for i in reversed(range(len(cln))):
@@ -429,17 +534,16 @@ def get_move_actions(cln1):
         if cln[i-1] < cln[i]: continue
         for j in reversed(range(-1,i)):
             if j < 0 or cln[j] < cln[i]: break
-        print i,j+1
+
         beforen2 = cln[j+1:i]
         mbf2 = min(beforen2)
         for k in range(i,len(cln)):
             if k > mbf2: break
         beforen1 = cln[i:k+1]
         
-        actions.append((beforen1, "before", beforen2))
+        actions.append(([names[i] for i in beforen1], "before", [names[i] for i in beforen2]))
         cln[i:k+1] = []
         cln[j+1:i] = beforen1 + cln[j+1:i]
-        print cln
         
     return actions
         
