@@ -384,6 +384,7 @@ def patch_qs_dir(iface, base, patch):
     iface.debug(u"Procesando Patch sobre carpeta QS $base:%s + $patch:%s" % (base, patch))
     f1 = open(patch)
     section = None
+    subsection = None
     sections = {}
     seclist = []
     for line in f1:
@@ -391,37 +392,111 @@ def patch_qs_dir(iface, base, patch):
         code = line[:2]
         text = line[2:]
         if code == "@@":
-            section = text
-            if section in sections:
-                iface.error(u"Sección @@%s redeclarada" % section)
+            name = text.strip()
+            nameidx = name.find(" ")
+            if nameidx > 0:
+                section, subsection = name[:nameidx], name[nameidx+1:]
             else:
-                sections[section] = []
-            seclist.append(section)
+                section = name
+                subsection = None
+            if section not in sections:
+                sections[section] = {}
+            if subsection not in sections[section]:
+                sections[section][subsection] = []
+            else:
+                iface.error("Sección '@@%s' redeclarada" % name) 
+            seclist.append((section, subsection))
             continue
         if code == "..":
             section = None
             continue
         if section:
-            sections[section].append( (code, text) )
+            sections[section][subsection].append( (code, text) )
+    patch_series = [ cl.strip() for cl in open(os.path.join(base,"patch_series")) if cl.strip() != "" ]
+    patch_series_orig = patch_series[:]
 
     sec_rmcls = sections.get("remove-classes")
     if sec_rmcls:
         iface.error("TODO: Remove Classes")
-        for code, line in sec_rmcls:
-            print code, ":", line
+        for code, line in sec_rmcls[None]:
+            if code == "- ": 
+                try: patch_series.remove(line)
+                except ValueError: iface.warn(u"La clase %s iba a ser eliminada del fichero, pero no la encontramos")
 
     sec_mvcls = sections.get("move-classes")
     if sec_mvcls:
-        iface.error("TODO: Move Classes")
-        for code, line in sec_mvcls:
-            print code, ":", line
+        for code, line in sec_mvcls[None]:
+            line = line.strip()
+            if len(line) == 0: continue
+            match = re.match("^([\w,]+) \((\w+)\) ([\w,]+)", line)
+            if not match:
+                iface.error(u"Línea de movimiento de clases malformada: %s" % (repr(line)))
+                continue
+            group1, relation, group2 = match.groups()
+            if relation not in ['before']:
+                iface.error(u"Línea de movimiento con relación desconocida: %s" % (repr(relation)))
+                continue
+            group1 = group1.split(",")
+            group2 = group2.split(",")
+            for cl in group1:
+                try: idx = patch_series.index(cl)
+                except ValueError: 
+                    iface.warn("La clase %s iba a ser movida antes de %s pero la primera no existe" % (cl,cl_from))
+                    continue
+
+                for cl_from in group2:
+                    try: idx_from = patch_series.index(cl_from)
+                    except ValueError: 
+                        iface.warn("La clase %s iba a ser movida antes de %s pero la segunda no existe" % (cl,cl_from))
+                        continue
+
+                    if relation == "before":
+                        if idx > idx_from:
+                            patch_series[:] = patch_series[:idx_from] + [patch_series[idx]] + patch_series[idx_from:idx] + patch_series[idx+1:]
+                            idx = patch_series.index(cl)
+                    
+            #print code, ":", line
             
             
     sec_addcls = sections.get("add-classes")
     if sec_addcls:
         iface.error("TODO: Add Classes")
-        for code, line in sec_addcls:
-            print code, ":", line
+        known_cls = []
+        to_add = []
+        for code, line in sec_addcls[None]:
+            line = line.strip()
+            if line == "": continue
+            if code == "  ":
+                if line in patch_series:
+                    known_cls.append(line)
+            if code == "+ ":
+                if line in patch_series:
+                    iface.error(u"TODO: Add Classes -  Clase %s ya existía" % line)
+                    continue
+                
+                known_cls.append(line)
+                to_add.append(line)
+                
+        print known_cls
+        print to_add
+
+    print patch_series_orig
+    print patch_series
+            
+    sec_patchcls = sections.get("patch-class")
+    if sec_patchcls:
+        for cls, list1 in sec_patchcls.items():
+            iface.error("TODO: Patch Class %s" % cls)
+            for code, line in list1[:1]:
+                print code, ":", line
+            
+            
+    sec_addedcls = sections.get("added-class")
+    if sec_addedcls:
+        for cls, list1 in sec_patchcls.items():
+            iface.error("TODO: Added Class %s" % cls)
+            for code, line in list1[:1]:
+                print code, ":", line
             
                     
             
