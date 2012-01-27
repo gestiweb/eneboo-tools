@@ -20,7 +20,9 @@ u"""
     
 """
 
-import re, os.path, difflib
+import re, os.path, difflib, math, itertools
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 
 def latin1_to_ascii (unicrap):
     """This replaces UNICODE Latin-1 characters with
@@ -460,28 +462,94 @@ def patch_qs_dir(iface, base, patch):
             
     sec_addcls = sections.get("add-classes")
     if sec_addcls:
+        # Este algoritmo no inserta las clases donde "simplemente deberían", sino
+        # que asume que el fichero parcheado no tiene nada que ver con el parche
+        # y aparecen en cualquier odren, no en el esperado.
+        # Por tanto, lo que intentamos es ubicarlas en el mejor lugar posible.
+        
         iface.error("TODO: Add Classes")
         known_cls = []
-        to_add = []
+        def add_known(code, line):
+            if known_cls: lcode = known_cls[-1][0]
+            else: lcode = None
+            if lcode != code:
+                known_cls.append( [code, [], None, None] )
+            known_cls[-1][1].append( line )
+        # Agrupar las clases en bloques según si son conocidas o a agregar
         for code, line in sec_addcls[None]:
             line = line.strip()
             if line == "": continue
             if code == "  ":
                 if line in patch_series:
-                    known_cls.append(line)
+                    add_known( code , line )
             if code == "+ ":
                 if line in patch_series:
                     iface.error(u"TODO: Add Classes -  Clase %s ya existía" % line)
                     continue
                 
-                known_cls.append(line)
-                to_add.append(line)
+                add_known( code , line )
+        # Computar las posiciones de los bloques conocidos:
+        for block in known_cls:
+            code, linelist, minidx, maxidx = block
+            if code == "  ":
+                idxlist = [ patch_series.index(cl) for cl in linelist ] 
+                minidx = min(idxlist)
+                maxidx = max(idxlist)
+                block[2] = minidx
+                block[3] = maxidx
+        # Para los bloques nuevos, heredar de la información de los conocidos:
+        for i,block in enumerate(known_cls):
+            code, linelist, minidx, maxidx = block
+            if code == "+ ":
+                prev_max = [-0.5] + [known_cls[k][3] + 0.5 for k in range(i) if known_cls[k][0] == "  " ]
+                next_min = [known_cls[k][2] - 0.5 for k in range(i+1,len(known_cls)) if known_cls[k][0] == "  " ] + [len(patch_series) - 0.5]
+                block[2] = max(prev_max)
+                block[3] = min(next_min)
                 
-        print known_cls
-        print to_add
-
-    print patch_series_orig
-    print patch_series
+        # Procedemos a la inserción . . .
+        last_idx = None
+        new_patch_series = []
+        for i,block in enumerate(known_cls):
+            code, linelist, minidx, maxidx = block
+            if code != "+ ": continue
+            if minidx > maxidx:
+                iface.error("Conflicto al colocar la(s) clase(s) %s entre %.1f-%.1f" % (",".join(linelist),maxidx+0.5,minidx-0.5))
+                cllist = patch_series[int(maxidx+0.5):int(minidx+0.5)]
+                prev_classes = list(itertools.chain(*[ linelist1 for code1, linelist1, a1, a2 in known_cls[:i] if code1 == "  "]))
+                next_classes = list(itertools.chain(*[ linelist1 for code1, linelist1, a1, a2 in known_cls[i+1:] if code1 == "  "]))
+                cllist2 = []
+                for cl in cllist:
+                    if cl in prev_classes: t = "<<"
+                    elif cl in next_classes: t = ">>"
+                    else: t = "--"
+                    cllist2.append(t)
+                errors = []
+                for i in range(len(cllist2)+1):
+                    leftside = cllist2[:i]
+                    rightside = cllist2[i:]
+                    invalid = leftside.count(">>") + rightside.count("<<")
+                    errors.append(invalid)
+                idx = errors.index(min(errors))
+                minidx = maxidx = maxidx + idx
+                print idx, maxidx
+            prev_idx = int(math.floor((minidx + maxidx) / 2.0))
+            next_idx = prev_idx + 1
+            new_patch_series += patch_series[last_idx:next_idx] + linelist
+            last_idx = max([next_idx,last_idx])
+            
+        new_patch_series += patch_series[last_idx:] 
+            
+            
+                
+                
+                
+        # pp.pprint(known_cls)
+    #print "\n".join(patch_series_orig)
+    #print "---"
+    print "\n".join(patch_series)
+    print "---"
+    print "\n".join(new_patch_series)
+    print "---"
             
     sec_patchcls = sections.get("patch-class")
     if sec_patchcls:
