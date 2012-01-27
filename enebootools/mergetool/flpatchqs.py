@@ -527,17 +527,10 @@ def diff_qs_dir(iface, base, final):
     if clases_eliminadas: 
         iface.debug("Clases eliminadas: " + ", ".join(clases_eliminadas))
         iface.output.write("@@remove-classes\n")
-        pending_write = list(range(len(classlist1)))
-        for cls in clases_eliminadas:
-            idx = classlist1.index(cls)
-            pending_write.remove(idx)
-            if idx - 1 in pending_write:
-                iface.output.write("  %s\n" % classlist1[idx - 1])
-                pending_write.remove(idx - 1)
-            iface.output.write("- %s\n" % cls)
-            if idx + 1 in pending_write and classlist1[idx + 1] not in clases_eliminadas:
-                iface.output.write("  %s\n" % classlist1[idx + 1])
-                pending_write.remove(idx + 1)
+        for cls in classlist1:
+            if cls in clases_eliminadas: code = "- "
+            else: code = "  "
+            iface.output.write("%s%s\n" % (code,cls))
         iface.output.write("..\n")
         
     for c in clases_eliminadas: classlist1a.remove(c)
@@ -564,17 +557,10 @@ def diff_qs_dir(iface, base, final):
     if clases_agregadas: 
         iface.debug("Clases agregadas: " + ", ".join(clases_agregadas))
         iface.output.write("@@add-classes\n")
-        pending_write = list(range(len(classlist2)))
-        for cls in clases_agregadas:
-            idx = classlist2.index(cls)
-            pending_write.remove(idx)
-            if idx - 1 in pending_write:
-                iface.output.write("  %s\n" % classlist2[idx - 1])
-                pending_write.remove(idx - 1)
-            iface.output.write("+ %s\n" % cls)
-            if idx + 1 in pending_write and classlist2[idx + 1] not in clases_agregadas:
-                iface.output.write("  %s\n" % classlist2[idx + 1])
-                pending_write.remove(idx + 1)
+        for cls in classlist2:
+            if cls in clases_agregadas: code = "+ "
+            else: code = "  "
+            iface.output.write("%s%s\n" % (code,cls))
         iface.output.write("..\n")
 
 
