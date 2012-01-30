@@ -20,7 +20,7 @@ u"""
     
 """
 
-import re, os.path, difflib, math, itertools
+import re, os.path, difflib, math, itertools, shutil, sys
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -414,6 +414,11 @@ def patch_qs_dir(iface, base, patch):
             continue
         if section:
             sections[section][subsection].append( (code, text) )
+    destpath = base + "-patched"
+    if os.path.isdir(destpath):
+        shutil.rmtree(destpath)
+    os.mkdir(destpath)
+    
     patch_series = [ cl.strip() for cl in open(os.path.join(base,"patch_series")) if cl.strip() != "" ]
     patch_series_orig = patch_series[:]
 
@@ -466,8 +471,6 @@ def patch_qs_dir(iface, base, patch):
         # que asume que el fichero parcheado no tiene nada que ver con el parche
         # y aparecen en cualquier odren, no en el esperado.
         # Por tanto, lo que intentamos es ubicarlas en el mejor lugar posible.
-        
-        iface.error("TODO: Add Classes")
         known_cls = []
         def add_known(code, line):
             if known_cls: lcode = known_cls[-1][0]
@@ -484,7 +487,7 @@ def patch_qs_dir(iface, base, patch):
                     add_known( code , line )
             if code == "+ ":
                 if line in patch_series:
-                    iface.error(u"TODO: Add Classes -  Clase %s ya existía" % line)
+                    iface.warn(u"TODO: Add Classes -  Clase %s ya existía" % line)
                     continue
                 
                 add_known( code , line )
@@ -531,45 +534,166 @@ def patch_qs_dir(iface, base, patch):
                     errors.append(invalid)
                 idx = errors.index(min(errors))
                 minidx = maxidx = maxidx + idx
-                print idx, maxidx
+                
             prev_idx = int(math.floor((minidx + maxidx) / 2.0))
             next_idx = prev_idx + 1
             new_patch_series += patch_series[last_idx:next_idx] + linelist
             last_idx = max([next_idx,last_idx])
             
         new_patch_series += patch_series[last_idx:] 
-            
-            
-                
-                
-                
-        # pp.pprint(known_cls)
-    #print "\n".join(patch_series_orig)
-    #print "---"
-    print "\n".join(patch_series)
-    print "---"
-    print "\n".join(new_patch_series)
-    print "---"
+        patch_series[:] = new_patch_series
+
+    files_to_add = []
+    
+    fw1= open(os.path.join(destpath,"patch_series"),"w")
+    iface.debug("Escribiendo patch_series . . .")
+    for cl in patch_series:
+        fw1.write("%s\n" % cl)
+        filename = "%s.qs" % cl
+        src = os.path.join(base,filename)
+        dst = os.path.join(destpath,filename)
+        if os.path.isfile(src):
+            shutil.copy(src,dst)
+        else:
+            files_to_add.append(cl)
+    fw1.write("\n")
+    fw1.close()
+        
+    
             
     sec_patchcls = sections.get("patch-class")
     if sec_patchcls:
         for cls, list1 in sec_patchcls.items():
-            iface.error("TODO: Patch Class %s" % cls)
-            for code, line in list1[:1]:
-                print code, ":", line
+            filename = "%s.qs" % cls
+            iface.debug("Parcheando %s. . ." % filename)
+            src = os.path.join(base,filename)
+            dst = os.path.join(destpath,filename)
+            orig = list(open(src))
+            patched = patch_class_advanced(orig,list1)
+            fw1 = open(dst,"w")
+            for line in patched:
+                fw1.write(line)
+                fw1.write("\n")
+                
+            
             
             
     sec_addedcls = sections.get("added-class")
     if sec_addedcls:
-        for cls, list1 in sec_patchcls.items():
-            iface.error("TODO: Added Class %s" % cls)
-            for code, line in list1[:1]:
-                print code, ":", line
+        for cls, list1 in sec_addedcls.items():
+            filename = "%s.qs" % cls
+            src = os.path.join(base,filename)
+            dst = os.path.join(destpath,filename)
+            if os.path.isfile(destpath):
+                iface.warn("Clase ya insertada %s, no se modifica el fichero" % cls)
+                continue
+            iface.debug("Creando %s. . ." % filename)
+            fw1 = open(dst,"w")
+            for code, line in list1:
+                fw1.write(line)
+                fw1.write("\n")
             
                     
             
+def patch_class_advanced(orig,patch):
+    # 1.. separar el parche en "hunks" (bloques)
+    blocks = []
+    block = []
+
+    for n,(code, line) in enumerate(patch):
+        if code == "==":
+            if block: 
+                blocks.append(block)
+                block = []
+        else:
+            block.append( (code, line) )
+    if block: 
+        blocks.append(block)
         
+    orig_ = [ line.rstrip() for line in orig ]
+    for block in blocks:
+        orig1 = [ re.sub("[^A-Za-z]","",line).strip() for line in orig_ ]
+        # 2.. Para cada bloque...
+        # 2.1.. primero hallar el bloque original:
+        orig_block = [ line for code,line in block if code in ('  ', '- ') ]
+        numbered_block = []
+        n = -1
+        for code, line in block:
+            if code in ('  ', '- '):
+                n+=1
+            numbered_block.append( (n,code,line) ) 
+            
+        # print " block: %d patch lines, of %d lines original code" % (len(block), len(orig_block))
+        # 2.2.. comparar el bloque original con el fichero original, para encontrar la posición
+        orig_block1 = [ re.sub("[^A-Za-z]","",line).strip() for line in orig_block ]
+        sm1 = difflib.SequenceMatcher()
+        sm1.set_seqs(orig_block1, orig1)
+        same_lines = []
+        for a,b,sz in sm1.get_matching_blocks():
+            a_stream = "".join(orig_block1[a:a+sz])
+            b_stream = "".join(orig1[b:b+sz])
+            if min([len(a_stream),len(b_stream)]) < 16: continue
+            same_lines.append(b)
+            same_lines.append(b+sz-1)
+        minb = min(same_lines)
+        maxb = max(same_lines) + 1
         
+        # Análisis profundo
+        d = difflib.Differ()
+        cmp1 = d.compare(orig_block, orig_[minb:maxb])
+        numbered_block2 = []
+        n = -1
+        for cdln in cmp1:
+            code = cdln[0:2]
+            line = cdln[2:]
+            if code in ('  ', '- '):
+                n+=1
+            numbered_block2.append( (n,code,line) ) 
+        a_diffs = [ (n, code, "A", line) for n, code, line in numbered_block if code != '  ' ]
+        b_diffs = [ (n, code, "B", line) for n, code, line in numbered_block2 if code != '  ' ]
+        
+        base_pos = 0
+        a_offset = 0
+        b_offset = 0
+        o_diffs = orig_block[:]
+        
+        new_block = []
+        add_buffer = []
+        while True:
+            if a_diffs and a_diffs[0][0] == base_pos:
+                f_a_diff = a_diffs.pop(0)
+                if f_a_diff[1] == "+ ": 
+                    a_offset += 1
+                    add_buffer.append(f_a_diff[3])
+                if f_a_diff[1] == "- ": 
+                    o_diffs[0] = None
+            elif b_diffs and b_diffs[0][0] == base_pos:
+                f_b_diff = b_diffs.pop(0)
+                if f_b_diff[1] == "+ ": 
+                    b_offset += 1
+                    add_buffer.append(f_b_diff[3])
+                if f_b_diff[1] == "- ": 
+                    o_diffs[0] = None
+            elif o_diffs:
+                f_o_diff = o_diffs.pop(0)
+                # print f_o_diff
+                if f_o_diff is not None:
+                    new_block.append(f_o_diff)
+                if add_buffer:
+                    new_block+=add_buffer
+                    add_buffer=[]
+                base_pos += 1
+            else: 
+                if add_buffer:
+                    new_block+=add_buffer
+                    add_buffer=[]
+                break
+        orig_[minb:maxb] = new_block
+    
+    return orig_
+        
+            
+                
         
     
 def diff_qs_dir(iface, base, final):
