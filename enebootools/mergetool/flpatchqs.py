@@ -270,10 +270,6 @@ def split_qs(iface, final, create_folder = True):
     else:
         dstfolder = {}
     
-    if clfinal['iface']: 
-        line = clfinal['iface']['line']
-        flfinal[line] = ""
-    
     def opendst(name):
         if create_folder:
             f = open(os.path.join(dstfolder,name),"w")
@@ -281,6 +277,11 @@ def split_qs(iface, final, create_folder = True):
             f = StringIO.StringIO()
             dstfolder[name] = f
         return f
+
+    if clfinal['iface']: 
+        line = clfinal['iface']['line']
+        flfinal[line] = ""
+    
     
     
     f1 = opendst("patch_series")
@@ -324,8 +325,16 @@ class PatchReader(object):
         self.folder = folder
         self.cname = cname
         self.parent_class = parent_class
-        self.filename = os.path.join(folder,cname + ".qs")
-        self.name, self.file = file_reader(self.filename)
+        if type(folder) is dict:
+            self.name = folder.get("@name","unknown")
+            self.filename = cname + ".qs"
+            f1 = folder[self.filename]
+            f1.seek(0)
+            self.file = [line.rstrip() for line in f1.readlines()]
+        else:
+            self.filename = os.path.join(folder,cname + ".qs")
+            self.name, self.file = file_reader(self.filename)
+
         if self.file is None:
             iface.info(u"Abortando por error al abrir los ficheros")
             return
@@ -361,13 +370,27 @@ class PatchReader(object):
     
 
 def join_qs(iface, dstfolder):
-    head, foldername = os.path.split(dstfolder)
-    filename = foldername.replace("-splitted",".joined") + ".qs"
-    filepath = os.path.join(head,filename)
-    iface.debug(u"Uniendo carpeta %s . . . " % (dstfolder))
-    f1 = open(os.path.join(dstfolder,"patch_series"))
-    classlist = [ cname.strip() for cname in f1 if len(cname.strip()) ]
-    f1.close()
+    if type(dstfolder) is dict:
+        f1 = iface.output
+        foldername = filename = dstfolder.get("@name","unknown")
+    else:
+        head, foldername = os.path.split(dstfolder)
+        filename = foldername.replace("-splitted",".joined") + ".qs"
+        filepath = os.path.join(head,filename)
+        iface.debug(u"Uniendo carpeta %s . . . " % (dstfolder))
+        f1 = open(filepath, "w")
+
+    def openr(folder, filename):
+        if type(folder) is dict:
+            f = folder[filename]
+            f.seek(0)
+        else:
+            f = open(os.path.join(folder,filename))
+        return f
+                
+    f1r = openr(dstfolder,"patch_series")
+    classlist = [ cname.strip() for cname in f1r if len(cname.strip()) ]
+    f1r.close()
     
     patch = {}
     parent_class = None
@@ -377,7 +400,6 @@ def join_qs(iface, dstfolder):
         parent_class = cname
         
 
-    f1 = open(filepath, "w")
     p0 = patch[classlist[0]]
     p0.write_head(f1)
     
@@ -391,13 +413,25 @@ def join_qs(iface, dstfolder):
         p.write_def(f1)
         
     p0.write_tail(f1)
-    f1.close()
-    iface.info(u"El fichero %s ha sido escrito correctamente." % (filepath))
+    #f1.close()
+    iface.info(u"El fichero %s ha sido escrito correctamente." % (filename))
         
     
     
 def patch_qs_dir(iface, base, patch):
     iface.debug(u"Procesando Patch sobre carpeta QS $base:%s + $patch:%s" % (base, patch))
+    base_filename = base
+    if os.path.isfile(base):
+        base = split_qs(iface, base, False)
+        
+    def openr(folder, filename):
+        if type(folder) is dict:
+            f = folder[filename]
+            f.seek(0)
+        else:
+            f = open(os.path.join(folder,filename))
+        return f
+        
     f1 = open(patch)
     section = None
     subsection = None
@@ -428,12 +462,23 @@ def patch_qs_dir(iface, base, patch):
             continue
         if section:
             sections[section][subsection].append( (code, text) )
-    destpath = base + "-patched"
-    if os.path.isdir(destpath):
-        shutil.rmtree(destpath)
-    os.mkdir(destpath)
+    if type(base) is dict:        
+        destpath = {}
+    else:
+        destpath = base + "-patched"
+        if os.path.isdir(destpath):
+            shutil.rmtree(destpath)
+        os.mkdir(destpath)
     
-    patch_series = [ cl.strip() for cl in open(os.path.join(base,"patch_series")) if cl.strip() != "" ]
+    def opendst(name):
+        if type(destpath) is dict:
+            f = StringIO.StringIO()
+            destpath[name] = f
+        else:
+            f = open(os.path.join(destpath,name),"w")
+        return f
+    
+    patch_series = [ cl.strip() for cl in openr(base,"patch_series") if cl.strip() != "" ]
     patch_series_orig = patch_series[:]
 
     sec_rmcls = sections.get("remove-classes")
@@ -559,19 +604,25 @@ def patch_qs_dir(iface, base, patch):
 
     files_to_add = []
     
-    fw1= open(os.path.join(destpath,"patch_series"),"w")
+    fw1= opendst("patch_series")
     iface.debug("Escribiendo patch_series . . .")
     for cl in patch_series:
         fw1.write("%s\n" % cl)
         filename = "%s.qs" % cl
-        src = os.path.join(base,filename)
-        dst = os.path.join(destpath,filename)
-        if os.path.isfile(src):
-            shutil.copy(src,dst)
+        if type(base) is dict:
+            if filename in base:
+                destpath[filename] = base[filename]
+            else:
+                files_to_add.append(cl)
         else:
-            files_to_add.append(cl)
+            src = os.path.join(base,filename)
+            dst = os.path.join(destpath,filename)
+            if os.path.isfile(src):
+                shutil.copy(src,dst)
+            else:
+                files_to_add.append(cl)
     fw1.write("\n")
-    fw1.close()
+    # fw1.close()
         
     
             
@@ -580,11 +631,9 @@ def patch_qs_dir(iface, base, patch):
         for cls, list1 in sec_patchcls.items():
             filename = "%s.qs" % cls
             iface.debug("Parcheando %s. . ." % filename)
-            src = os.path.join(base,filename)
-            dst = os.path.join(destpath,filename)
-            orig = list(open(src))
+            orig = list(openr(base,filename))
             patched = patch_class_advanced(orig,list1)
-            fw1 = open(dst,"w")
+            fw1 = opendst(filename)
             for line in patched:
                 fw1.write(line)
                 fw1.write("\n")
@@ -596,17 +645,18 @@ def patch_qs_dir(iface, base, patch):
     if sec_addedcls:
         for cls, list1 in sec_addedcls.items():
             filename = "%s.qs" % cls
-            src = os.path.join(base,filename)
-            dst = os.path.join(destpath,filename)
-            if os.path.isfile(destpath):
-                iface.warn("Clase ya insertada %s, no se modifica el fichero" % cls)
-                continue
             iface.debug("Creando %s. . ." % filename)
-            fw1 = open(dst,"w")
+            fw1 = opendst(filename)
             for code, line in list1:
                 fw1.write(line)
                 fw1.write("\n")
-            
+   
+    if type(destpath) is dict:
+        # Si estamos trabajando en memoria, imprimir el resultado:
+        destpath["@name"] = base_filename
+        join_qs(iface,destpath)
+    
+
                     
             
 def patch_class_advanced(orig,patch):
@@ -729,10 +779,10 @@ def diff_qs_dir(iface, base, final):
         
     f1 = openr(base,"patch_series")
     classlist1 = [ cname.strip() for cname in f1 if len(cname.strip()) ]
-    f1.close()
+    #f1.close()
     f1 = openr(final,"patch_series")
     classlist2 = [ cname.strip() for cname in f1 if len(cname.strip()) ]
-    f1.close()
+    #f1.close()
     classlist1a = classlist1[:]
     classlist2a = classlist2[:]
     
