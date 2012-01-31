@@ -20,7 +20,7 @@ u"""
     
 """
 
-import re, os.path, difflib, math, itertools, shutil, sys
+import re, os.path, difflib, math, itertools, shutil, sys, StringIO
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -252,7 +252,7 @@ def split_qs_old(iface, final):
     f2.close()
         
     
-def split_qs(iface, final):
+def split_qs(iface, final, create_folder = True):
     iface.debug(u"Separando fichero QS %s . . . " % (final))
     nfinal, flfinal = file_reader(final)
     if flfinal is None:
@@ -262,22 +262,35 @@ def split_qs(iface, final):
     clfinal = qsclass_reader(iface, final, flfinal)
     cdfinal = extract_class_decl_info(iface, flfinal) 
     nameroot, ext = os.path.splitext(final)
-    dstfolder = nameroot+"-splitted"
+    if create_folder:
+        dstfolder = nameroot+"-splitted"
     
-    try: os.mkdir(dstfolder)
-    except OSError: pass
+        try: os.mkdir(dstfolder)
+        except OSError: pass
+    else:
+        dstfolder = {}
     
     if clfinal['iface']: 
         line = clfinal['iface']['line']
         flfinal[line] = ""
     
-    f1 = open(os.path.join(dstfolder,"patch_series"),"w")
+    def opendst(name):
+        if create_folder:
+            f = open(os.path.join(dstfolder,name),"w")
+        else:
+            f = StringIO.StringIO()
+            dstfolder[name] = f
+        return f
+    
+    
+    f1 = opendst("patch_series")
+        
     for n,classname in enumerate(clfinal['classes']):
         if n > 0:
             fix_class(iface, flfinal, clfinal, cdfinal, classname, set_extends = "PARENT_CLASS", set_from = None)
     
         f1.write(classname + "\n")
-        f2 = open(os.path.join(dstfolder,classname + ".qs"),"w")
+        f2 = opendst(classname + ".qs") 
         if n == 0:
             stype, clname, line1, linen = clfinal['list'][0]
             f2.write("\n".join(flfinal[:line1]) + "\n")
@@ -297,9 +310,10 @@ def split_qs(iface, final):
             stype, clname, line1, linen = clfinal['list'][-1]
             f2.write("\n".join(flfinal[linen:]) + "\n")
      
-        f2.close()
+        # f2.close()
         
-    f1.close()
+    # f1.close()
+    return dstfolder
     
         
 
@@ -700,10 +714,23 @@ def diff_qs_dir(iface, base, final):
     iface.debug(u"Procesando Diff de carpetas QS $base:%s -> $final:%s" % (base, final))
     
     iface.debug(u"Comparando clases en patch_series . . .")
-    f1 = open(os.path.join(base,"patch_series"))
+    if os.path.isfile(base):
+        base = split_qs(iface, base, False)
+    if os.path.isfile(final):
+        final = split_qs(iface, final, False)
+    
+    def openr(folder, filename):
+        if type(folder) is dict:
+            f = folder[filename]
+            f.seek(0)
+        else:
+            f = open(os.path.join(folder,filename))
+        return f
+        
+    f1 = openr(base,"patch_series")
     classlist1 = [ cname.strip() for cname in f1 if len(cname.strip()) ]
     f1.close()
-    f1 = open(os.path.join(final,"patch_series"))
+    f1 = openr(final,"patch_series")
     classlist2 = [ cname.strip() for cname in f1 if len(cname.strip()) ]
     f1.close()
     classlist1a = classlist1[:]
@@ -729,6 +756,8 @@ def diff_qs_dir(iface, base, final):
     for c in clases_agregadas: classlist2a.remove(c)
     
     assert(len(classlist1a) == len(classlist2a))
+    n1 = 0
+    n2 = -1
     for n1,(a,b) in enumerate(zip(classlist1a,classlist2a)):
         if a != b: break
     for n2,(a,b) in reversed(list(enumerate(zip(classlist1a,classlist2a)))):
@@ -760,8 +789,8 @@ def diff_qs_dir(iface, base, final):
     clases_comunes = [ c for c in classlist2 if c in classlist1 ]
     
     for cls in clases_comunes:
-        file1 = list(open(os.path.join(base,cls + ".qs")))
-        file2 = list(open(os.path.join(final,cls + ".qs")))
+        file1 = list(openr(base,cls + ".qs"))
+        file2 = list(openr(final,cls + ".qs"))
         diff = list(difflib.ndiff(file1, file2))
         changed_lines = [ (n,line) for n,line in enumerate(diff) if line[0:2] not in ['  '] and len(line[1:].rstrip())>1 ]
         if changed_lines:
@@ -809,14 +838,14 @@ def diff_qs_dir(iface, base, final):
             iface.debug("-")
             
     for cls in clases_eliminadas:
-        file1 = open(os.path.join(base,cls + ".qs"))
+        file1 = openr(base,cls + ".qs")
         iface.output.write("@@removed-class %s\n" % cls)        
         for line in file1:
             iface.output.write("  %s" % line)        
         iface.output.write("..\n")
             
     for cls in clases_agregadas:
-        file1 = open(os.path.join(final,cls + ".qs"))
+        file1 = openr(final,cls + ".qs")
         iface.output.write("@@added-class %s\n" % cls)        
         for line in file1:
             iface.output.write("  %s" % line)        
