@@ -180,6 +180,7 @@ class FolderApplyPatch(object):
         shutil.copy(src, dst)
                 
     def patch_script(self, patchscript, folder):
+        style = patchscript.get("style", "legacy")
         path = patchscript.get("path")
         filename = patchscript.get("name")
         
@@ -195,10 +196,17 @@ class FolderApplyPatch(object):
         old_verbosity = self.iface.verbosity
         self.iface.verbosity -= 2
         if self.iface.verbosity < 0: self.iface.verbosity = 0
+        old_style, self.iface.patch_qs_style_name = self.iface.patch_qs_style_name, style
         self.iface.set_output_file(dst+".patched")
-        ret = flpatchqs.patch_qs(self.iface,dst,src)
+        if style in ['legacy']:
+            ret = flpatchqs.patch_qs(self.iface,dst,src)
+        elif style in ['qsdir']:
+            ret = flpatchqs.patch_qs_dir(self.iface,dst,src)
+        else:
+            raise ValueError, "Estilo de parche QS desconocido: %s" % style
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
+        self.iface.patch_qs_style_name = old_style
         if not ret:
             self.iface.warn("Hubo algún problema aplicando el parche QS para %s" % filename)
             try: os.unlink(dst+".patched")
@@ -208,6 +216,7 @@ class FolderApplyPatch(object):
             os.rename(dst+".patched",dst)
                 
     def patch_xml(self, patchxml, folder):
+        style = patchxml.get("style", "legacy1")
         path = patchxml.get("path")
         filename = patchxml.get("name")
         
@@ -434,6 +443,7 @@ class FolderCreatePatch(object):
         shutil.copy(src, dst)
                 
     def compute_patch_script(self, patchscript):
+        patchscript.set("style", self.iface.patch_qs_style_name)
         path = patchscript.get("path")
         filename = patchscript.get("name")
 
@@ -448,7 +458,12 @@ class FolderCreatePatch(object):
         self.iface.verbosity -= 2
         if self.iface.verbosity < 0: self.iface.verbosity = min([0,self.iface.verbosity])
         self.iface.set_output_file(dst)
-        ret = flpatchqs.diff_qs(self.iface,base,final)
+        if self.iface.patch_qs_style_name in ['legacy']:
+            ret = flpatchqs.diff_qs(self.iface,base,final)
+        elif self.iface.patch_qs_style_name in ['qsdir']:
+            ret = flpatchqs.diff_qs_dir(self.iface,base,final)
+        else:
+            raise ValueError, "patch_qs_style_name no reconocido: %s" % self.iface.patch_qs_style_name
         self.iface.output = old_output 
         self.iface.verbosity = old_verbosity
         if ret == -1:
@@ -458,6 +473,7 @@ class FolderCreatePatch(object):
             self.iface.warn("Pudo haber algún problema generando el parche QS para %s" % filename)
                 
     def compute_patch_xml(self, patchxml):
+        patchxml.set("style", self.iface.patch_xml_style_name)
         path = patchxml.get("path")
         filename = patchxml.get("name")
         pathname = os.path.join(path, filename)

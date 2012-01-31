@@ -79,9 +79,8 @@ def qsclass_reader(iface, file_name, file_lines):
     iface_n = None
     for n,line in enumerate(file_lines):
         line2 = latin1_to_ascii(line)
-        m = re.search("/\*\*?\s*@(\w+)\s+([^ */]+)?\s*\*/", line2)
+        m = re.search("/\*\*?\s*@\s*(\w+)\s+([^ */]+)?\s*\*/", line2)
         if m:
-        
             m2 = re.search("^\s*/\*\* @(\w+)( \w+)?\s*\*/\s*$", line)
             if not m2:
                 iface.warn("Formato incorrecto de la linea %s" % repr(line))
@@ -125,6 +124,7 @@ def qsclass_reader(iface, file_name, file_lines):
             linelist.append(found)
         # const iface = new ifaceCtx( this );
         m = re.search("(const|var)\s+iface\s*=\s*new\s*(?P<classname>\w+)\(\s*this\s*\);?", line) 
+        
         if m:
             iface_n = {
                 'block' : len(linelist) - 1,
@@ -295,12 +295,14 @@ def split_qs(iface, final, create_folder = True):
         if n == 0:
             stype, clname, line1, linen = clfinal['list'][0]
             f2.write("\n".join(flfinal[:line1]) + "\n")
-            if stype == "file":
+            if stype not in ["decl","def"]:
                 f2.write("\n".join(flfinal[line1:linen]) + "\n")
         nblock1 = clfinal['decl'].get(classname)
         if nblock1:
             stype, clname, line1, linen = clfinal['list'][nblock1]
             f2.write("\n".join(flfinal[line1:linen]) + "\n")
+        else:
+            iface.warn("La clase %s no tiene bloque de declaracion" % classname)
     
         nblock2 = clfinal['def'].get(classname)
         if nblock2:
@@ -480,7 +482,7 @@ def patch_qs_dir(iface, base, patch):
     
     patch_series = [ cl.strip() for cl in openr(base,"patch_series") if cl.strip() != "" ]
     patch_series_orig = patch_series[:]
-
+    iface.debug2("Classes1: %s" %  ",".join(patch_series))
     sec_rmcls = sections.get("remove-classes")
     if sec_rmcls:
         iface.error("TODO: Remove Classes")
@@ -489,6 +491,7 @@ def patch_qs_dir(iface, base, patch):
                 try: patch_series.remove(line)
                 except ValueError: iface.warn(u"La clase %s iba a ser eliminada del fichero, pero no la encontramos")
 
+    iface.debug2("Classes2: %s" %  ",".join(patch_series))
     sec_mvcls = sections.get("move-classes")
     if sec_mvcls:
         for code, line in sec_mvcls[None]:
@@ -523,6 +526,7 @@ def patch_qs_dir(iface, base, patch):
                     
             #print code, ":", line
             
+    iface.debug2("Classes3: %s" %  ",".join(patch_series))
             
     sec_addcls = sections.get("add-classes")
     if sec_addcls:
@@ -603,6 +607,7 @@ def patch_qs_dir(iface, base, patch):
         patch_series[:] = new_patch_series
 
     files_to_add = []
+    iface.debug("Classes4: %s" %  ",".join(patch_series))
     
     fw1= opendst("patch_series")
     iface.debug("Escribiendo patch_series . . .")
@@ -655,7 +660,7 @@ def patch_qs_dir(iface, base, patch):
         # Si estamos trabajando en memoria, imprimir el resultado:
         destpath["@name"] = base_filename
         join_qs(iface,destpath)
-    
+    return True    
 
                     
             
@@ -902,7 +907,7 @@ def diff_qs_dir(iface, base, final):
         iface.output.write("..\n")
             
     iface.output.write("\n")
-            
+    return True        
     
     
 def get_move_actions(cln1, names):

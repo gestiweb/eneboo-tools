@@ -63,6 +63,7 @@ class MergeToolInterface(EnebooToolsInterface):
         EnebooToolsInterface.__init__(self, False)
         self.patch_qs_rewrite = "warn"
         self.patch_xml_style_name = "legacy1"
+        self.patch_qs_style_name = "legacy"
         self.diff_xml_search_move = False
         self.patch_name = None
         if setup_parser: self.setup_parser()
@@ -91,10 +92,17 @@ class MergeToolInterface(EnebooToolsInterface):
             )
         self.parser.declare_option(
             name = "patch-xml-style",
-            description = u"Usar otro estilo para generar parches (ver mergetools/etc/patch-styles/)",
+            description = u"Usar otro estilo para generar parches XML (ver mergetools/etc/patch-styles/)",
             variable = "NAME", 
             level = "action",
             call_function = self.set_patch_xml_style
+            )
+        self.parser.declare_option(
+            name = "patch-qs-style",
+            description = u"Usar otro estilo para generar parches QS (legacy|qsdir)",
+            variable = "NAME", 
+            level = "action",
+            call_function = self.set_patch_qs_style
             )
             
         self.build_project_action = self.parser.declare_action(
@@ -111,7 +119,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.folder_diff_action = self.parser.declare_action(
             name = "folder-diff",
             args = ["patchdir","basedir","finaldir"],
-            options = ["patch-name"],
+            options = ["patch-name", "patch-qs-style", "patch-xml-style"],
             description = u"Genera en $patchdir una colección de parches de la diferencia entre las carpetas $basedir y $finaldir",
             call_function = self.do_folder_diff,
             )
@@ -212,6 +220,9 @@ class MergeToolInterface(EnebooToolsInterface):
         
     def set_patch_xml_style(self, name):
         self.patch_xml_style_name = name
+        
+    def set_patch_qs_style(self, name):
+        self.patch_qs_style_name = name
         
     def set_patch_qs_rewrite(self, value):
         if value not in ['reverse','predelete','yes','no','warn','abort']: raise ValueError
