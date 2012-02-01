@@ -352,6 +352,26 @@ class FeatureObject(BaseObject):
         
         return binstr
 
+    # * revfullpatch: calcula el parche inverso de las diferencias entre src y base.
+    def get_revfullpatch_actions(self):
+        dst_folder = os.path.join(self.fullpath, "build/patch")
+        dep1_folder = os.path.join(self.fullpath, "build/base")
+        dep2_folder = os.path.join(self.fullpath, "build/src")
+        binstr = etree.Element("BuildInstructions")
+        binstr.set("feature",self.formal_name())
+        binstr.set("target","src")
+        binstr.set("depends","base src")
+        binstr.set("path",self.fullpath)
+        binstr.set("dstfolder", "build/revfullpatch")
+        if self.dstfolder:
+            binstr.set("dstfolder", self.dstfolder)
+        
+        cpatch = etree.SubElement(binstr,"CreatePatchAction")
+        cpatch.set("dst",dep1_folder)
+        cpatch.set("src",dep2_folder)
+        
+        return binstr
+
     # * test-fullpatch: el resultado de aplicar el parche "patch" sobre "base", sirve 
     #         para realizar las pruebas convenientes antes de guardar 
     #         el nuevo parche
@@ -500,6 +520,9 @@ class ObjectIndex(object):
             
         if target == 'fullpatch':
             return feature.get_fullpatch_actions()
+            
+        if target == 'revfullpatch':
+            return feature.get_revfullpatch_actions()
             
         if target == 'test-fullpatch':
             return feature.get_testfullpatch_actions()
