@@ -1,0 +1,50 @@
+#!/bin/bash
+
+if [ "$1" == "install" ]; then 
+    git config --global mergetool.eneboo.cmd "eneboo-git-mergetool \$BASE \$LOCAL \$REMOTE \$MERGED" || exit 1;
+    git config --global mergetool.eneboo.trustExitCode true || exit 1;
+    echo "Se ha instalado correctamente el mergetool 'eneboo'"
+    exit 0;
+fi
+
+BASE=$1
+LOCAL=$2
+REMOTE=$3
+MERGED=$4
+EXT=${MERGED#*.}
+MODE="error"
+
+if [ "$EXT" == "qs" ]; then
+    MODE="qsdir"
+fi
+
+if [ "$EXT" == "ui" ]; then
+    MODE="xml"
+fi
+
+if [ "$EXT" == "mtd" ]; then
+    MODE="xml"
+fi
+
+if [ "$EXT" == "xml" ]; then
+    MODE="xml"
+fi
+
+if [ "$MODE" == "error" ]; then
+    echo "Se desconoce como mezclar la extension '.$EXT'"
+    exit 3;
+fi
+ 
+test -e $BASE || { echo "fichero BASE '$BASE' no existe"; exit 2; };
+test -e $LOCAL || { echo "fichero LOCAL '$LOCAL' no existe"; exit 2; };
+test -e $REMOTE || { echo "fichero REMOTE '$REMOTE' no existe"; exit 2; };
+
+eneboo-mergetool file-diff $MODE $BASE $REMOTE \
+    --output $MERGED.patch || exit 1
+    
+eneboo-mergetool file-patch $MODE $MERGED.patch $LOCAL \
+    --output $MERGED || exit 1
+
+unlink $MERGED.patch 
+
+exit 0
