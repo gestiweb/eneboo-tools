@@ -1,5 +1,7 @@
 #encoding: UTF-8
 from lxml import etree
+import lxml
+from StringIO import StringIO
 from copy import deepcopy
 import os.path, time
 import difflib, re
@@ -33,14 +35,33 @@ class XMLFormatParser(object):
         self.encoding = self.format.xpath("@encoding")[0]
         self.time_sname = 0
         self.time_evaluate = 0
-        self.parser = etree.XMLParser(
-                        ns_clean=True,
-                        encoding=self.encoding,
-                        recover=recover, # .. recover funciona y parsea cuasi cualquier cosa.
-                        remove_blank_text=rbt,
-                        )
         file1.seek(0)
-        self.tree = etree.parse(file1, self.parser)
+        filetext = file1.read()
+        file_alike = StringIO(filetext)
+        try:
+            unicode_text = unicode(filetext,self.encoding)
+        except Exception:
+            new_encoding = "iso-8859-15" if self.encoding.lower().find("utf") != -1 else "utf-8"
+            unicode_text = unicode(filetext,new_encoding)
+            self.encoding = new_encoding
+            
+        try:
+            self.parser = etree.XMLParser(
+                            ns_clean=True,
+                            encoding=self.encoding,
+                            recover=recover, # .. recover funciona y parsea cuasi cualquier cosa.
+                            remove_blank_text=rbt,
+                            )
+            self.tree = etree.parse(file_alike, self.parser)
+        except SyntaxError:
+            self.parser = etree.XMLParser(
+                            ns_clean=True,
+                            encoding=self.encoding,
+                            recover=True, # .. recover funciona y parsea cuasi cualquier cosa.
+                            remove_blank_text=rbt,
+                            )
+            self.tree = etree.parse(file_alike, self.parser)
+            
         self.root = self.tree.getroot()
         self.context_items = [] # Lista de los elementos insertados
         self.namespaces = {

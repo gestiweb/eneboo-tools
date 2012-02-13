@@ -1408,35 +1408,45 @@ def fix_class(iface, flbase, clbase, cdbase, classname, **updates):
     """
     #iface.debug2r(clbase=clbase)
     #iface.debug2r(cdbase=cdbase)
+    dclassname = classname
+    if dclassname not in cdbase:
+        close_matches = difflib.get_close_matches(classname, cdbase.keys(), 1, 0.80)        
+        if close_matches:
+            iface.warn(u"La clase %s no existe y se eligió en su lugar %s" % (repr(dclassname),repr(close_matches[0])))
+            dclassname = close_matches[0]
+        else:
+            iface.error(u"La clase %s no existe y no encontramos ninguna en su lugar. Se aborta fix_class!!!" % (dclassname))
+            return None
+            
     set_extends = updates.get("set_extends",-1)
     set_from = updates.get("set_from",-1)
     if set_extends == -1 and set_from == -1: raise ValueError
     
     if set_extends != -1: extends = set_extends
-    else: extends = cdbase[classname]['extends']
+    else: extends = cdbase[dclassname]['extends']
     
     if set_from != -1: cfrom = set_from
-    else: cfrom = cdbase[classname]['from']
+    else: cfrom = cdbase[dclassname]['from']
 
     # Reescribir sentencia class:
-    line_no = cdbase[classname]['line']
-    old_expr = cdbase[classname]['text']
+    line_no = cdbase[dclassname]['line']
+    old_expr = cdbase[dclassname]['text']
     new_expr = "class %s" % classname
     if extends: new_expr += " extends %s" % extends
     if cfrom: new_expr += " /** %%from: %s */" % cfrom
 
     flbase[line_no] = flbase[line_no].replace(old_expr, new_expr)
 
-    if cdbase[classname]['extends'] != extends:
+    if cdbase[dclassname]['extends'] != extends:
         # Si se ha cambiado la herencia
         decl_block_no = clbase['decl'][classname]
         end_line = clbase['list'][decl_block_no][3]
         for n,line in enumerate(flbase[line_no:end_line],line_no):
             m_it = re.finditer("(?P<fname>\w+)\s*\(\s*context\s*\);?", line)
             for m in m_it:
-                if m.group("fname") != cdbase[classname]['extends']: continue
+                if m.group("fname") != cdbase[dclassname]['extends']: continue
                 old = m.group(0)
-                new = str(m.group(0)).replace(cdbase[classname]['extends'],extends,1)
+                new = str(m.group(0)).replace(cdbase[dclassname]['extends'],extends,1)
                 flbase[n] = line.replace(old,new,1)
                 # iface.debug2r(line = line)
                 # iface.debug2r(new_line = flbase[n])
@@ -1444,8 +1454,8 @@ def fix_class(iface, flbase, clbase, cdbase, classname, **updates):
             
         
         
-    cdbase[classname]['extends'] = extends
-    cdbase[classname]['from'] = cfrom
+    cdbase[dclassname]['extends'] = extends
+    cdbase[dclassname]['from'] = cfrom
 
 
 
