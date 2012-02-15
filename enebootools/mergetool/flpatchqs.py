@@ -637,7 +637,7 @@ def patch_qs_dir(iface, base, patch):
             filename = "%s.qs" % cls
             iface.debug("Parcheando %s. . ." % filename)
             orig = list(openr(base,filename))
-            patched = patch_class_advanced(orig,list1)
+            patched = patch_class_advanced(orig,list1,filename)
             fw1 = opendst(filename)
             for line in patched:
                 fw1.write(line)
@@ -664,11 +664,11 @@ def patch_qs_dir(iface, base, patch):
 
                     
             
-def patch_class_advanced(orig,patch):
+def patch_class_advanced(orig,patch, filename="unknown"):
     # 1.. separar el parche en "hunks" (bloques)
     blocks = []
     block = []
-
+    print filename
     for n,(code, line) in enumerate(patch):
         if code == "==":
             if block: 
@@ -680,17 +680,26 @@ def patch_class_advanced(orig,patch):
         blocks.append(block)
         
     orig_ = [ line.rstrip() for line in orig ]
-    for block in blocks:
+    
+    for num_block, block in enumerate(blocks):
         orig1 = [ re.sub("[^A-Za-z]","",line).strip() for line in orig_ ]
         # 2.. Para cada bloque...
         # 2.1.. primero hallar el bloque original:
         orig_block = [ line for code,line in block if code in ('  ', '- ') ]
-        numbered_block = []
-        n = -1
-        for code, line in block:
-            if code in ('  ', '- '):
-                n+=1
-            numbered_block.append( (n,code,line) ) 
+        
+        # 2.2.. hallar bloque A - nuevo
+        new_block = [ line.rstrip() for code,line in block if code in ('  ', '+ ') ]
+        #numbered_block = []
+        #n = -1
+        #name = "A"
+        #for code, line in block:
+        #    if code in ('  ', '- '):
+        #        n+=1
+        #        sn = 0
+        #    else:
+        #        sn += 1
+        #    numbered_block.append( (n,code,name,sn, line) ) 
+        
             
         # print " block: %d patch lines, of %d lines original code" % (len(block), len(orig_block))
         # 2.2.. comparar el bloque original con el fichero original, para encontrar la posición
@@ -699,27 +708,89 @@ def patch_class_advanced(orig,patch):
         sm1.set_seqs(orig_block1, orig1)
         same_lines = []
         for a,b,sz in sm1.get_matching_blocks():
-            a_stream = "".join(orig_block1[a:a+sz])
-            b_stream = "".join(orig1[b:b+sz])
+            a_stream = "\n".join(orig_block1[a:a+sz])
+            b_stream = "\n".join(orig1[b:b+sz])
+            #print "A::", a_stream[:128]
+            #print "B::", b_stream[:128]
             if min([len(a_stream),len(b_stream)]) < 16: continue
             same_lines.append(b)
             same_lines.append(b+sz-1)
         minb = min(same_lines)
         maxb = max(same_lines) + 1
         
+        # Reanalizar el parche::
+        d = difflib.Differ()
+        cmp0 = d.compare(orig_block, new_block)
+        numbered_block = []
+        n = -1
+        name = "A"
+        for cdln in cmp0:
+            code = cdln[0:2]
+            line = cdln[2:]
+            if code in ('  ', '- '):
+                n+=1
+                sn = 0
+            else:
+                sn += 1
+            numbered_block.append( (n,code,name,sn,line) ) 
+        
         # Análisis profundo
         d = difflib.Differ()
         cmp1 = d.compare(orig_block, orig_[minb:maxb])
         numbered_block2 = []
         n = -1
+        name = "B"
         for cdln in cmp1:
             code = cdln[0:2]
             line = cdln[2:]
             if code in ('  ', '- '):
                 n+=1
-            numbered_block2.append( (n,code,line) ) 
-        a_diffs = [ (n, code, "A", line) for n, code, line in numbered_block if code != '  ' ]
-        b_diffs = [ (n, code, "B", line) for n, code, line in numbered_block2 if code != '  ' ]
+                sn = 0
+            else:
+                sn += 1
+            numbered_block2.append( (n,code,name,sn,line) ) 
+        a_diffs = [ (n, code, name, line) for n, code, name, sn, line in numbered_block if code != '  ' ]
+        b_diffs = [ (n, code, name, line) for n, code, name, sn,  line in numbered_block2 if code != '  ' ]
+        if filename == "oficial.qs" and num_block == 1:
+            test_file = {}
+            for n in sorted(numbered_block+numbered_block2):
+                if n[1] not in ('  ', '- ', '+ '): continue
+                test_file[tuple(list(n)[:-1])] = n[-1]
+                
+            for x in test_file.keys():
+                n, code, name, sn = x
+                altname = "A" if name == "B" else "B"
+                if code == "- ":
+                    try: del test_file[(n,"  ",altname,sn)]
+                    except KeyError: pass
+                    try:                    
+                        if test_file[(n,"- ",altname,sn)] == test_file[(n,"- ",name,sn)]:
+                            line = test_file[(n,"- ",altname,sn)]
+                            test_file[(n,"- ","C",sn)] = line
+                            del test_file[(n,"- ",altname,sn)]
+                            del test_file[(n,"- ",name,sn)]
+                    except KeyError: pass
+                elif code == "  ":
+                    try: 
+                        if test_file[(n,"  ",altname,sn)] == test_file[(n,"  ",name,sn)]:
+                            line = test_file[(n,"  ",altname,sn)]
+                            test_file[(n,"  ","C",sn)] = line
+                            del test_file[(n,"  ",altname,sn)]
+                            del test_file[(n,"  ",name,sn)]
+                    except KeyError: pass
+                    
+                            
+                    
+            def translate_keys(key):
+                l = list(key[0])
+                code = l[1]
+                if code == "- ": l[1] = "10"
+                if code == "  ": l[1] = "20"
+                if code == "+ ": l[1] = "30"
+                return tuple(l)
+                
+            for k, line in sorted(test_file.items(), key=translate_keys):
+                print ".".join([ str(k1) for k1 in k]), line
         
         base_pos = 0
         a_offset = 0
@@ -727,35 +798,47 @@ def patch_class_advanced(orig,patch):
         o_diffs = orig_block[:]
         
         new_block = []
-        add_buffer = []
+        add_buffer_a = []
+        add_buffer_b = []
         while True:
+
             if a_diffs and a_diffs[0][0] == base_pos:
                 f_a_diff = a_diffs.pop(0)
                 if f_a_diff[1] == "+ ": 
                     a_offset += 1
-                    add_buffer.append(f_a_diff[3])
+                    add_buffer_a.append(f_a_diff[3])
                 if f_a_diff[1] == "- ": 
                     o_diffs[0] = None
-            elif b_diffs and b_diffs[0][0] == base_pos:
+                    if b_diffs and b_diffs[0][0] == base_pos and b_diffs[0][1] == "- ":
+                        b_diffs.pop(0)
+                continue
+                        
+            if b_diffs and b_diffs[0][0] == base_pos:
                 f_b_diff = b_diffs.pop(0)
                 if f_b_diff[1] == "+ ": 
                     b_offset += 1
-                    add_buffer.append(f_b_diff[3])
+                    add_buffer_b.append(f_b_diff[3])
                 if f_b_diff[1] == "- ": 
                     o_diffs[0] = None
-            elif o_diffs:
+                continue
+            txt_a = "".join([ x.strip() for x in add_buffer_a]) 
+            txt_b = "".join([ x.strip() for x in add_buffer_b]) 
+            if txt_a == txt_b: add_buffer_b = []
+            if o_diffs:
                 f_o_diff = o_diffs.pop(0)
                 # print f_o_diff
                 if f_o_diff is not None:
                     new_block.append(f_o_diff)
-                if add_buffer:
-                    new_block+=add_buffer
-                    add_buffer=[]
                 base_pos += 1
-            else: 
-                if add_buffer:
-                    new_block+=add_buffer
-                    add_buffer=[]
+                
+            if add_buffer_a:
+                new_block+=add_buffer_a
+                add_buffer_a=[]
+            if add_buffer_b:
+                new_block+=add_buffer_b
+                add_buffer_b=[]
+                
+            if not o_diffs:
                 break
         orig_[minb:maxb] = new_block
     
