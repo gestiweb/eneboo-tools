@@ -89,16 +89,20 @@ def qsclass_reader(iface, file_name, file_lines):
                 
             npos = len(linelist)
             if dtype == "class_declaration":
-                classdecl = extract_class_decl_info(iface, file_lines[n:n+12])
-                if cname not in classdecl:
-                    iface.error(u"Bloque 'class_declaration' con nombre erroneo clase %s no existe en el bloque (file: %s)" % (cname,file_name))
-                    
                 if cname in classes:
-                    iface.error(u"Hay dos bloques 'class_declaration' para la clase %s (file: %s)" % (cname,file_name))
+                    iface.error(u"Hay dos bloques 'class_declaration' para la clase %s (file: %s) ... asumiendo 'class_definiton'" % (cname,file_name))
+                    dtype = "class_definition"
                 else:
+                    classdecl = extract_class_decl_info(iface, file_lines[n:n+12])
+                    if cname not in classdecl:
+                        iface.error(u"Bloque 'class_declaration' con nombre erroneo clase %s no existe en el bloque (file: %s)" % (cname,file_name))
+                        possible_cnames = difflib.get_close_matches(cname, classdecl, 1)
+                        if possible_cnames:
+                            cname = possible_cnames[0]
                     classes.append(cname)
                     declidx[cname] = npos
-            elif dtype == "class_definition":
+                    
+            if dtype == "class_definition":
                 if cname in defidx:
                     iface.error(u"Hay dos bloques 'class_definition' para la clase %s (file: %s)" % (cname,file_name))
                 else:
@@ -113,6 +117,8 @@ def qsclass_reader(iface, file_name, file_lines):
                     delclasses.append(cname)
             elif dtype == "file":
                 # el tipo @file no lo gestionamos
+                pass 
+            elif dtype == "class_declaration":
                 pass 
             else:
                 iface.warn(u"Tipo de identificador doxygen no reconocido %s (file: %s)" % (repr(dtype),file_name))
@@ -800,6 +806,8 @@ def patch_class_advanced(orig,patch, filename="unknown"):
         new_block = []
         add_buffer_a = []
         add_buffer_b = []
+        last_a_diff = 0
+        last_b_diff = 0
         while True:
 
             if a_diffs and a_diffs[0][0] == base_pos:
@@ -807,10 +815,13 @@ def patch_class_advanced(orig,patch, filename="unknown"):
                 if f_a_diff[1] == "+ ": 
                     a_offset += 1
                     add_buffer_a.append(f_a_diff[3])
+                    last_a_diff = 0
                 if f_a_diff[1] == "- ": 
                     o_diffs[0] = None
+                    last_a_diff = 0
                     if b_diffs and b_diffs[0][0] == base_pos and b_diffs[0][1] == "- ":
                         b_diffs.pop(0)
+                        last_b_diff = 0
                 continue
                         
             if b_diffs and b_diffs[0][0] == base_pos:
@@ -818,8 +829,10 @@ def patch_class_advanced(orig,patch, filename="unknown"):
                 if f_b_diff[1] == "+ ": 
                     b_offset += 1
                     add_buffer_b.append(f_b_diff[3])
+                    last_b_diff = 0
                 if f_b_diff[1] == "- ": 
                     o_diffs[0] = None
+                    last_b_diff = 0
                 continue
             txt_a = "".join([ x.strip() for x in add_buffer_a]) 
             txt_b = "".join([ x.strip() for x in add_buffer_b]) 
@@ -830,6 +843,8 @@ def patch_class_advanced(orig,patch, filename="unknown"):
                 if f_o_diff is not None:
                     new_block.append(f_o_diff)
                 base_pos += 1
+                last_a_diff += 1
+                last_b_diff += 1
                 
             if add_buffer_a:
                 new_block+=add_buffer_a
