@@ -1,0 +1,59 @@
+#!/usr/bin/python
+import sys, os, os.path
+import binascii
+import lxml
+from lxml import etree
+
+def download_images(filename):
+    parser = etree.XMLParser(ns_clean=True,recover=True,remove_blank_text=True)
+    tree   = etree.parse(filename, parser)    
+    for image in tree.xpath("/UI/images/image"):
+        imgname = image.attrib["name"]
+        for data in image.xpath("data"):
+            datalen = int(data.attrib["length"])
+            dataformat = str(data.attrib["format"]).lower()
+            hexdata = str(data.text)
+            assert(datalen == len(hexdata))
+            binary = binascii.unhexlify(hexdata)        
+            img_filename = imgname+"."+dataformat
+            f1 = open(img_filename,"w")
+            f1.write(binary)
+            f1.close()
+            print "Image file %s written." % (img_filename)
+            
+
+def upload_images(filename, files):
+    parser = etree.XMLParser(ns_clean=True,recover=True,remove_blank_text=True)
+    tree   = etree.parse(filename, parser)    
+    root = tree.getroot()
+    try: tagimages = tree.xpath("/UI/images")[0]
+    except IndexError: tagimages = etree.SubElement(root, "images")
+    
+    for imgfile in files:
+        name, format = os.path.splitext(os.path.basename(imgfile))
+        bindata = open(imgfile).read()
+        hexdata = binascii.hexlify(bindata)        
+        lendata = len(hexdata)
+        if format.startswith("."): format = format[1:]
+        format = format.upper()
+        task = "Created"
+        for image in tree.xpath("/UI/images/image[@name='%s']" % name):
+            tagimages.remove(image)
+            task = "Overwritten"
+        newimage = etree.SubElement(tagimages, "image", name = name)
+        newdata = etree.SubElement(newimage, "data", format = format, length = str(lendata))
+        newdata.text = hexdata
+        print "%s image %s with format %s datalen %d" % (task, name, format, lendata)
+        
+    
+    open(filename,"w").write(etree.tostring(tree, pretty_print=True))
+    
+action = sys.argv[1]
+if action == "download":
+    download_images(sys.argv[2])
+elif action == "upload":
+    upload_images(sys.argv[2],sys.argv[3:])
+else:
+    print "Unknown action %s " % action
+
+
