@@ -13,7 +13,8 @@ def download_images(filename):
             datalen = int(data.attrib["length"])
             dataformat = str(data.attrib["format"]).lower()
             hexdata = str(data.text)
-            assert(datalen == len(hexdata))
+            try: assert(datalen == len(hexdata))
+            except AssertionError: print "WARN: La longitud de la imagen %s especificada en el atributo %d no cumple la real %d" % (imgname,datalen, len(hexdata))
             binary = binascii.unhexlify(hexdata)        
             img_filename = imgname+"."+dataformat
             f1 = open(img_filename,"w")
