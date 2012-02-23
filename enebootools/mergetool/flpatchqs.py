@@ -757,7 +757,7 @@ def patch_class_advanced(orig,patch, filename="unknown"):
             numbered_block2.append( (n,code,name,sn,line) ) 
         a_diffs = [ (n, code, name, line) for n, code, name, sn, line in numbered_block if code != '  ' ]
         b_diffs = [ (n, code, name, line) for n, code, name, sn,  line in numbered_block2 if code != '  ' ]
-        if filename == "oficial.qs" and num_block == 1:
+        if filename == "oficial.qs" and num_block == -1:
             test_file = {}
             for n in sorted(numbered_block+numbered_block2):
                 if n[1] not in ('  ', '- ', '+ '): continue

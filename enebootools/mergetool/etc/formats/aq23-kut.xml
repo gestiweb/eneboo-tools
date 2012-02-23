@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<format name="aq23-kut" root-tag="KugarTemplate" encoding="UTF-8">
+    <filetype>.kut</filetype>
+    <assert>
+        <xpath>count(/KugarTemplate) = 1</xpath>
+    </assert>
+    
+    <entities>
+        <entity name="section">
+            <search>
+                <xpath>/KugarTemplate/*</xpath>
+            </search>
+            <context-information>
+                <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
+                <xpath name="name">name() + @Level</xpath>
+                <value name="scope">global</value>
+            </context-information>
+        </entity>
+        <entity name="other">
+            <search>
+                <!-- xpath>//*</xpath -->
+            </search>
+            <context-information>
+            </context-information>
+        </entity>
+        <default>
+            <context-information>
+                <xpath name="class">name()</xpath>
+                <if-then-else name="name" except-style="legacy1">
+                    <xpath name="if">count(../*[name() = $tagname]) = 1
+                        <xpath name="tagname">name()</xpath>
+                    </xpath>
+                    <empty name="then"/>
+                </if-then-else>
+                <format name="name" text="{number:.0f}">
+                    <xpath name="number">count(preceding-sibling::*[name() = $tagname])+1
+                        <xpath name="tagname">name()</xpath>
+                    </xpath>
+                </format>
+                <value name="scope">none</value>
+            </context-information>
+        </default>
+    </entities>
+</format>
+

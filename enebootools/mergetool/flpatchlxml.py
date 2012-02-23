@@ -163,7 +163,9 @@ class XMLFormatParser(object):
                 args = []
                 for subelem in elem:
                     value = self._evaluate(subelem,from_elem)
-                    if value is not None and value != "": args.append(str(value))
+                    if value is not None and value != "": 
+                        if type(value) is unicode: value = value.encode("ascii","replace")
+                        args.append(str(value))
                 return join_string.join(args)
             elif elem.tag == "value": return text
             elif elem.tag == "if-then-else": 

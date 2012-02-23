@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<format name="qt3-ts" root-tag="TS" encoding="UTF-8">
+    <filetype>.ts</filetype>
+    <assert>
+        <xpath>count(/TS/context/name) > 0</xpath>
+    </assert>
+    
+    <entities>
+        <entity name="context">
+            <search>
+                <xpath>/TS/context</xpath>
+            </search>
+            <context-information>
+                <empty name="class" patch-style="legacy1"/> <!-- previene que luego lo complete para los parches compatibles -->
+                <xpath name="name">name/text()</xpath>
+                <value name="scope">global</value>
+            </context-information>
+        </entity>
+        <entity name="message">
+            <search>
+                <xpath>/TS/context/message</xpath>
+            </search>
+            <context-information>
+                <xpath name="name">source/text()</xpath>
+                <value name="scope">local</value>
+            </context-information>
+        </entity>
+        <entity name="other">
+            <search>
+                <!-- xpath>//*</xpath -->
+            </search>
+            <context-information>
+            </context-information>
+        </entity>
+        <default>
+            <context-information>
+                <xpath name="class">name()</xpath>
+                <if-then-else name="name" except-style="legacy1">
+                    <xpath name="if">count(../*[name() = $tagname]) = 1
+                        <xpath name="tagname">name()</xpath>
+                    </xpath>
+                    <empty name="then"/>
+                </if-then-else>
+                <format name="name" text="{number:.0f}">
+                    <xpath name="number">count(preceding-sibling::*[name() = $tagname])+1
+                        <xpath name="tagname">name()</xpath>
+                    </xpath>
+                </format>
+                <value name="scope">none</value>
+            </context-information>
+        </default>
+    </entities>
+</format>
+

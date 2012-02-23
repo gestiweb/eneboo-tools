@@ -52,7 +52,7 @@ else
     MERGED=$4
 fi
 
-EXT=${MERGED#*.}
+EXT=${MERGED##*.}
 MODE="error"
 
 if [ "$EXT" == "qs" ]; then
@@ -71,15 +71,36 @@ if [ "$EXT" == "xml" ]; then
     MODE="xml"
 fi
 
+if [ "$EXT" == "ts" ]; then
+    MODE="xml"
+fi
+
+if [ "$EXT" == "kut" ]; then
+    MODE="xml"
+fi
+
+if [ ! -e $BASE ]; then
+    exec kdiff3 $LOCAL $REMOTE -o $MERGED --auto
+fi
+
+if [ "$EXT" == "qry" ]; then
+    MODE="kdiff3"
+fi
+
 if [ "$MODE" == "error" ]; then
     echo "Se desconoce como mezclar la extension '.$EXT'"
     exit 3;
 fi
- 
+
 test -e $BASE || { echo "fichero BASE '$BASE' no existe"; exit 2; };
 test -e $LOCAL || { echo "fichero LOCAL '$LOCAL' no existe"; exit 2; };
 test -e $REMOTE || { echo "fichero REMOTE '$REMOTE' no existe"; exit 2; };
 
+if [ "$MODE" == "kdiff3" ]; then
+    exec kdiff3 $BASE $LOCAL $REMOTE -o $MERGED --auto
+    exit 3;
+fi
+ 
 eneboo-mergetool file-diff $MODE $BASE $REMOTE \
     --output $MERGED.patch || exit 1
     
