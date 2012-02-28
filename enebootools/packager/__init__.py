@@ -38,6 +38,17 @@ class PackagerInterface(EnebooToolsInterface):
         self.create_action.set_help_arg(
             modulefolder = "Carpeta que leer para empaquetar su contenido",
             )                
+
+        self.create_action = self.parser.declare_action(
+            name = "unpack",
+            args = ["packagefile"],
+            options = [],
+            description = u"Lee el fichero $packagefile y desempaqueta los módulos en una carpeta",
+            call_function = self.do_unpack,
+            )
+        self.create_action.set_help_arg(
+            packagefile = "Fichero que leer para extraer su contenido",
+            )                
             
 
         self.split_action = self.parser.declare_action(
@@ -71,6 +82,12 @@ class PackagerInterface(EnebooToolsInterface):
         except Exception,e:
             self.exception(type(e).__name__,str(e))
     
+    
+    def do_unpack(self, packagefile):
+        try:
+            return pkgsplitter.unpackpkg(self, packagefile)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
     
     def do_split(self, packagefile):
         try:

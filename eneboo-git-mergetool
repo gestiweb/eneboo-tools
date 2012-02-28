@@ -7,6 +7,27 @@ if [ "$1" == "install" ]; then
     exit 0;
 fi
 
+if [ "$1" == "replay-kdiff3" ]; then 
+    shift
+
+    LOCAL_BRANCH="HEAD^1"
+    REMOTE_BRANCH="HEAD^2"
+    BASE_BRANCH=$(git merge-base $LOCAL_BRANCH $REMOTE_BRANCH)
+    for file in $*; do
+        EXT=${file#*.}
+        echo $file
+        file="$(git rev-parse --show-prefix)$file"
+
+        cd "$(git rev-parse --show-cdup)"
+        git show "$BASE_BRANCH:$file" > "$file.BASE.$EXT"
+        git show "$LOCAL_BRANCH:$file" > "$file.LOCAL.$EXT"
+        git show "$REMOTE_BRANCH:$file" > "$file.REMOTE.$EXT"
+        kdiff3 "$file.BASE.$EXT" "$file.LOCAL.$EXT" "$file.REMOTE.$EXT" -o "$file" 
+
+        echo
+    done
+    exit 0;
+fi
 
 if [ "$1" == "manual" -o "$1" == "replay" ]; then 
     if [ "$1" == "replay" ]; then 
@@ -31,16 +52,20 @@ if [ "$1" == "manual" -o "$1" == "replay" ]; then
         git show "$BASE_BRANCH:$file" > "$file.BASE.$EXT"
         git show "$LOCAL_BRANCH:$file" > "$file.LOCAL.$EXT"
         git show "$REMOTE_BRANCH:$file" > "$file.REMOTE.$EXT"
-        $0 "$file.BASE.$EXT" "$file.LOCAL.$EXT" "$file.REMOTE.$EXT" "$file" && {
-            test -s "$file" && {
-                mv "$file" "$file.test1"
-                $0 "$file.BASE.$EXT" "$file.REMOTE.$EXT" "$file.LOCAL.$EXT" "$file" 
-                mv "$file" "$file.test2"
-                kdiff3 "$file.test1" "$file.test2"
-                #kdiff3 "$file.LOCAL.$EXT" "$file" "$file.REMOTE.$EXT" >/dev/null 2>&1 &
-                #kdiff3 "$file.BASE.$EXT" "$file.LOCAL.$EXT" "$file.REMOTE.$EXT" >/dev/null 2>&1 &
+        if [ "$1" == "replay" ]; then 
+            $0 "$file.BASE.$EXT" "$file.LOCAL.$EXT" "$file.REMOTE.$EXT" "$file" && {
+                test -s "$file" && {
+                    mv "$file" "$file.test1"
+                    $0 "$file.BASE.$EXT" "$file.REMOTE.$EXT" "$file.LOCAL.$EXT" "$file" 
+                    mv "$file" "$file.test2"
+                    kdiff3 "$file.test1" "$file.test2"
+                    #kdiff3 "$file.LOCAL.$EXT" "$file" "$file.REMOTE.$EXT" >/dev/null 2>&1 &
+                    #kdiff3 "$file.BASE.$EXT" "$file.LOCAL.$EXT" "$file.REMOTE.$EXT" >/dev/null 2>&1 &
+                }
             }
-        }
+        else # replay-kdiff3
+            kdiff3 "$file.BASE.$EXT" "$file.LOCAL.$EXT" "$file.REMOTE.$EXT" -o "$file" 
+        fi
         )
         echo
     done
@@ -107,6 +132,7 @@ eneboo-mergetool file-diff $MODE $BASE $REMOTE \
 eneboo-mergetool file-patch $MODE $MERGED.patch $LOCAL \
     --output $MERGED -v || exit 1
 
-# unlink $MERGED.patch 
+unlink $MERGED.patch
+test -s $MERGED || exit 5 
 
 exit 0
