@@ -21,7 +21,7 @@ u"""
 """
 
 import re, os.path, difflib, math, itertools, shutil, sys, StringIO
-import pprint
+import pprint, subprocess
 pp = pprint.PrettyPrinter(indent=4)
 
 def latin1_to_ascii (unicrap):
@@ -79,7 +79,7 @@ def qsclass_reader(iface, file_name, file_lines):
     iface_n = None
     for n,line in enumerate(file_lines):
         line2 = latin1_to_ascii(line)
-        m = re.search("/\*\*?\s*@\s*(\w+)\s+([^ */]+)?\s*\*/", line2)
+        m = re.search(r"/\*\*?\s*@\s*([\w\.,;-]+)\s+([^ */]+)?\s*\*/", line2)
         if m:
             m2 = re.search("^\s*/\*\* @(\w+)( \w+)?\s*\*/\s*$", line)
             if not m2:
@@ -434,6 +434,9 @@ def patch_qs_dir(iface, base, patch):
         
     def openr(folder, filename):
         if type(folder) is dict:
+            if filename not in folder:
+                iface.error("Buscando fichero inexistente %s, candidatos %s" % (filename, ", ".join(folder.keys())))
+                return None
             f = folder[filename]
             f.seek(0)
         else:
@@ -640,6 +643,9 @@ def patch_qs_dir(iface, base, patch):
     sec_patchcls = sections.get("patch-class")
     if sec_patchcls:
         for cls, list1 in sec_patchcls.items():
+            if cls not in patch_series:
+                iface.warn("No se parchea clase inexistente %s" % cls)
+                continue
             filename = "%s.qs" % cls
             iface.debug("Parcheando %s. . ." % filename)
             orig = list(openr(base,filename))
@@ -668,7 +674,12 @@ def patch_qs_dir(iface, base, patch):
         join_qs(iface,destpath)
     return True    
 
-                    
+def unicode2(t):
+    if type(t) is unicode: return t
+    if type(t) is not str:
+        t = str(t)
+    return t.decode("UTF-8","replace")
+    
             
 def patch_class_advanced(orig,patch, filename="unknown"):
     # 1.. separar el parche en "hunks" (bloques)
@@ -721,8 +732,19 @@ def patch_class_advanced(orig,patch, filename="unknown"):
             if min([len(a_stream),len(b_stream)]) < 16: continue
             same_lines.append(b)
             same_lines.append(b+sz-1)
+        common_lines = len(same_lines)
+        if common_lines == 0: 
+            continue
         minb = min(same_lines)
         maxb = max(same_lines) + 1
+        if False:
+            print " ::: BASE"
+            print "\n".join(orig_block)
+            print " ::: REMOTE"
+            print "\n".join(new_block)
+            print " ::: LOCAL"
+            print "\n".join(orig_[minb:maxb])
+            print " ----"
         
         # Reanalizar el parche::
         d = difflib.Differ()
@@ -757,7 +779,7 @@ def patch_class_advanced(orig,patch, filename="unknown"):
             numbered_block2.append( (n,code,name,sn,line) ) 
         a_diffs = [ (n, code, name, line) for n, code, name, sn, line in numbered_block if code != '  ' ]
         b_diffs = [ (n, code, name, line) for n, code, name, sn,  line in numbered_block2 if code != '  ' ]
-        if filename == "oficial.qs" and num_block == -1:
+        if True:
             test_file = {}
             for n in sorted(numbered_block+numbered_block2):
                 if n[1] not in ('  ', '- ', '+ '): continue
@@ -794,9 +816,35 @@ def patch_class_advanced(orig,patch, filename="unknown"):
                 if code == "  ": l[1] = "20"
                 if code == "+ ": l[1] = "30"
                 return tuple(l)
-                
+            last_seen_a = -200
+            last_seen_b = -200
+            min_space = 100
             for k, line in sorted(test_file.items(), key=translate_keys):
-                print ".".join([ str(k1) for k1 in k]), line
+                nline, code = k[0],k[2]
+                if code == "A": last_seen_a = nline
+                if code == "B": last_seen_b = nline
+                if last_seen_a >=0  and last_seen_b>=0 and abs(last_seen_b - last_seen_a) < min_space:
+                    min_space = abs(last_seen_b - last_seen_a)
+                
+            if min_space < 4:
+                open("/tmp/base.tmp","w").write("\n".join(orig_block))
+                open("/tmp/remote.tmp","w").write("\n".join(new_block))
+                open("/tmp/local.tmp","w").write("\n".join(orig_[minb:maxb]))
+                subprocess.check_output(["kdiff3","/tmp/base.tmp","/tmp/remote.tmp","/tmp/local.tmp","-o","/tmp/merged.tmp","--auto"])
+                new_lines = [ ln1.rstrip() for ln1 in open("/tmp/merged.tmp")]
+                orig_[minb:maxb] = new_lines
+                continue
+                
+                
+                
+            #if min_space < 5:
+            #    print "<<<<< conflict %d" % min_space
+            #    for k, line in sorted(test_file.items(), key=translate_keys):
+            #        nlist = [ unicode2(k1) for k1 in k]
+            #        ntext = u".".join(nlist)
+            #        print ntext, unicode2(line)
+            #    print ">>>>>"
+            #    print
         
         base_pos = 0
         a_offset = 0
