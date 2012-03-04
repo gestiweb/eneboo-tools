@@ -116,7 +116,7 @@ quiere crear, la idea es muy similar al make. El modo de empleo es::
     
     $ eneboo-assembler build [FEATURE] [TARGET]
     
-*[FEATURE]* Es el nombre corto (quitando la numeración) de la funcionalidad,
+*[FEATURE]* es el nombre corto (quitando la numeración) de la funcionalidad,
 es decir, para el proyecto *prj0002-standard* habría que poner *standard*.
 
 *[TARGET]* puede tomar los valores:
