@@ -112,14 +112,14 @@ cuatro extensiones muy básicas.
 
 Para crear un proyecto (lo que llamamos "compilar") se lanza la acción 
 "build" seguida del proyecto y del target. El "target" es qué es lo que se 
-quiere crear, la idea es muy similar al make. El modo de empleo es:
+quiere crear, la idea es muy similar al make. El modo de empleo es::
     
     $ eneboo-assembler build [FEATURE] [TARGET]
     
-[FEATURE] Es el nombre corto (quitando la numeración) de la funcionalidad,
+*[FEATURE]* Es el nombre corto (quitando la numeración) de la funcionalidad,
 es decir, para el proyecto *prj0002-standard* habría que poner *standard*.
 
-[TARGET] puede tomar los valores:
+*[TARGET]* puede tomar los valores:
 
     * **base:** 
         compila las dependencias del proyecto (todo lo que 
