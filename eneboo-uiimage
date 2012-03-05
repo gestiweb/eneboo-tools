@@ -22,6 +22,34 @@ def download_images(filename):
             f1.close()
             print "Image file %s written." % (img_filename)
             
+def check_images(filename):
+    parser = etree.XMLParser(ns_clean=True,recover=True,remove_blank_text=True)
+    tree   = etree.parse(filename, parser)    
+    image_list = []
+    for image in tree.xpath("/UI/images/image"):
+        imgname = image.attrib["name"]
+        for data in image.xpath("data"):
+            datalen = int(data.attrib["length"])
+            dataformat = str(data.attrib["format"]).lower()
+            hexdata = str(data.text)
+            try: assert(datalen == len(hexdata))
+            except AssertionError: print "WARN: La longitud de la imagen %s especificada en el atributo %d no cumple la real %d" % (imgname,datalen, len(hexdata))
+            image_list.append(imgname)
+            
+    used_image_list = []
+    for iconset in tree.xpath("//widget/property/iconset"):
+        imgname = iconset.text.strip()
+        used_image_list.append(imgname)
+        if imgname not in image_list:
+            print "Imagen '%s' no existe. Este es el control:" % imgname
+            print etree.tostring(iconset.getparent().getparent(), pretty_print=True)
+            print
+    unused_images = list(set(image_list) - set(used_image_list) )
+    if unused_images:
+        print "Algunas imagenes no se usan:", ", ".join(unused_images)
+
+            
+            
 
 def upload_images(filename, files):
     parser = etree.XMLParser(ns_clean=True,recover=True,remove_blank_text=True)
@@ -52,6 +80,8 @@ def upload_images(filename, files):
 action = sys.argv[1]
 if action == "download":
     download_images(sys.argv[2])
+elif action == "check":
+    check_images(sys.argv[2])
 elif action == "upload":
     upload_images(sys.argv[2],sys.argv[3:])
 else:
