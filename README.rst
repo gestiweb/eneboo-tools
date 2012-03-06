@@ -138,10 +138,15 @@ es decir, para el proyecto *prj0002-standard* habría que poner *standard*.
         guardar el nuevo parche.
     * **fullpatch:** 
         calcula el parche de las diferencias entre src y base. (completo)
+    * **revfullpatch:** 
+        calcula el parche de las diferencias entre base y src. (completo)
     * **test-fullpatch:** 
         el resultado de aplicar el parche "fullpatch" sobre 
         "base", sirve para realizar las pruebas convenientes antes de 
         guardar el nuevo parche.
+
+Novedad: Podemos usar "revfullpatch" para que nos calcule un parche inverso, lo
+cual desaplicaría una extensión a un proyecto dado.
 
 Cuando compilamos algo, nos lo deja dentro de la carpeta build/ en la 
 carpeta de la extensión que habíamos compilado.
