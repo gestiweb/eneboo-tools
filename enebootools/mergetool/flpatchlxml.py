@@ -802,7 +802,10 @@ class XMLDiffer(object):
             searching = select.split("/")[0]
             alternatives = element.xpath("*/@ctx-id")
             close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
-            self.iface.warn("Error buscando el elemento %s entre %s" % (repr(searching),close_matches))
+            if actionname == "delete":
+                self.iface.info(u"No se encontró elemento %s para %s entre %s" % (repr(searching),repr(actionname),close_matches))
+            else:
+                self.iface.warn(u"No se encontró elemento %s para %s entre %s" % (repr(searching),repr(actionname),close_matches))
             return
         
         if actionname == "update" and select == "text()":
@@ -823,7 +826,7 @@ class XMLDiffer(object):
             searching = select.split("/")[0]
             alternatives = element.xpath("*/@ctx-id")
             close_matches = difflib.get_close_matches(searching, alternatives, 4, 0.4)
-            self.iface.warn("No se encontró el elemento %s entre %s y no se eliminó nada" % (searching,close_matches))
+            self.iface.info("No se encontró el elemento %s entre %s y no se eliminó nada" % (searching,close_matches))
         elif actionname == "insert-after" and select == ".":
             added = deepcopy(action[0])
             tail = element.tail

@@ -8,6 +8,12 @@ if output_encoding is None:
     sys.stdout = codecs.getwriter('utf8')(sys.stdout)
     output_encoding = "UTF-8"
 
+def ustr(x):
+    if type(x) is str: return x
+    if type(x) is unicode: return x.encode("UTF-8","replace")
+    return str(x)
+    
+
 class EnebooToolsInterface(object):
     module_description = u"Descripción genérica"
     def __init__(self, setup_parser = True):
@@ -101,38 +107,47 @@ class EnebooToolsInterface(object):
 
     def debug2(self, text):
         if self.verbosity < 4: return
+        text = ustr(text)
         print "DEBUG+:", text    
 
     def debug(self, text):
         if self.verbosity < 3: return
+        text = ustr(text)
         print "DEBUG:", text    
     
     def info2(self, text):
         if self.verbosity < 2: return
+        text = ustr(text)
         print "INFO:", text    
     
     def info(self, text):
         if self.verbosity < 1: return
+        text = ustr(text)
         print ":", text    
     
     def msg(self, text):
         if self.verbosity < 0: return
+        text = ustr(text)
         print text    
     
     def warn(self, text):
         if self.verbosity < -1: return
+        text = ustr(text)
         print "WARN:", text    
     
     def error(self, text):
         if self.verbosity < -2: return
+        text = ustr(text)
         print "ERROR:", text    
         
     def critical(self, text):
         if self.verbosity < -3: return
+        text = ustr(text)
         print "CRITICAL:", text    
         
     def exception(self, errtype, text=""):
         if self.verbosity < -3: return
+        text = ustr(text)
         print
         print "UNEXPECTED ERROR %s:" % errtype, text    
         print traceback.format_exc()    

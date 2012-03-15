@@ -130,8 +130,9 @@ class FolderApplyPatch(object):
         while module_path.count("/") > 1:
             module_path = os.path.dirname(module_path)
         if not os.path.exists(os.path.join(folder,module_path)):
-            self.iface.warn("Ignorando la creación de fichero %s (el módulo no existe)" % filename)
-            return
+            if os.path.relpath(path, module_path).count("/") > 0:
+                self.iface.warn("Ignorando la creación de fichero %s (el módulo no existe)" % filename)
+                return
         
         pathname = os.path.join(path, filename)
         src = os.path.join(self.patch_dir,filename)
@@ -151,7 +152,7 @@ class FolderApplyPatch(object):
         while module_path.count("/") > 1:
             module_path = os.path.dirname(module_path)
         if not os.path.exists(os.path.join(folder,module_path)):
-            self.iface.warn("Ignorando la creación de fichero %s (el módulo no existe)" % filename)
+            self.iface.info("Ignorando el borrado de fichero %s (el módulo no existe)" % filename)
             return
         
         pathname = os.path.join(path, filename)
@@ -159,8 +160,8 @@ class FolderApplyPatch(object):
         dst = os.path.join(folder,pathname)
         dst_parent = os.path.dirname(dst)
         
-        self.iface.debug("Borrando %s . . ." % filename)
         if os.path.exists(dst_parent):
+            self.iface.info("Borrando %s . . ." % filename)
             os.unlink(dst)
             
     

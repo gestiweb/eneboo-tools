@@ -494,11 +494,11 @@ def patch_qs_dir(iface, base, patch):
     iface.debug2("Classes1: %s" %  ",".join(patch_series))
     sec_rmcls = sections.get("remove-classes")
     if sec_rmcls:
-        iface.error("TODO: Remove Classes")
+        # iface.error("TODO: Remove Classes")
         for code, line in sec_rmcls[None]:
             if code == "- ": 
                 try: patch_series.remove(line)
-                except ValueError: iface.warn(u"La clase %s iba a ser eliminada del fichero, pero no la encontramos")
+                except ValueError: iface.info(u"La clase %s iba a ser eliminada del fichero, pero no la encontramos" % line)
 
     iface.debug2("Classes2: %s" %  ",".join(patch_series))
     sec_mvcls = sections.get("move-classes")
