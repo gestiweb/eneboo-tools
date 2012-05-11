@@ -19,7 +19,7 @@ class BuildInstructions(object):
     def execute(self, rebuild = True):
         if os.path.exists(self.dstpath):
             if rebuild == False: return True
-            self.iface.msg("Borrando carpeta %s . . . "  % self.dstpath)
+            self.iface.info("Borrando carpeta %s . . . "  % self.dstpath)
             shutil.rmtree(self.dstpath)
         os.mkdir(self.dstpath)
         for instruction in self.instructions:
@@ -29,13 +29,19 @@ class BuildInstructions(object):
                 self.applyPatch(**instruction.attrib)
             elif instruction.tag == "CreatePatchAction":
                 self.createPatch(**instruction.attrib)
+            elif instruction.tag == "Message":
+                self.message(**instruction.attrib)
             else:
                 self.iface.warn("Accion %s desconocida" % instruction.tag)
+    
+    def message(self, text):
+        self.iface.msg(text)
+    
         
     def copyFolder(self,src,dst,create_dst=False):
         if create_dst == "yes": create_dst = True
         if create_dst == "no": create_dst = False
-        self.iface.msg("Copiando %s . . . " % (dst))
+        self.iface.info("Copiando %s . . . " % (dst))
         dst = os.path.join(self.dstpath, dst)
         if not os.path.exists(src):
             self.iface.error("La carpeta %s no existe" % src)
@@ -54,11 +60,11 @@ class BuildInstructions(object):
         
 
     def applyPatch(self,src):
-        self.iface.msg("Aplicando parche (...)%s . . ." % (src[-48:]))
+        self.iface.info("Aplicando parche (...)%s . . ." % (src[-64:]))
         flpatchdir.patch_folder_inplace(self.iface, src, self.dstpath)
 
     def createPatch(self,src,dst):
-        self.iface.msg("Creando parche (...)%s - (...)%s . . ." % (src[-32:],dst[-32:]))
+        self.iface.info("Creando parche (...)%s - (...)%s . . ." % (src[-48:],dst[-48:]))
         flpatchdir.diff_folder(self.iface, src, dst, self.dstpath, inplace = True)
 
 def build_xml_file(iface, xmlfile, rebuild = True):

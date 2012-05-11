@@ -1,7 +1,14 @@
 # encoding: UTF8
+import sys, os.path
+
+def filepath(): return os.path.abspath(os.path.dirname(__file__))
+def filedir(x): return os.path.realpath(os.path.join(filepath(),x))
+
+if __name__ == "__main__": 
+    sys.path.insert(0,filedir("../../"))
 from enebootools.autoconfig.autoconfig import AutoConfigTemplate, ConfigReader
 from enebootools import CONF_DIR
-import sys, os.path
+
 cfg = None
 config_filelist = ['assembler-config.ini']
 
@@ -32,6 +39,14 @@ class ConfModule(AutoConfigTemplate):
         self.buildcache = self.normalize_path(self.buildcache) 
     
             
+class MergetoolConfig(AutoConfigTemplate):
+    """
+    patch_qs_rewrite=string:warn
+    patch_xml_style_name=string:legacy1
+    patch_qs_style_name=string:legacy
+    diff_xml_search_move=bool:False
+    verbosity_delta=int:0
+    """
     
     
     
@@ -54,6 +69,7 @@ def reloadConfig(saveTemplate = False):
     c.cfg = ConfigReader(files=files, saveConfig = saveTemplate)
     c.cfg.module = ConfModule(c.cfg,section = "module")
     c.cfg.module.init()
+    c.cfg.mergetool = MergetoolConfig(c.cfg,section = "mergetool")
     
     if saveTemplate:
         f1w = open(saveTemplate, 'wb')

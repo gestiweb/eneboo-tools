@@ -179,7 +179,7 @@ class AutoConfigTemplate:
                 
     def loadSection(self,section, autoParse = True):
         self._sectionname = section
-        opvalues = self.configReader.loadSection(section);
+        opvalues = self.configReader.loadSection(section)
         for option,value in opvalues.iteritems():
             self.setParam(option,value)
         if autoParse: 

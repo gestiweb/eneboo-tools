@@ -204,18 +204,19 @@ class FeatureObject(BaseObject):
         binstr.set("dstfolder", "build/base")
         if self.dstfolder:
             binstr.set("dstfolder", self.dstfolder)
-            
-        for modulename in self.all_required_modules:
+        etree.SubElement(binstr,"Message", text=u"Copiando módulos . . .")
+        for modulename in self._get_full_required_modules():
             module = ModuleObject.find(modulename)
             cpfolder = etree.SubElement(binstr,"CopyFolderAction")
             cpfolder.set("src",module.fullpath)
             cpfolder.set("dst",module.obj.relpath)
             cpfolder.set("create_dst", "yes")
         
-        for featurename in self.all_required_features:
+        for featurename in self._get_full_required_features():
             feature = FeatureObject.find(featurename)
             patch_list = feature.get_patch_list()
             if len(patch_list) == 0: self.iface.warn("No encontramos parches para aplicar en %s" % featurename)
+            etree.SubElement(binstr,"Message", text=u"Aplicando extensión %s . . ." % featurename)
             for patchdir in patch_list:
                 apatch = etree.SubElement(binstr,"ApplyPatchAction")
                 srcpath = os.path.join(feature.fullpath,"patches",patchdir)
@@ -240,7 +241,7 @@ class FeatureObject(BaseObject):
         if self.dstfolder:
             binstr.set("dstfolder", self.dstfolder)
                     
-        for modulename in self.all_required_modules:
+        for modulename in self._get_full_required_modules():
             module = ModuleObject.find(modulename)
             cpfolder = etree.SubElement(binstr,"CopyFolderAction")
             cpfolder.set("src",os.path.join(dep_folder,module.obj.relpath))

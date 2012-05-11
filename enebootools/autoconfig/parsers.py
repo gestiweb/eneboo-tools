@@ -6,7 +6,7 @@ def parsers():
 def get_int(x):
     if type(x) is int: return x
     x = str(x)
-    if not re.match("[0-9]+$",x): raise ValueError, "value %s is not a integer" % repr(x)
+    if not re.match("-?[0-9]+$",x): raise ValueError, "value %s is not a integer" % repr(x)
     return int(x)
 
 def get_float(x):
@@ -40,6 +40,17 @@ def get_ipaddress(x):
 def get_string(x):
     if not isinstance(x, basestring): raise ValueError, "value %s is not a string" % repr(x)
     return str(x)
+
+def get_bool(x):
+    if isinstance(x, basestring):
+        x = x.lower()
+        if x[0] == "y": return True
+        if x[0] == "t": return True
+        if x[0] == "f": return False
+        if x[0] == "n": return False
+        raise ValueError, "Unknown boolean value <%s>" % x
+    else:
+        return bool(x) 
     
 def get_commaStringList(x):
     if type(x) is list: return x

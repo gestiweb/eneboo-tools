@@ -155,7 +155,7 @@ def do_build(iface,target, feat, rebuild=True, dstfolder = None):
     if target == "src-fullpatch":
         dstfolder = "build/src"
         target = "test-fullpatch"
-        
+
     build_instructions = oi.get_build_actions(target,feat,dstfolder)
     if build_instructions is None: 
         iface.error("Error al generar las instrucciones de compilado.")
@@ -175,7 +175,11 @@ def do_build(iface,target, feat, rebuild=True, dstfolder = None):
                 do_build(iface, dep, feat, rebuild = False)
                 
     mtool_iface = MergeToolInterface()
-    mtool_iface.verbosity = iface.verbosity
+    mtool_iface.verbosity = iface.verbosity + cfg.mergetool.verbosity_delta
+    mtool_iface.patch_qs_rewrite = cfg.mergetool.patch_qs_rewrite
+    mtool_iface.patch_xml_style_name = cfg.mergetool.patch_xml_style_name
+    mtool_iface.diff_xml_search_move = cfg.mergetool.diff_xml_search_move
+ 
     projectbuilder.build_xml(mtool_iface,build_instructions,rebuild)
     
 def uinput(question, possible_values = None):

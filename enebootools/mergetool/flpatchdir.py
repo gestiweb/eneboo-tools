@@ -79,7 +79,9 @@ class FolderApplyPatch(object):
     def patch_folder(self, folder):
         if self.root is None: return
         for action in self.root:
+            
             actionname = action.tag
+            if not isinstance(actionname,basestring): continue
             if actionname.startswith("{"):
                 actionname = action.tag.split("}")[1]
             actionname = actionname.lower()

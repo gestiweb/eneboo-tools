@@ -14,6 +14,11 @@ def ustr(x):
     return str(x)
     
 
+def myprint(*args):
+    txt = " ".join(args)+"\n"
+    sys.stdout.write(unicode(txt,"UTF-8"))
+    
+
 class EnebooToolsInterface(object):
     module_description = u"Descripción genérica"
     def __init__(self, setup_parser = True):
@@ -108,49 +113,52 @@ class EnebooToolsInterface(object):
     def debug2(self, text):
         if self.verbosity < 4: return
         text = ustr(text)
-        print "DEBUG+:", text    
+        myprint("DEBUG+:", text)    
 
     def debug(self, text):
         if self.verbosity < 3: return
         text = ustr(text)
-        print "DEBUG:", text    
+        myprint("DEBUG:", text)    
     
     def info2(self, text):
         if self.verbosity < 2: return
         text = ustr(text)
-        print "INFO:", text    
+        myprint("INFO:", text)    
     
     def info(self, text):
         if self.verbosity < 1: return
         text = ustr(text)
-        print ":", text    
+        myprint(":", text)    
     
     def msg(self, text):
         if self.verbosity < 0: return
         text = ustr(text)
-        print text    
+        myprint(text)    
     
     def warn(self, text):
         if self.verbosity < -1: return
         text = ustr(text)
-        print "WARN:", text    
+        myprint("WARN:", text)    
     
     def error(self, text):
         if self.verbosity < -2: return
         text = ustr(text)
-        print "ERROR:", text    
+        myprint("ERROR:", text)    
         
     def critical(self, text):
         if self.verbosity < -3: return
         text = ustr(text)
-        print "CRITICAL:", text    
+        myprint("CRITICAL:", text)    
         
     def exception(self, errtype, text=""):
         if self.verbosity < -3: return
         text = ustr(text)
-        print
-        print "UNEXPECTED ERROR %s:" % errtype, text    
-        print traceback.format_exc()    
+        txt_exc = traceback.format_exc()
+        
+        myprint("UNEXPECTED ERROR %s:" % errtype, text)
+        myprint(txt_exc)
+            
+            
 
 # **** CONFIGURACION *****
 import os.path, os
