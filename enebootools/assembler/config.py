@@ -24,6 +24,7 @@ class ConfModule(AutoConfigTemplate):
     
     def normalize_path(self, path):
         pathlist = path.split("/")
+        if pathlist[0] == "": pathlist[0] = "/"
         return os.path.join( *[
             os.path.expanduser(p)
             for p in pathlist
