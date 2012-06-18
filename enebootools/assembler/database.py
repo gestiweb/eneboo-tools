@@ -287,7 +287,7 @@ def select_option(title, options, answers, question = None, errortext = None, de
     for answer, option in zip(answers,options):
         print u"    %s) %s" % (answer, option)
     def ask():
-        answer = uinput(question, possible_values = answers).lower()
+        answer = uinput(question, possible_values = answers)
         if answer == "": answer = default
         answerlist = [ x.strip() for x in answer.split(" ") if x.strip() ]
         for answer in answerlist:
