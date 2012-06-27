@@ -20,7 +20,12 @@ class BaseObject(object):
         self.all_required_features = None
         self.fullpath = os.path.join(obj.abspath, obj.relpath)
         self.fullfilename = os.path.join(obj.abspath, obj.relpath, obj.filename)
-        self.setup()
+        try:            
+            self.setup()
+        except Exception:
+            iface.error(u"Error al intentar leer y configurar el objeto de base de datos. Se estaba configurando un objeto tipo <%s> y se solicitó el fichero '%s'" % (self.__class__.__name__, self.fullfilename))
+            raise
+
         self.__class__._by_name[ ( self.__class__.__name__ , unicode(self.name)) ] = self
         self.__class__._by_relpath[ ( self.__class__.__name__ , unicode(obj.relpath)) ] = self
         self.__class__._by_formal_name[ ( self.__class__.__name__ , self.formal_name()) ] = self
