@@ -16,7 +16,11 @@ def ustr(x):
 
 def myprint(*args):
     txt = " ".join(args)+"\n"
-    sys.stdout.write(unicode(txt,"UTF-8"))
+    try:
+        sys.stdout.write(unicode(txt,"UTF-8","replace"))
+    except Exception:
+        sys.stdout.write(txt)
+        
     
 
 class EnebooToolsInterface(object):
