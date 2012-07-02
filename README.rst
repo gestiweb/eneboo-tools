@@ -427,7 +427,22 @@ Aplicar un diff de fichero XML::
         --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.ui
 
 
+Packager
+-----------------------------
 
+Esta herramienta permite empaquetar código eneboo en un sólo fichero .eneboopkg. Este tipo de ficheros presentan varias ventajas frente al código tradicional ordenado en carpetas de módulos, a saber:
+
+- Se pueden importar de forma cómoda desde la opción *Sistema > Administración > Cargar Paquete de Módulos* de eneboo.
+- Ocupan menos, ya que el código está comprimido.
+- Son más fáciles de trasladar y descargar.
+
+Para empaquetar un directorio que contenga código eneboo podemos usar::
+
+    $ eneboo-packager create ruta_directorio_codigo -v
+    
+Para conocer todas las opciones de la herramienta::
+    
+    $ eneboo-packager --help
 
 
 
