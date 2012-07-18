@@ -85,7 +85,9 @@ class FolderApplyPatch(object):
             if actionname.startswith("{"):
                 actionname = action.tag.split("}")[1]
             actionname = actionname.lower()
-            
+            if actionname.startswith("flpatch:"):
+              actionname = actionname.split(":")[1]
+              
             tbegin = time.time()
             try:
                 if actionname == "addfile": self.add_file(action, folder)

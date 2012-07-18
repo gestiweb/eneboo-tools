@@ -680,6 +680,7 @@ class XMLDiffer(object):
         known_tags = {
             '{http://www.xmldb.org/xupdate}modifications' : self.patch_xupdate,
             'modifications' : self.patch_xupdate,
+            'xupdate:modifications' : self.patch_xupdate,
         }
         if self.patch is None:
             self.iface.warn("Sin parche que aplicar (vacío o inexistente)")
