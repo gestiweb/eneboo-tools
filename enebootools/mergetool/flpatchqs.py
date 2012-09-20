@@ -752,6 +752,7 @@ def patch_class_advanced(orig,patch, filename="unknown"):
         numbered_block = []
         n = -1
         name = "A"
+        sn = 0
         for cdln in cmp0:
             code = cdln[0:2]
             line = cdln[2:]
