@@ -36,8 +36,11 @@ def get_new_checksum_filename(iface, dirname, modulename):
     return filename, checksumfiles
     
 
-def module_checksum(iface, module):
-    # TODO: Esta funcion no esta preparada para ejecutarse en una carpeta distinta a la del .mod;
+def module_checksum(iface):
+    try:
+        module = [ name for name in os.listdir(".") if name.endswith(".mod") ][0]
+    except IndexError:
+        raise ValueError, "La carpeta actual no contiene un fichero de modulo"
     print u"Module checksum for %s . . ." % repr(module)
     module = os.path.realpath(module)
     if not os.path.exists(module):
@@ -86,7 +89,9 @@ def module_checksum(iface, module):
     
     xmlparser = etree.XMLParser(ns_clean=True, remove_blank_text=True,remove_comments=True,remove_pis=True)
 
-    xmltext = etree.tostring(xmlroot, pretty_print=True)         
+    xmltext = etree.tostring(xmlroot, pretty_print=True)     
+    
+    # Comprobar si alguno de los que ya existe coincide semanticamente con lo que vamos a crear:    
     newtree = etree.parse(StringIO(xmltext), parser = xmlparser)
     xmlc14n = etree.tostring(xmlroot, method='c14n')         
     xmlc14n_digest = hashlib.sha256()
@@ -104,17 +109,50 @@ def module_checksum(iface, module):
         if xmlc14n_digest == oldxmlc14n_digest:
             print "INFO: El fichero de checksum %s ya era valido." % oldfile
             return oldfile
+    # ---------------
     
     
     f1 = open(checksumfile, "w")
     f1.write(xmltext)
     f1.close()
     print "Se ha generado el fichero %s" % checksumfile
+    return checksumfile
+
+
     
 
+def new_certificates_file(iface):
+    xmlroot = etree.Element("eneboo-certificates")
+    xmlroot.set("version","1.0")
+    return xmlroot
+    
             
             
-        
+def add_certificate(iface, pemfile):
+    try:
+        module = [ name for name in os.listdir(".") if name.endswith(".mod") ][0]
+    except IndexError:
+        raise ValueError, "La carpeta actual no contiene un fichero de modulo"
+
+    modulename, ext = os.path.splitext(module)
+    certificates_file = modulename + ".certificates"
+    
+    if not os.path.exists(certificates_file):
+        print "INFO: El fichero %s no existe, será creado." % certificates_file
+        xmlcert_root = new_certificates_file(iface)
+    else:
+        # Parse certificates xml here:
+        xmlparser = etree.XMLParser(ns_clean=True, remove_blank_text=True,remove_comments=True,remove_pis=True)
+        newtree = etree.parse(certificates_file, parser = xmlparser)
+        xmlcert_root = newtree.getroot()
+
+    xmltext = etree.tostring(xmlcert_root, pretty_print=True)     
+    f1 = open(certificates_file, "w")
+    f1.write(xmltext)
+    f1.close()
+    print "Se ha escrito el fichero %s" % certificates_file
+    
+    
         
     
     
