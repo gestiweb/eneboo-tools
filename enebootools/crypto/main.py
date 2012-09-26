@@ -7,7 +7,7 @@ import os.path
 from StringIO import StringIO
 
 from lxml import etree
-from M2Crypto import EVP
+from M2Crypto import EVP, X509
 
 
 def hash_file(hashobj, filepath):
@@ -136,20 +136,35 @@ def add_certificate(iface, pemfile):
 
     modulename, ext = os.path.splitext(module)
     certificates_file = modulename + ".certificates"
+    cert1 = X509.load_cert(pemfile)
     
     if not os.path.exists(certificates_file):
         print "INFO: El fichero %s no existe, será creado." % certificates_file
         xmlcert_root = new_certificates_file(iface)
     else:
         # Parse certificates xml here:
-        xmlparser = etree.XMLParser(ns_clean=True, remove_blank_text=True,remove_comments=True,remove_pis=True)
+        xmlparser = etree.XMLParser(ns_clean=True, remove_blank_text=True,remove_comments=False,remove_pis=True)
         newtree = etree.parse(certificates_file, parser = xmlparser)
         xmlcert_root = newtree.getroot()
+        xmlcert_root.text = None
 
+    for n in xmlcert_root.xpath("certificate[@fingerprint-sha256='%s']" % cert1.get_fingerprint('sha256')):
+        print "El certificado ya está insertado en el fichero."
+        return    
+
+    xmlcertificate = etree.SubElement(xmlcert_root,"certificate")
+    xmlcertificate.set("O",cert1.get_subject().O)
+    xmlcertificate.set("CN",cert1.get_subject().CN)
+    xmlcertificate.set("emailAddress",cert1.get_subject().emailAddress)
+    xmlcertificate.set("fingerprint-sha256",cert1.get_fingerprint('sha256'))
+    xmlcertificate.text = "\n" + cert1.as_pem() + "  "
+    
+    
     xmltext = etree.tostring(xmlcert_root, pretty_print=True)     
     f1 = open(certificates_file, "w")
     f1.write(xmltext)
     f1.close()
+    
     print "Se ha escrito el fichero %s" % certificates_file
     
     
