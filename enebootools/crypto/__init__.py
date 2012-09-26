@@ -30,16 +30,23 @@ class CryptoInterface(EnebooToolsInterface):
             description = u"Agrega un certificado en formato PEM a la lista de certificados",
             call_function = self.do_addcert,
             )
+        self.addcert_action.set_help_arg(
+            pemfile = "Certificado que agregar a la lista de certificados",
+            )                
             
         self.addsignature_action = self.parser.declare_action(
             name = "addsignature",
-            args = ["pkcs12"],
+            args = ["certpem", "pkeypem"],
             options = [],
             min_argcount = 1,
-            description = u"Agrega una firma a la lista de firmas usando un fichero pkcs12 para leer certificado y clave privada",
+            description = u"Agrega una firma a la lista de firmas usando un fichero PEM para leer certificado y otro para la clave privada",
             call_function = self.do_addsignature,
             )
             
+        self.addsignature_action.set_help_arg(
+            certpem = "Certificado para usar en la firma",
+            pkeypem = "Clave privada para usar en la firma",
+            )                
             
     # :::: ACTIONS ::::
 
@@ -55,9 +62,9 @@ class CryptoInterface(EnebooToolsInterface):
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 
-    def do_addsignature(self, pkcs12):
+    def do_addsignature(self,certpem,pkeypem):
         try:
-            return main.add_signature(self,pkcs12)
+            return main.add_signature(self,certpem,pkeypem)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 

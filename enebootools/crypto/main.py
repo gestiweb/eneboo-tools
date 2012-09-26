@@ -5,10 +5,10 @@ import datetime
 import os
 import os.path
 from StringIO import StringIO
+from base64 import b64encode, b64decode
 
 from lxml import etree
-from M2Crypto import EVP, X509
-
+from M2Crypto import EVP, X509, RSA
 
 def hash_file(hashobj, filepath):
     File = open(filepath)
@@ -167,8 +167,107 @@ def add_certificate(iface, pemfile):
     
     print "Se ha escrito el fichero %s" % certificates_file
     
+
+def create_signature_options(iface):
+    # Crea ociones de firma por defecto mirando opciones en iface
+    # Intencionalidad por defecto de la firma:
+    def_intention = [
+        "signatory",       # El firmante
+        #"code-author",    # El autor del código
+        #"code-reviewer",  # El revisor del código
+        #"code-guaranteed", # Código garantizado por
+        #"code-generated",  # Código generado por
+        
+        ]
+    # Extensiones analizadas por defecto:
+    def_ext = [
+            ".xml", 
+            ".qs",
+            ".mtd",
+            ".kut",
+            ".qry",
+            ".ui",
+            ]
+    # Plazo de validez por defecto:
+    today = datetime.date.today()
+    delta = datetime.timedelta(days=30*9)
+    def_since = today # .isoformat()
+    def_until = (today + delta)
+    
+    # Comprobaciones por defecto
+    def_additional_checks = [
+            # "no-new-file-check", # <- se comenta para evitar colisiones con ficheros temporales
+            "no-deleted-file-check",
+            ]
+            
+    now = datetime.datetime.utcnow()
+
+    xmlroot = etree.Element("eneboo-checksum-options")
+    xmlroot.set("version","1.0")
+    xmldt = etree.SubElement(xmlroot,"datetime", TZ="UTC")
+    xmldt.text = now.isoformat()
+
+    xmlvalid = etree.SubElement(xmlroot,"valid")
+    xmlsince = etree.SubElement(xmlvalid,"since")
+    xmluntil = etree.SubElement(xmlvalid,"until")
+    xmlsince.text = def_since.isoformat()
+    xmluntil.text = def_until.isoformat()
+    
+    xmlchecks = etree.SubElement(xmlroot,"checks")
+    for ext in def_ext:
+        xmlfiletype = etree.SubElement(xmlchecks,"filetype")
+        xmlfiletype.text = ext
+
+    for check in def_additional_checks:
+        xmladdcheck = etree.SubElement(xmlchecks,"additional-check")
+        xmladdcheck.text = check
+
+    xmlmetadata = etree.SubElement(xmlroot,"metadata")
+    for intention in def_intention:
+        xmlintention = etree.SubElement(xmlmetadata,"intention")
+        xmlintention.text = intention
+    
+    
+    
+    xmltext = etree.tostring(xmlroot, pretty_print=True)     
+    
+    return xmltext
+    
+    
     
         
+def add_signature(iface,certpem,pkeypem):
+    add_certificate(iface,certpem)
+    checksum_file = module_checksum(iface)
+    check_opts = create_signature_options(iface)
+    
+    data = ""
+    data += "checksums::\n"
+    data += open(checksum_file).read()
+    data += "checksum-options::\n"
+    data += check_opts
+    
+    cert1 = X509.load_cert(certpem)
+    cert1_pkey = cert1.get_pubkey()
+    cert1_pkey.reset_context(md='sha256')
+    
+    rsa1 = RSA.load_key(pkeypem)    
+    sevp = EVP.PKey(md='sha256')
+    sevp.assign_rsa(rsa1)
+    sevp.sign_init()
+    sevp.sign_update(data)
+    signature = sevp.sign_final()
+    print b64encode(signature)
+
+    cert1_pkey.verify_init()
+    cert1_pkey.verify_update(data)
+    verification = cert1_pkey.verify_final(signature)
+    if verification != 1:
+        print "ERROR: Verificacion de firma erronea, devolvio %d. Compruebe que la firma corresponde al certificado." % verification
+        return
+        
+        
+
     
     
     
