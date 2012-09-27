@@ -35,7 +35,7 @@ class CryptoInterface(EnebooToolsInterface):
             )                
             
         self.addsignature_action = self.parser.declare_action(
-            name = "addsignature",
+            name = "sign",
             args = ["certpem", "pkeypem"],
             options = [],
             min_argcount = 1,

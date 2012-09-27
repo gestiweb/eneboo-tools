@@ -148,15 +148,16 @@ def add_certificate(iface, pemfile):
         xmlcert_root = newtree.getroot()
         xmlcert_root.text = None
 
-    for n in xmlcert_root.xpath("certificate[@fingerprint-sha256='%s']" % cert1.get_fingerprint('sha256')):
+    for n in xmlcert_root.xpath("certificate[@fingerprint-sha256='%s']" % cert1.get_fingerprint('sha256').lower()):
         print "El certificado ya está insertado en el fichero."
-        return    
+        return cert1   
 
     xmlcertificate = etree.SubElement(xmlcert_root,"certificate")
     xmlcertificate.set("O",cert1.get_subject().O)
     xmlcertificate.set("CN",cert1.get_subject().CN)
     xmlcertificate.set("emailAddress",cert1.get_subject().emailAddress)
-    xmlcertificate.set("fingerprint-sha256",cert1.get_fingerprint('sha256'))
+    xmlcertificate.set("fingerprint-sha256",cert1.get_fingerprint('sha256').lower())
+    xmlcertificate.text = cert1.as_pem()
     xmlcertificate.text = "\n" + cert1.as_pem() + "  "
     
     
@@ -166,7 +167,7 @@ def add_certificate(iface, pemfile):
     f1.close()
     
     print "Se ha escrito el fichero %s" % certificates_file
-    
+    return cert1
 
 def create_signature_options(iface):
     # Crea ociones de firma por defecto mirando opciones en iface
@@ -234,18 +235,83 @@ def create_signature_options(iface):
     return xmltext
     
     
+def new_signatures_file(iface):
+    xmlroot = etree.Element("eneboo-signatures")
+    xmlroot.set("version","1.0")
+    return xmlroot
     
+            
+                
         
 def add_signature(iface,certpem,pkeypem):
-    add_certificate(iface,certpem)
+    try:
+        module = [ name for name in os.listdir(".") if name.endswith(".mod") ][0]
+    except IndexError:
+        raise ValueError, "La carpeta actual no contiene un fichero de modulo"
+
+    modulename, ext = os.path.splitext(module)
+    signatures_file = modulename + ".signatures"
+
+    if not os.path.exists(signatures_file):
+        print "INFO: El fichero %s no existe, será creado." % signatures_file
+        xmlsign_root = new_signatures_file(iface)
+    else:
+        # Parse certificates xml here:
+        xmlparser = etree.XMLParser(ns_clean=True, remove_blank_text=True,remove_comments=False,remove_pis=True)
+        newtree = etree.parse(signatures_file, parser = xmlparser)
+        xmlsign_root = newtree.getroot()
+        xmlsign_root.text = None
+
+
+    cert1 = add_certificate(iface,certpem)
     checksum_file = module_checksum(iface)
     check_opts = create_signature_options(iface)
+
+
+    
+    signed_document = etree.SubElement(xmlsign_root, "signed-document")
+    signed_document.set("check","true")
+
+    xmlcertificate = etree.SubElement(signed_document,"signer-certificate")
+    xmlcertificate.set("O",cert1.get_subject().O)
+    xmlcertificate.set("CN",cert1.get_subject().CN)
+    xmlcertificate.set("emailAddress",cert1.get_subject().emailAddress)
+    xmlcertificate.set("fingerprint-sha256",cert1.get_fingerprint('sha256').lower())
+
+    xmldocument = etree.SubElement(signed_document,"document")
+    xmldocument.set("format","tag:name:sha256")
+
+    hashobj = hashlib.sha256()
+    hash_file(hashobj, checksum_file)
+    checksum_file_hash = hashobj.hexdigest()
+
+    hashobj = hashlib.sha256()
+    hashobj.update(check_opts)
+    check_opts_hash = hashobj.hexdigest()
+
+    xmlchecksumfile = etree.SubElement(xmldocument,"file")
+    xmlchecksumfile.set("name","checksums.xml")
+    xmlchecksumfile.set("href",checksum_file)
+    xmlchecksumfile.set("sha256",checksum_file_hash)
+    
+    xmlchecksumoptions = etree.SubElement(xmldocument,"data")
+    xmlchecksumoptions.set("name","checksum-options.xml")
+    xmlchecksumoptions.set("format","base64")
+    xmlchecksumoptions.set("sha256",check_opts_hash)
+    xmlchecksumoptions.text = b64encode(check_opts)
+    
+    
+    
+    
     
     data = ""
-    data += "checksums::\n"
-    data += open(checksum_file).read()
-    data += "checksum-options::\n"
-    data += check_opts
+    for node in xmldocument:
+        data += "%s:%s:%s\n" % (node.tag, node.get("name"), node.get("sha256"))
+
+    hashobj = hashlib.sha256()
+    hashobj.update(data)
+    data_hash = hashobj.hexdigest()
+    xmldocument.set("sha256", data_hash)
     
     cert1 = X509.load_cert(certpem)
     cert1_pkey = cert1.get_pubkey()
@@ -257,7 +323,9 @@ def add_signature(iface,certpem,pkeypem):
     sevp.sign_init()
     sevp.sign_update(data)
     signature = sevp.sign_final()
-    print b64encode(signature)
+
+    xmlsignature = etree.SubElement(signed_document,"signature",format="SHA-256:RSASSA-PKCS1v1.5:base64")
+    xmlsignature.text = b64encode(signature)
 
     cert1_pkey.verify_init()
     cert1_pkey.verify_update(data)
@@ -265,7 +333,24 @@ def add_signature(iface,certpem,pkeypem):
     if verification != 1:
         print "ERROR: Verificacion de firma erronea, devolvio %d. Compruebe que la firma corresponde al certificado." % verification
         return
+
+    # Eliminar firmas previas que sean del mismo firmante.
+    for signed_doc in xmlsign_root.xpath("signed-document[signer-certificate/@fingerprint-sha256='%s']" % cert1.get_fingerprint('sha256').lower()):
+        doc_sha256 = signed_doc.xpath("document/@sha256")[0]
+        if doc_sha256 == data_hash: continue
+        print "INFO: Se elimina firma antigua del mismo certificado."
+        xmlsign_root.remove(signed_doc)
         
+        
+    
+    xmltext = etree.tostring(xmlsign_root, pretty_print=True)     
+    f1 = open(signatures_file, "w")
+    f1.write(xmltext)
+    f1.close()
+    
+    print "Se ha escrito el fichero %s" % signatures_file
+    
+            
         
 
     
