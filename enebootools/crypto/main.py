@@ -93,7 +93,10 @@ def module_checksum(iface):
     
     # Comprobar si alguno de los que ya existe coincide semanticamente con lo que vamos a crear:    
     newtree = etree.parse(StringIO(xmltext), parser = xmlparser)
-    xmlc14n = etree.tostring(xmlroot, method='c14n')         
+    xmlc14n_io = StringIO()
+    xmlroot.getroottree().write_c14n(xmlc14n_io)  
+    
+    xmlc14n = xmlc14n_io.getvalue() # etree.tostring(xmlroot, method='c14n')         
     xmlc14n_digest = hashlib.sha256()
     xmlc14n_digest.update(xmlc14n)
     xmlc14n_digest = xmlc14n_digest.hexdigest()
@@ -102,7 +105,10 @@ def module_checksum(iface):
             oldtree = etree.parse(oldfile, parser = xmlparser)
         except Exception, e:
             continue
-        oldxmlc14n = etree.tostring(oldtree.getroot(), method='c14n')         
+        oldxmlc14n_io = StringIO()
+        oldtree.write_c14n(oldxmlc14n_io)  
+            
+        oldxmlc14n =  oldxmlc14n_io.getvalue() # etree.tostring(oldtree.getroot(), method='c14n')         
         oldxmlc14n_digest = hashlib.sha256()
         oldxmlc14n_digest.update(oldxmlc14n)
         oldxmlc14n_digest = oldxmlc14n_digest.hexdigest()
