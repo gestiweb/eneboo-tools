@@ -358,7 +358,173 @@ def add_signature(iface,certpem,pkeypem):
     
             
         
+def check(iface):
+    try:
+        module = [ name for name in os.listdir(".") if name.endswith(".mod") ][0]
+    except IndexError:
+        raise ValueError, "La carpeta actual no contiene un fichero de modulo"
 
+    modulename, ext = os.path.splitext(module)
+    xmlparser = etree.XMLParser(ns_clean=True, remove_blank_text=True,remove_comments=True,remove_pis=True)
+
+    print "Comprobacion general de los checksums en el modulo %s:" % modulename
+    dirname = "."
+    x, chk_list = get_new_checksum_filename(iface,dirname,modulename)
+    
+    valid_ext = [
+        ".xml", 
+        ".qs",
+        ".mtd",
+        ".kut",
+        ".qry",
+        ".ui",
+        ".ts",
+        ".mod",
+        ".xpm",
+    ]    
+    file_hashes = {}
+    for root, dirs, files in os.walk(dirname):
+        for filename in files:
+            name, ext = os.path.splitext(filename)
+            if ext not in valid_ext: continue
+            hashobj = hashlib.sha256()
+            filepath = os.path.join(root, filename)
+            hash_file(hashobj, filepath)
+            file_hashes[filename] = hashobj.hexdigest()
+    
+    for checksumfile in chk_list:
+        print "Analizando %s . . . " % checksumfile
+        try:
+            xmlchktree = etree.parse(checksumfile, parser = xmlparser)
+        except Exception, e:
+            continue
+        xmlchkroot = xmlchktree.getroot()
+        if xmlchkroot.tag != "eneboo-checksums": 
+            print "WARN: Unknown checksum file with tag <%s>, probably is a wrong file!" % xmlchkroot.tag
+            
+        if xmlchkroot.get("format") != "SHA-256:hex": 
+            print "WARN: Unexpected checksum format `%s`, probably checks will fail!" % xmlchkroot.get("format")
+            
+        if xmlchkroot.get("version") != "1.0": 
+            print "WARN: Unexpected checksum file version `%s`, checks may fail." % xmlchkroot.get("version")
+            
+        chk_filenames = file_hashes.keys()
+        for element in xmlchkroot:
+            if element.tag == "file":
+                name, fhash = element.get('name'), element.text
+                if name in file_hashes: 
+                    chk_filenames.remove(name)
+                    if fhash != file_hashes[name]:
+                        print "ERROR: Fichero '%s' modificado" % name
+                else:
+                    print "ERROR: Fichero '%s' borrado" % name
+                
+            else:
+                print "WARN: Unknown and ignored tag:", element.tag
+        
+        if chk_filenames:
+            print "ERROR: ficheros agregados: %s" % (", ".join(chk_filenames))
+    
+
+    print "Comprobacion general de los certificados en el modulo %s:" % modulename
+
+    certificates_file = modulename + ".certificates"
+    
+    if os.path.exists(certificates_file):
+        # Parse certificates xml here:
+        newtree = etree.parse(certificates_file, parser = xmlparser)
+        xmlcert_root = newtree.getroot()
+        xmlcert_root.text = None
+    else:
+        print "INFO: El fichero de certificados %s no existe" % certificates_file
+        xmlcert_root = new_certificates_file(iface)
+
+    if xmlcert_root.tag != "eneboo-certificates":
+            print "WARN: Unknown certificates file with tag <%s>, probably is a wrong file!" % xmlcert_root.tag
+    if xmlcert_root.get("version") != "1.0": 
+        print "WARN: Unexpected certificates file version `%s`, load may fail." % xmlcert_root.get("version")
+    
+    cert_dict = {}
+    for element in xmlcert_root:
+        if element.tag == "certificate":
+            try:
+                cert1 = X509.load_cert_string(element.text)
+                
+            except Exception, e:
+                element.text = None
+                print "ERROR: Error desconocido al cargar el certificado %s: %s" % (etree.tostring(element), repr(e))
+                continue
+            
+            fingerprint = cert1.get_fingerprint('sha256').lower()
+            cert_dict[fingerprint] = cert1
+            if cert1.check_ca():
+                print "WARN: Certificado CA cargado:", cert1.get_subject().as_text()
+            else:
+                print "INFO: Certificado cargado:", cert1.get_subject().as_text()
+        else:
+            print "WARN: Unknown and ignored tag:", element.tag
+    
+    
+    print "Comprobacion general de los firmas en el modulo %s:" % modulename
+    
+    signatures_file = modulename + ".signatures"
+    
+    if os.path.exists(signatures_file):
+        # Parse certificates xml here:
+        newtree = etree.parse(signatures_file, parser = xmlparser)
+        xmlsign_root = newtree.getroot()
+        xmlsign_root.text = None
+    else:
+        print "INFO: El fichero de firmas %s no existe" % signatures_file
+        xmlsign_root = new_signatures_file(iface)
+        
+
+    if xmlsign_root.tag != "eneboo-signatures":
+            print "WARN: Unknown signatures file with tag <%s>, probably is a wrong file!" % xmlsign_root.tag
+    if xmlsign_root.get("version") != "1.0": 
+        print "WARN: Unexpected certificates file version `%s`, load may fail." % xmlsign_root.get("version")
+    
+    for element in xmlsign_root:
+        if element.tag == "signed-document":
+            signer_certificate, document, signature = None, None, None
+            for subelement in element:
+                if subelement.tag == "signer-certificate":
+                    if signer_certificate is not None: print "WARN: signer-certificate duplicado."
+                    signer_certificate = subelement
+                elif subelement.tag == "document":
+                    if document is not None: print "WARN: document duplicado."
+                    document = subelement
+                elif subelement.tag == "signature":
+                    if signature is not None: print "WARN: signature duplicado."
+                    signature = subelement
+                else:                    
+                    print "WARN: Unknown and ignored subtag:", subelement.tag
+                    
+            if signer_certificate is None: 
+                print "ERROR: required signer-certificate tag not found."
+                continue
+            if document is None: 
+                print "ERROR: required document tag not found."
+                continue
+            if signature is None: 
+                print "ERROR: required signature tag not found."
+                continue
+            
+            fingerprint = signer_certificate.get("fingerprint-sha256")
+            if fingerprint not in cert_dict:
+                print "ERROR: certificate not found."
+                continue
+            certificate = cert_dict[fingerprint]
+            
+            print "Signature valid??"
+            
+        else:
+            print "WARN: Unknown and ignored tag:", element.tag
+        
+        
+
+    
+    
     
     
     

@@ -38,7 +38,7 @@ class CryptoInterface(EnebooToolsInterface):
             name = "sign",
             args = ["certpem", "pkeypem"],
             options = [],
-            min_argcount = 1,
+            min_argcount = 2,
             description = u"Agrega una firma a la lista de firmas usando un fichero PEM para leer certificado y otro para la clave privada",
             call_function = self.do_addsignature,
             )
@@ -46,13 +46,30 @@ class CryptoInterface(EnebooToolsInterface):
         self.addsignature_action.set_help_arg(
             certpem = "Certificado para usar en la firma",
             pkeypem = "Clave privada para usar en la firma",
-            )                
+            )          
+                  
+        self.check_action = self.parser.declare_action(
+            name = "check",
+            args = [],
+            options = [],
+            min_argcount = 0,
+            description = u"Realiza comprobaciones varias sobre las firmas existentes",
+            call_function = self.do_check,
+            )
+            
+                  
             
     # :::: ACTIONS ::::
 
     def do_checksum(self):
         try:
             return main.module_checksum(self)
+        except Exception,e:
+            self.exception(type(e).__name__,str(e))
+
+    def do_check(self):
+        try:
+            return main.check(self)
         except Exception,e:
             self.exception(type(e).__name__,str(e))
 
