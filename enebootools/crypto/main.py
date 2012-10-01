@@ -538,7 +538,7 @@ def check(iface):
             if result != 1:
                 print "ERROR: Full signature check failed! result %s." % repr(result)
                 continue
-            print "La firma es correcta."
+            print "La firma es correcta para:",  certificate.get_subject().as_text()
             
         else:
             print "WARN: Unknown and ignored tag:", element.tag
@@ -595,10 +595,22 @@ def verify_signature(certificate, document, signature):
     
     return verification, documents
     
-    
+
+def One(obj):
+    if obj is None: return None
+    try:    
+        if len(obj) == 0: return None
+        if len(obj) == 1: return obj[0]
+        print "WARN::One: Unexpected length %d" % obj
+        return obj[0]
+    except Exception, e:
+        print e.__class__.__name__, e
+        return None
+        
     
 
 def full_check(documents):
+    dirname = "."
     checksums_xml = documents.get("checksums.xml")
     checksumoptions_xml = documents.get("checksum-options.xml")
     if checksums_xml is None:
@@ -609,8 +621,88 @@ def full_check(documents):
         print "ERROR: checksum-options.xml file not found and is mandatory."
         return -102
         
+    xmlparser = etree.XMLParser(ns_clean=True, remove_blank_text=True,remove_comments=False,remove_pis=True)
+
+    xml_checksums_tree = etree.parse(StringIO(checksums_xml), parser = xmlparser)
+    xml_checksums_root = xml_checksums_tree.getroot()
+
+    xml_checksumoptions_tree = etree.parse(StringIO(checksumoptions_xml), parser = xmlparser)
+    xml_checksumoptions_root = xml_checksumoptions_tree.getroot()
         
+    if xml_checksumoptions_root.tag != "eneboo-checksum-options":
+        print "WARN: checksum-options.xml root tag unknown: %s" % xml_checksumoptions_root.tag
         
+    if xml_checksums_root.tag != "eneboo-checksums":
+        print "WARN: checksums.xml root tag unknown: %s" % xml_checksums_root.tag
+
+    if xml_checksumoptions_root.get("version") != "1.0":
+        print "WARN: Unsupported version for checksum-options.xml: %s" % xml_checksumoptions_root.get("version") 
+
+    if xml_checksums_root.get("version") != "1.0":
+        print "WARN: Unsupported version for checksums.xml: %s" % xml_checksums_root.get("version") 
+        
+    today = datetime.date.today()
+    since_txt = One(xml_checksumoptions_root.xpath("valid/since/text()"))
+    until_txt = One(xml_checksumoptions_root.xpath("valid/until/text()"))
+    if since_txt:
+        since = datetime.datetime.strptime(since_txt, "%Y-%m-%d").date()
+        if since > today:
+            print "ERROR: Signature will be valid in the future (%s)" % since_txt
+            return -103     
+    if until_txt:
+        until = datetime.datetime.strptime(until_txt, "%Y-%m-%d").date()
+        if today > until:
+            print "ERROR: Signature was valid in the past (%s)" % until_txt
+            return -104     
+    
+    filetypes = xml_checksumoptions_root.xpath("checks/filetype/text()")
+    additional_checks  = xml_checksumoptions_root.xpath("checks/additional-check/text()")
+    
+    
+    file_hashes = {}
+    for root, dirs, files in os.walk(dirname):
+        for filename in files:
+            name, ext = os.path.splitext(filename)
+            if ext not in filetypes: continue
+            hashobj = hashlib.sha256()
+            filepath = os.path.join(root, filename)
+            hash_file(hashobj, filepath)
+            file_hashes[filename] = hashobj.hexdigest()
+            
+    xmlchkroot = xml_checksums_root
+    if xmlchkroot.tag != "eneboo-checksums": 
+        print "WARN: Unknown checksum file with tag <%s>, probably is a wrong file!" % xmlchkroot.tag
+        
+    if xmlchkroot.get("format") != "SHA-256:hex": 
+        print "WARN: Unexpected checksum format `%s`, probably checks will fail!" % xmlchkroot.get("format")
+        
+    if xmlchkroot.get("version") != "1.0": 
+        print "WARN: Unexpected checksum file version `%s`, checks may fail." % xmlchkroot.get("version")
+        
+    chk_filenames = file_hashes.keys()
+    for element in xmlchkroot:
+        if element.tag == "file":
+            name, fhash = element.get('name'), element.text
+            if name in file_hashes: 
+                chk_filenames.remove(name)
+                if fhash != file_hashes[name]:
+                    print "ERROR: Fichero '%s' modificado" % name
+                    return -107
+            else:
+                basename, ext = os.path.splitext(name)
+                if ext not in filetypes: continue
+            
+                if "no-deleted-file-check" in additional_checks:
+                    print "ERROR: Fichero '%s' borrado" % name
+                    return -106
+            
+        else:
+            print "WARN: Unknown and ignored tag:", element.tag
+    
+    if "no-new-file-check" in additional_checks and chk_filenames:
+        print "ERROR: ficheros agregados: %s" % (", ".join(chk_filenames))
+        return -105
+  
     return 1
     
     
