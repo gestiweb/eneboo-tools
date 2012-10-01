@@ -93,8 +93,14 @@ Una vez terminado el proceso habrá creado tres ficheros:
 
 Comprobar si la firma es válida
 --------------------------------------
-Cuando se genera, se comprueba que sea válida para evitar errores. Pero una vez
-generada, aún no existen mecanismos de validación en eneboo-crypto.
+Cuando se genera, se comprueba que sea válida para evitar errores. Si deseamos
+saber si la firma de un módulo sigue siendo válida, podemos hacerlo ejecutando
+la orden:
+
+$ eneboo-crypto check
+
+Y nos debe decir cuantas firmas son válidas o los errores encontrados.
+
 
 
 
