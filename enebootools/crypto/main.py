@@ -487,6 +487,15 @@ def check(iface):
     for element in xmlsign_root:
         if element.tag == "signed-document":
             signer_certificate, document, signature = None, None, None
+            check_signature_text = element.get("check","true").lower()
+            if check_signature_text in ('true','yes','1','t','y'):
+                check_signature = True
+            elif check_signature_text in ('false','no','0','f','n'):
+                check_signature = False
+            else:
+                print "WARN: check attribute not understood: %s" % (repr(check_signature_text))
+                check_signature = True
+            
             for subelement in element:
                 if subelement.tag == "signer-certificate":
                     if signer_certificate is not None: print "WARN: signer-certificate duplicado."
@@ -515,16 +524,93 @@ def check(iface):
                 print "ERROR: certificate not found."
                 continue
             certificate = cert_dict[fingerprint]
+            result, documents = verify_signature(certificate, document, signature)
+            if result != 1:
+                print "ERROR: Signature not valid! result %s." % repr(result)
+                continue
             
-            print "Signature valid??"
+            if check_signature == False:
+                print "Signature seems valid and check='false', full check ignored."
+                continue
+            
+            result = full_check(documents)
+            
+            if result != 1:
+                print "ERROR: Full signature check failed! result %s." % repr(result)
+                continue
+            print "La firma es correcta."
             
         else:
             print "WARN: Unknown and ignored tag:", element.tag
         
         
+def verify_signature(certificate, document, signature):
+    documents = {}
+    if signature.get("format") != "SHA-256:RSASSA-PKCS1v1.5:base64":
+        print "WARN: Unknwon signature format '%s', check may fail."
+    
+    bin_signature = b64decode(signature.text)
+    
+    if document.get("format") != "tag:name:sha256":
+        print "WARN: Unknwon document format '%s', check may fail."
 
+    for node in document:
+        node_data = ""    
+        if node.tag == "file":
+            node_data = open(node.get("href")).read()
+        elif node.tag == "data":
+            if node.get("format") != "base64":
+                print "WARN: document format not supported %s" % node.get("format")
+            node_data = b64decode(node.text)
+        else:
+            print "WARN: Unknown tag %s" % node.tag
+        documents[node.get("name")] = node_data
+        hashobj = hashlib.sha256()
+        hashobj.update(node_data)
+        node_hash = hashobj.hexdigest()
+        if node_hash != node.get("sha256"):
+            print "ERROR: Node hash doesn't match!", node.tag, node.get("name")
+            return -101
+            
+    
+    doc_sha256 = document.get("sha256")
+    data = ""
+    for node in document:
+        data += "%s:%s:%s\n" % (node.tag, node.get("name"), node.get("sha256"))
+
+    hashobj = hashlib.sha256()
+    hashobj.update(data)
+    data_hash = hashobj.hexdigest()
+    if len(doc_sha256) > 2 and data_hash != doc_sha256:
+        print "WARN: Document hashes doesn't match: %s != %s" % (data_hash , doc_sha256)
+        
+    cert1_pkey = certificate.get_pubkey()
+    cert1_pkey.reset_context(md='sha256')
+
+    cert1_pkey.verify_init()
+    cert1_pkey.verify_update(data)
+    verification = cert1_pkey.verify_final(bin_signature)
+    if verification != 1:
+        print "ERROR: Verificacion de firma erronea, devolvio %d. Compruebe que la firma corresponde al certificado." % verification
+    
+    return verification, documents
     
     
     
+
+def full_check(documents):
+    checksums_xml = documents.get("checksums.xml")
+    checksumoptions_xml = documents.get("checksum-options.xml")
+    if checksums_xml is None:
+        print "ERROR: checksums.xml file not found and is mandatory."
+        return -101
+        
+    if checksumoptions_xml is None:
+        print "ERROR: checksum-options.xml file not found and is mandatory."
+        return -102
+        
+        
+        
+    return 1
     
     
