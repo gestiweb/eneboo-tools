@@ -10,6 +10,10 @@ from base64 import b64encode, b64decode
 from lxml import etree
 from M2Crypto import EVP, X509, RSA
 
+valid_root_ca = [ # SHA-256 fingerprint
+    "bea4a766093b1c64725c030da7c655f39bbc8a9f50887ee7ba50e6020fe39864", # eneboo.com
+]
+
 def hash_file(hashobj, filepath):
     File = open(filepath)
     while True:
