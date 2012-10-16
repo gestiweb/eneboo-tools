@@ -137,6 +137,32 @@ def new_certificates_file(iface):
     return xmlroot
     
             
+def u8(txt):
+    #print repr(txt)
+    utxt = u(txt)
+    #print repr(utxt)
+    #print utxt
+    
+    return utxt
+
+def u(txt):
+    if isinstance(txt,unicode): return txt
+    if ord(txt[0]) == 0:
+        txt = "".join( c for c in txt if ord(c) > 0)
+        
+    codecs = [
+        "UTF-8",
+        "ISO-8859-15",
+        "UTF-16",
+        "ascii",
+        ]
+    for codec in codecs:
+        try:
+            return unicode(txt,codec)
+        except Exception:
+            pass
+    raise ValueError,"Unknown codec?"                
+    
             
 def add_certificate(iface, pemfile):
     try:
@@ -163,9 +189,10 @@ def add_certificate(iface, pemfile):
         return cert1   
 
     xmlcertificate = etree.SubElement(xmlcert_root,"certificate")
-    xmlcertificate.set("O",cert1.get_subject().O)
-    xmlcertificate.set("CN",cert1.get_subject().CN)
-    xmlcertificate.set("emailAddress",cert1.get_subject().emailAddress)
+    
+    xmlcertificate.set("O",u8(cert1.get_subject().O))
+    xmlcertificate.set("CN",u8(cert1.get_subject().CN))
+    xmlcertificate.set("emailAddress",u8(cert1.get_subject().emailAddress))
     xmlcertificate.set("fingerprint-sha256",cert1.get_fingerprint('sha256').lower())
     xmlcertificate.text = cert1.as_pem()
     xmlcertificate.text = "\n" + cert1.as_pem() + "  "
@@ -283,9 +310,9 @@ def add_signature(iface,certpem,pkeypem):
     signed_document.set("check","true")
 
     xmlcertificate = etree.SubElement(signed_document,"signer-certificate")
-    xmlcertificate.set("O",cert1.get_subject().O)
-    xmlcertificate.set("CN",cert1.get_subject().CN)
-    xmlcertificate.set("emailAddress",cert1.get_subject().emailAddress)
+    xmlcertificate.set("O",u8(cert1.get_subject().O))
+    xmlcertificate.set("CN",u8(cert1.get_subject().CN))
+    xmlcertificate.set("emailAddress",u8(cert1.get_subject().emailAddress))
     xmlcertificate.set("fingerprint-sha256",cert1.get_fingerprint('sha256').lower())
 
     xmldocument = etree.SubElement(signed_document,"document")
