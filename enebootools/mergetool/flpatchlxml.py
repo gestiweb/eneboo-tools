@@ -784,6 +784,9 @@ class XMLDiffer(object):
         actionname = None
         if not action.tag.startswith("{"):
             actionname = action.tag
+            if ':' in actionname:
+                actionname = actionname.split(":")[1]
+                
         if action.tag.startswith(ns):
             actionname = action.tag.replace(ns,"")
 
