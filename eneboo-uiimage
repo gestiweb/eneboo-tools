@@ -77,6 +77,20 @@ def upload_images(filename, files):
     
     open(filename,"w").write(etree.tostring(tree, pretty_print=True))
 
+
+def fix_datalen(filename):
+    tree   = etree.parse(filename)    
+    for image in tree.xpath("/UI/images/image"):
+        imgname = image.attrib["name"]
+        for data in image.xpath("data"):
+            datalen = int(data.attrib["length"])
+            hexdata = str(data.text)
+            try: assert(datalen == len(hexdata))
+            except AssertionError: 
+                data.attrib['length'] = str(len(hexdata))
+                print "La longitud de la imagen %s especificada %d se ha corregido por la real %d" % (imgname,datalen, len(hexdata))
+        tree.write(filename, encoding='utf-8')
+
 def readImageName(cstring,fileTheme):
     treeImg = etree.parse(fileTheme)
     rootImg = treeImg.getroot()
@@ -101,9 +115,9 @@ def readImageData(image_name,fileTheme):
         if imageImg.get('name') == image_name:
             data = imageImg.find('data')
             data_format = data.get('format')
-            data_lenght = data.get('length')
+            data_length = data.get('length')
             data_text = data.text
-            return data_format, data_lenght, data_text
+            return data_format, data_length, data_text
 
 def cambioImagenNom(widget,clase,image_name):
     icono = widget.find('property/iconset')
@@ -114,12 +128,12 @@ def cambioImagenNom(widget,clase,image_name):
         icono.text = str(image_name)
         return imageLast
          
-def cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text):
+def cambioImagenData(tree,imageLast,image_name,data_format,data_length,data_text):
     for image in tree.xpath("/UI/images/image[@name='%s']" % imageLast):
         data = image.find('data')
         image.attrib['name'] = image_name
         data.attrib['format'] = data_format
-        data.attrib['length'] = data_lenght
+        data.attrib['length'] = data_length
         data.text = data_text
     
 def eliminarImageElem(image,images,imageLast):
@@ -134,16 +148,31 @@ def eliminarMaximumSize(widget):
         if nameProp == "maximumSize":
             widget.remove(widgetProp)
 
-def genImageElem(images,image_name,data_format,data_lenght,data_text):
+def genImageElem(images,image_name,data_format,data_length,data_text):
     imageElem = etree.SubElement(images, "image")
     imageElem.set("name", image_name)
     data = etree.SubElement(imageElem, "data")
     data.set("format", data_format)
-    data.set("lenght", data_lenght)
+    data.set("lenght", data_length)
     data.text = data_text
 
+def acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files):
+    image_name = readImageName(cstring,fileTheme)
+    data_format = readImageData(image_name,fileTheme)[0]
+    data_length = readImageData(image_name,fileTheme)[1]
+    data_text = readImageData(image_name,fileTheme)[2]
+    imageLast = cambioImagenNom(widget,clase,image_name)
+    cambioImagenData(tree,imageLast,image_name,data_format,data_length,data_text)
+    #eliminarImageElem(image,images,imageLast)
+    #eliminarMaximumSize(widget)
+    #genImageElem(images,image_name,data_format,data_length,data_text)
+    tree.write(ficheroSalida, encoding='utf-8')
+    print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
+
+
 def modifFile(ficheroEntrada,ficheroSalida,fileTheme,files):
-    tree = etree.parse(ficheroEntrada)
+    parser = etree.XMLParser(ns_clean=True,recover=True,remove_blank_text=False)
+    tree = etree.parse(ficheroEntrada, parser)
     root = tree.getroot()
     images = root.find("images")
     if images != None:
@@ -151,90 +180,21 @@ def modifFile(ficheroEntrada,ficheroSalida,fileTheme,files):
         for widget in root.iter('widget'):
             clase = widget.get('class')
             cstring = widget.find('property/cstring').text
-            if "toolButtonInsert" in cstring:
-                image_name = readImageName(cstring,fileTheme)
-                data_format = readImageData(image_name,fileTheme)[0]
-                data_lenght = readImageData(image_name,fileTheme)[1]
-                data_text = readImageData(image_name,fileTheme)[2]
-                imageLast = cambioImagenNom(widget, clase, image_name)
-                cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text)
-                #eliminarImageElem(image,images,imageLast)
-                #eliminarMaximumSize(widget)
-                #genImageElem(images,image_name,data_format,data_lenght,data_text)
-                tree.write(ficheroSalida, encoding='utf-8')
-                print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
-            if "toolButtomInsert" in cstring:
-                image_name = readImageName(cstring,fileTheme)
-                data_format = readImageData(image_name,fileTheme)[0]
-                data_lenght = readImageData(image_name,fileTheme)[1]
-                data_text = readImageData(image_name,fileTheme)[2]
-                imageLast = cambioImagenNom(widget, clase, image_name)
-                cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text)
-                #eliminarImageElem(image,images,imageLast)
-                #eliminarMaximumSize(widget)
-                #genImageElem(images,image_name,data_format,data_lenght,data_text)
-                tree.write(ficheroSalida, encoding='utf-8')
-                print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
-            if "toolButtonEdit" in cstring:
-                image_name = readImageName(cstring,fileTheme)
-                data_format = readImageData(image_name,fileTheme)[0]
-                data_lenght = readImageData(image_name,fileTheme)[1]
-                data_text = readImageData(image_name,fileTheme)[2]
-                imageLast = cambioImagenNom(widget, clase, image_name)
-                cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text)
-                #eliminarImageElem(image,images,imageLast)
-                #eliminarMaximumSize(widget)
-                #genImageElem(images,image_name,data_format,data_lenght,data_text)
-                tree.write(ficheroSalida, encoding='utf-8')
-                print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
-            if "toolButtonDelete" in cstring:
-                image_name = readImageName(cstring,fileTheme)
-                data_format = readImageData(image_name,fileTheme)[0]
-                data_lenght = readImageData(image_name,fileTheme)[1]
-                data_text = readImageData(image_name,fileTheme)[2]
-                imageLast = cambioImagenNom(widget, clase, image_name)
-                cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text)
-                #eliminarImageElem(image,images,imageLast)
-                #eliminarMaximumSize(widget)
-                #genImageElem(images,image_name,data_format,data_lenght,data_text)
-                tree.write(ficheroSalida, encoding='utf-8')
-                print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
-            if "toolButtonZoom" in cstring:
-                image_name = readImageName(cstring,fileTheme)
-                data_format = readImageData(image_name,fileTheme)[0]
-                data_lenght = readImageData(image_name,fileTheme)[1]
-                data_text = readImageData(image_name,fileTheme)[2]
-                imageLast = cambioImagenNom(widget, clase, image_name)
-                cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text)
-                #eliminarImageElem(image,images,imageLast)
-                #eliminarMaximumSize(widget)
-                #genImageElem(images,image_name,data_format,data_lenght,data_text)
-                tree.write(ficheroSalida, encoding='utf-8')
-                print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
-            if "toolButtonCopy" in cstring:
-                image_name = readImageName(cstring,fileTheme)
-                data_format = readImageData(image_name,fileTheme)[0]
-                data_lenght = readImageData(image_name,fileTheme)[1]
-                data_text = readImageData(image_name,fileTheme)[2]
-                imageLast = cambioImagenNom(widget, clase, image_name)
-                cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text)
-                #eliminarImageElem(image,images,imageLast)
-                #eliminarMaximumSize(widget)
-                #genImageElem(images,image_name,data_format,data_lenght,data_text)
-                tree.write(ficheroSalida, encoding='utf-8')
-                print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
-            if "toolButtonPrint" in cstring:
-                image_name = readImageName(cstring,fileTheme)
-                data_format = readImageData(image_name,fileTheme)[0]
-                data_lenght = readImageData(image_name,fileTheme)[1]
-                data_text = readImageData(image_name,fileTheme)[2]
-                imageLast = cambioImagenNom(widget, clase, image_name)
-                cambioImagenData(tree,imageLast,image_name,data_format,data_lenght,data_text)
-                #eliminarImageElem(image,images,imageLast)
-                #eliminarMaximumSize(widget)
-                #genImageElem(images,image_name,data_format,data_lenght,data_text)
-                tree.write(ficheroSalida, encoding='utf-8')
-                print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
+            if cstring != None:
+                if "toolButtonInsert" in cstring:
+                    acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files)
+                if "toolButtomInsert" in cstring:
+                    acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files)
+                if "toolButtonEdit" in cstring:
+                    acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files)
+                if "toolButtonDelete" in cstring:
+                    acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files)
+                if "toolButtonZoom" in cstring:
+                    acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files)
+                if "toolButtonCopy" in cstring:
+                    acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files)
+                if "toolButtonPrint" in cstring:
+                    acciones(tree,widget,clase,cstring,fileTheme,ficheroSalida,files)
 
 def formsToChange(theme,rutaProyecto,metodo):
     rutaProyectoNorm = os.path.normpath(rutaProyecto)
@@ -267,7 +227,9 @@ if action == "download":
 elif action == "check":
     check_images(sys.argv[2])
 elif action == "upload":
-    upload_images(sys.argv[2],sys.argv[3:])
+    upload_images(sys.argv[2])
+elif action == "fixdatalen":
+    fix_datalen(sys.argv[2])
 elif action == "changetheme":
     formsToChange(sys.argv[2],sys.argv[3],sys.argv[4])
 else:
