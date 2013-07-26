@@ -4,6 +4,9 @@ import binascii
 import lxml
 from lxml import etree
 
+# debug = "--debug"
+debug = "no"
+
 def download_images(filename):
     parser = etree.XMLParser(ns_clean=True,recover=True,remove_blank_text=True)
     tree   = etree.parse(filename, parser)    
@@ -92,55 +95,6 @@ def fix_datalen(filename):
         tree.write(filename, encoding='utf-8')
 
 
-def readImageName(cstring, fileTheme):
-    treeImg = etree.parse(fileTheme)
-    rootImg = treeImg.getroot()
-    for widgetImg in rootImg.iter('widget'):
-        claseImg = widgetImg.get('class')
-        cstringImg = widgetImg.find('property/cstring').text
-        icono = None
-        if cstringImg in cstring:
-            if claseImg == "QToolButton":
-                icono = widgetImg.find('property/iconset')
-            if claseImg == "QPushButton":
-                icono = widgetImg.find('property/pixmap')
-            if icono != None:
-                image_name = icono.text
-                return image_name
-
-
-def readImageData(image_name, fileTheme):
-    treeImg = etree.parse(fileTheme)
-    rootImg = treeImg.getroot()
-    imagesImg = rootImg.find("images")
-    for imageImg in imagesImg:
-        if imageImg.get('name') == image_name:
-            data = imageImg.find('data')
-            data_format = data.get('format')
-            data_length = data.get('length')
-            data_text = data.text
-            return data_format, data_length, data_text
-
-
-def cambioImagenNom(widget, clase, image_name):
-    icono = widget.find('property/iconset')
-    if icono == None:
-        icono = widget.find('property/pixmap')
-    if icono != None:
-        imageLast = icono.text
-        icono.text = str(image_name)
-        return imageLast
-
-
-def cambioImagenData(tree, imageLast, image_name, data_format, data_length, data_text):
-    for image in tree.xpath("/UI/images/image[@name='%s']" % imageLast):
-        data = image.find('data')
-        image.attrib['name'] = image_name
-        data.attrib['format'] = data_format
-        data.attrib['length'] = data_length
-        data.text = data_text
-
-
 def eliminarImageElem(image, images, imageLast):
     if image.getparent() is not None:
         if image.attrib["name"] == imageLast:
@@ -164,71 +118,179 @@ def genImageElem(images, image_name, data_format, data_length, data_text):
     data.text = data_text
 
 
-def acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files):
-    image_name = readImageName(cstring, fileTheme)
-    data_format = readImageData(image_name, fileTheme)[0]
-    data_length = readImageData(image_name, fileTheme)[1]
-    data_text = readImageData(image_name, fileTheme)[2]
-    imageLast = cambioImagenNom(widget, clase, image_name)
-    cambioImagenData(tree, imageLast, image_name, data_format, data_length, data_text)
-    #eliminarImageElem(image, images, imageLast)
-    #eliminarMaximumSize(widget)
-    #genImageElem(images, image_name, data_format, data_length, data_text)
-    tree.write(ficheroSalida, encoding='utf-8')
-    print "Se ha cambiado la imagen %s por la imagen del theme %s para el boton %s en el fichero %s" % (imageLast, image_name, cstring, files)
+def readImageName(cstring, fileTheme):
+    treeImg = etree.parse(fileTheme)
+    rootImg = treeImg.getroot()
+    for widgetImg in rootImg.iter('widget'):
+        claseImg = widgetImg.get('class')
+        cstringImg = widgetImg.find('property/cstring').text
+        icono = None
+        if cstringImg in cstring:
+            if claseImg == "QToolButton":
+                icono = widgetImg.find('property/iconset')
+            if claseImg == "QPushButton":
+                icono = widgetImg.find('property/pixmap')
+            if icono is not None:
+                image_name = icono.text
+                return image_name
 
 
-def modifFile(ficheroEntrada, ficheroSalida, fileTheme, files):
+def readImageData(image_name, fileTheme):
+    treeImg = etree.parse(fileTheme)
+    rootImg = treeImg.getroot()
+    imagesImg = rootImg.find("images")
+    for imageImg in imagesImg:
+        if imageImg.get('name') == image_name:
+            data = imageImg.find('data')
+            data_format = data.get('format')
+            data_length = data.get('length')
+            data_text = data.text
+            return data_format, data_length, data_text
+
+
+def changeImageName(widget, clase, image_name):
+    icono = widget.find('property/iconset')
+    if icono is None:
+        icono = widget.find('property/pixmap')
+    if icono is not None:
+        if icono.text == str(image_name):
+            imageLast = "Ignore"
+            return imageLast
+        else:
+            imageLast = icono.text
+            icono.text = str(image_name)       
+            return imageLast
+
+
+def changeImageData(tree, imageLast, image_name, data_format, data_length, data_text):
+    for image in tree.xpath("//image[@name='%s']" % imageLast):
+        data = image.find('data')
+        image.attrib['name'] = image_name
+        data.attrib['format'] = data_format
+        data.attrib['length'] = data_length
+        data.text = data_text
+
+
+def applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files):
+    image_name_theme = readImageName(cstring, fileTheme)
+    data_format_theme = readImageData(image_name_theme, fileTheme)[0]
+    data_length_theme = readImageData(image_name_theme, fileTheme)[1]
+    data_text_theme = readImageData(image_name_theme, fileTheme)[2]
+    imageLast = changeImageName(widget, clase, image_name_theme)
+    if debug == "--debug":
+        print "--------------------------------------------------------------------------------------------------------------------"
+        print "applyActions():: Acciones a ejecutar en el fichero"
+        print "-----------------------------------------------"
+        print "     Leer propiedades de la imagen en el archivo theme"
+        print "     Leer nombre: %s" % (image_name_theme)
+        print "     Leer formato: %s" % (data_format_theme)
+        print "     Leer lenght: %s" % (data_length_theme)
+        # print "     Leer data: %s" % (data_text_theme)
+        print "     Sustitucion de las propiedades para la imagen: %s" % (imageLast)
+        print "____________________________________________________________________________________________________________________"
+    print "Boton %s" % (cstring)
+    if imageLast == "Ignore":
+        print "SE IGNORA: Imagen %s ya cambiada" % (image_name_theme)
+    else:
+        changeImageData(tree, imageLast, image_name_theme, data_format_theme, data_length_theme, data_text_theme)
+        #eliminarImageElem(image, images, imageLast)
+        #eliminarMaximumSize(widget)
+        #genImageElem(images, image_name_theme, data_format_theme, data_length_theme, data_text_theme)
+        tree.write(ficheroSalida, encoding='utf-8')
+        print "     Imagen %s sustituida por %s " % (imageLast, image_name_theme)
+    print "-----------------------------------------------"
+
+
+def applyFile(ficheroEntrada, ficheroSalida, fileTheme, files):
     parser = etree.XMLParser(ns_clean=True, recover=True, remove_blank_text=False)
     tree = etree.parse(ficheroEntrada,  parser)
     root = tree.getroot()
-    images = root.find("images")
-    if images is not None:
-        image = images.find("image")
+    if root is not None:
+        # images = root.find("images")
+        print "------------------------------------------------------------------"
+        print "applyFile():: Comprobando Archivo: %s" % (ficheroEntrada)
+        print "------------------------------------------------------------------"
+        # print "     ficheroEntrada: %s" % (ficheroEntrada)
+        # print "     ficheroSalida: %s" % (ficheroSalida)
+        # print "     Theme: %s" % (fileTheme)
+        # print "     Archivo: %s" % (files)
+        # print "     root: %s" % (root)
         for widget in root.iter('widget'):
             clase = widget.get('class')
             cstring = widget.find('property/cstring').text
+
             if cstring is not None:
                 if "toolButtonInsert" in cstring:
-                    acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtomInsert" in cstring:
-                    acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonEdit" in cstring:
-                    acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonDelete" in cstring:
-                    acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonZoom" in cstring:
-                    acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonCopy" in cstring:
-                    acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonPrint" in cstring:
-                    acciones(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+    else:
+        print "ATENCION: El fichero %s no tiene un formato valido" % (files)
+    print "____________________________________________________________________________________________________________________"
+    print " "
 
-
-def formsToChange(theme, rutaProyecto, metodo):
+def applyChange(theme, rutaProyecto, metodo):
     rutaProyectoNorm = os.path.normpath(rutaProyecto)
     fileTheme = os.path.normpath(theme)
+    if debug == "--debug":
+        print "--------------------------------------------------------------------------------------------------------------------"
+        print "applyChange :: Busqueda de ficheros .ui para la modificacion"
+        print "-----------------------------------------------"
+        print "     Ruta del proyecto: %s" % (rutaProyectoNorm)
+        print "     Archivo Theme: %s" % (fileTheme)
+    # si es solo un archivo
     if rutaProyectoNorm.endswith(".ui"):
         fileName,  fileExtension = os.path.splitext(rutaProyectoNorm)
         ficheroSalida = fileName + "-modificado" + fileExtension
         files = rutaProyectoNorm
-        modifFile(rutaProyecto, ficheroSalida, fileTheme, files)
+        applyFile(rutaProyecto, ficheroSalida, fileTheme, files)
+        if debug == "--debug":
+            print "    -------------------------------------------"
+            print "     :: Trabajamos con un unico archivo"
+            print "    -------------------------------------------"
+            print "     Archivo a modificar: %s" % (files)
+    # Si es un directorio
     for r, d, f in os.walk(rutaProyectoNorm):
         for files in f:
             if files.endswith(".ui"):
                 ficheroEntrada = os.path.join(r, files)
-                print "Fichero Entrada ", ficheroEntrada
-                components = ficheroEntrada.split(os.sep)
-                rutaModulo = str.join(os.sep, components[:components.index("forms")])
+                rutaModulo = os.path.dirname(ficheroEntrada)
                 if metodo == "overwrite":
-                    rutaSalida = rutaModulo + "/forms/"
-                    ficheroSalida = rutaModulo + "/forms/" + files
+                    rutaSalida = rutaModulo
+                    ficheroSalida = ficheroEntrada
                 if metodo == "modify":
                     rutaSalida = rutaModulo + "/forms-modificados/"
                     ficheroSalida = rutaModulo + "/forms-modificados/" + files
                 if not os.path.exists(rutaSalida):
                     os.makedirs(rutaSalida)
-                modifFile(ficheroEntrada, ficheroSalida, fileTheme, files)
+                if debug == "--debug":
+                    print "    -------------------------------------------"
+                    print "     :: Trabajamos con un directorio"
+                    print "    -------------------------------------------"
+                    print "     Archivo a modificar: %s" % (ficheroEntrada)
+                    print "     Ruta del parche o modulo: %s" % (rutaModulo)
+                    print "     Ruta donde guardar el nuevo archivo: %s" % (rutaSalida)
+                    print "     Fichero de salida: %s" % (ficheroSalida)
+                applyFile(ficheroEntrada, ficheroSalida, fileTheme, files)
+                # if debug == "--debug":
+                #     print "--------------------------------------------------------------------------------------------------------------------"
+                #     print "applyChange:: Rutas Proyecto"
+                #     print "-----------------------------------------------"
+                #     print "Ruta del proyecto: %s" % (rutaProyectoNorm)
+                #     print "Archivo Theme: %s" % (fileTheme)
+    if debug == "--debug":
+        print "____________________________________________________________________________________________________________________"
+
 
 action = sys.argv[1]
 if action == "download":
@@ -239,7 +301,17 @@ elif action == "upload":
     upload_images(sys.argv[2])
 elif action == "fixdatalen":
     fix_datalen(sys.argv[2])
-elif action == "changetheme":
-    formsToChange(sys.argv[2],sys.argv[3],sys.argv[4])
+elif action == "theme":
+    if sys.argv[2] == "--help":
+        print " "
+        print "     COMANDO"
+        print "     eneboo-uiimage theme [archivo theme] [ruta proyecto] [metodo]"
+        print " "
+        print "     METODOS"
+        print "         overwrite: sobreescribe el/los archivos"
+        print "         modify: crea un nuevo archivo adjuntando el sufijo -modify"
+        print " "
+    else:
+        applyChange(sys.argv[2], sys.argv[3], sys.argv[4])
 else:
     print "Unknown action %s " % action
