@@ -158,17 +158,35 @@ def changeImageName(widget, clase, image_name):
             return imageLast
         else:
             imageLast = icono.text
-            icono.text = str(image_name)       
+            icono.text = str(image_name)
             return imageLast
 
 
 def changeImageData(tree, imageLast, image_name, data_format, data_length, data_text):
-    for image in tree.xpath("//image[@name='%s']" % imageLast):
-        data = image.find('data')
-        image.attrib['name'] = image_name
-        data.attrib['format'] = data_format
-        data.attrib['length'] = data_length
-        data.text = data_text
+    # Comprobamos que la imagen no exista en el archivo
+    imageExist = tree.find("//image[@name='%s']" % image_name)
+    if imageExist is not None:
+        # Si la imagen ya existe en vez de reemplar los atributos,
+        # se elimina el widget image correspondiente a la imagen cambiada
+        print "     La imagen %s ya existe en el archivo" % image_name
+        for image in tree.xpath("//image[@name='%s']" % imageLast):
+            # Si el archivo es un parche, se sube un nivel
+            # y se elimina todo el widget xupdate con la imagen
+            if "xupdate" in image.getparent().tag:
+                widget_xupdate = image.getparent()
+                widget_xupdate.getparent().remove(widget_xupdate)
+            else:
+                #Si no es parche solo se elimina el widget image
+                image.getparent().remove(image)
+    else:
+        # Si no existe la imagen, se actualizan los atributos
+        # de la imagen existente por los atributos de la imagen del theme
+        for image in tree.xpath("//image[@name='%s']" % imageLast):
+            data = image.find('data')
+            image.attrib['name'] = image_name
+            data.attrib['format'] = data_format
+            data.attrib['length'] = data_length
+            data.text = data_text
 
 
 def applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files):
@@ -201,14 +219,14 @@ def applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files):
     print "-----------------------------------------------"
 
 
-def applyFile(ficheroEntrada, ficheroSalida, fileTheme, files):
+def checkFile(ficheroEntrada, ficheroSalida, fileTheme, files):
     parser = etree.XMLParser(ns_clean=True, recover=True, remove_blank_text=False)
     tree = etree.parse(ficheroEntrada,  parser)
     root = tree.getroot()
     if root is not None:
         # images = root.find("images")
         print "------------------------------------------------------------------"
-        print "applyFile():: Comprobando Archivo: %s" % (ficheroEntrada)
+        print "checkFile():: Comprobando Archivo: %s" % (ficheroEntrada)
         print "------------------------------------------------------------------"
         # print "     ficheroEntrada: %s" % (ficheroEntrada)
         # print "     ficheroSalida: %s" % (ficheroSalida)
@@ -239,12 +257,13 @@ def applyFile(ficheroEntrada, ficheroSalida, fileTheme, files):
     print "____________________________________________________________________________________________________________________"
     print " "
 
-def applyChange(theme, rutaProyecto, metodo):
+
+def searchFile(theme, rutaProyecto, metodo):
     rutaProyectoNorm = os.path.normpath(rutaProyecto)
     fileTheme = os.path.normpath(theme)
     if debug == "--debug":
         print "--------------------------------------------------------------------------------------------------------------------"
-        print "applyChange :: Busqueda de ficheros .ui para la modificacion"
+        print "searchFile :: Busqueda de ficheros .ui para la modificacion"
         print "-----------------------------------------------"
         print "     Ruta del proyecto: %s" % (rutaProyectoNorm)
         print "     Archivo Theme: %s" % (fileTheme)
@@ -253,7 +272,7 @@ def applyChange(theme, rutaProyecto, metodo):
         fileName,  fileExtension = os.path.splitext(rutaProyectoNorm)
         ficheroSalida = fileName + "-modificado" + fileExtension
         files = rutaProyectoNorm
-        applyFile(rutaProyecto, ficheroSalida, fileTheme, files)
+        checkFile(rutaProyecto, ficheroSalida, fileTheme, files)
         if debug == "--debug":
             print "    -------------------------------------------"
             print "     :: Trabajamos con un unico archivo"
@@ -281,10 +300,10 @@ def applyChange(theme, rutaProyecto, metodo):
                     print "     Ruta del parche o modulo: %s" % (rutaModulo)
                     print "     Ruta donde guardar el nuevo archivo: %s" % (rutaSalida)
                     print "     Fichero de salida: %s" % (ficheroSalida)
-                applyFile(ficheroEntrada, ficheroSalida, fileTheme, files)
+                checkFile(ficheroEntrada, ficheroSalida, fileTheme, files)
                 # if debug == "--debug":
                 #     print "--------------------------------------------------------------------------------------------------------------------"
-                #     print "applyChange:: Rutas Proyecto"
+                #     print "searchFile:: Rutas Proyecto"
                 #     print "-----------------------------------------------"
                 #     print "Ruta del proyecto: %s" % (rutaProyectoNorm)
                 #     print "Archivo Theme: %s" % (fileTheme)
@@ -312,6 +331,6 @@ elif action == "theme":
         print "         modify: crea un nuevo archivo adjuntando el sufijo -modify"
         print " "
     else:
-        applyChange(sys.argv[2], sys.argv[3], sys.argv[4])
+        searchFile(sys.argv[2], sys.argv[3], sys.argv[4])
 else:
     print "Unknown action %s " % action
