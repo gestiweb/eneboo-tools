@@ -77,6 +77,7 @@ def qsclass_reader(iface, file_name, file_lines):
     declidx = {}
     defidx = {}
     iface_n = None
+    classpatch = []
     for n,line in enumerate(file_lines):
         line2 = latin1_to_ascii(line)
         m = re.search(r"/\*\*?\s*@\s*([\w\.,;-]+)\s+([^ */]+)?\s*\*/", line2)
@@ -86,6 +87,44 @@ def qsclass_reader(iface, file_name, file_lines):
                 iface.warn("Formato incorrecto de la linea %s" % repr(line))
             dtype = m.group(1)
             cname = m.group(2)
+            for n2,sline in enumerate(file_lines[n+1:]):
+                sline2 = latin1_to_ascii(sline)
+                sm = re.search(r"/\*\*?\s*@\s*([\w\.,;-]+)\s+([^ */]+)?\s*\*/", sline2)
+                if sm: break
+            n2+=n+1
+            class_lines = file_lines[n:n2]
+            heu_dtype = None
+            heu_cname = None
+            heu_extends = None
+            heu_from = None
+            for l in class_lines[:32]:
+                m = re.search("class\s+(?P<cname>\w+)(\s+extends\s+(?P<cbase>\w+))?(\s+/\*\*\s+%from:\s+(?P<cfrom>\w+)\s+\*/)?",l)
+                if m: 
+                    heu_cname = m.group("cname")
+                    heu_extends = m.group("cbase")
+                    heu_from = m.group("cfrom")
+                    heu_dtype = "class_declaration"
+            if heu_dtype is None:
+                heu_cnames = []
+                for l in class_lines:
+                    m = re.search("function\s+(?P<cname>[a-zA-Z0-9]+)_\w+",l)
+                    if m: 
+                        heu_cname = m.group("cname")
+                        if heu_cname not in heu_cnames: heu_cnames.append(heu_cname)
+                if len(heu_cnames) > 1:
+                    iface.warn(u"En la clase %s existen funciones para diferentes clases (file: %s)" % (cname,file_name))
+                if heu_cname:
+                    heu_dtype = "class_definition"
+            
+            if heu_dtype:
+                heu_line = "/** @%s %s */" % (heu_dtype, heu_cname)
+                if heu_line != line2.strip():
+                    iface.error(u"La definición de bloque %r no corresponde con el contenido (file: %s:%d) ... asumiendo '%s'" % (line2.strip(),file_name,n, heu_line))
+                    dtype, cname = heu_dtype, heu_cname
+                    classpatch += ["@@ -%d,1 +%d,1 @@" % (n+1,n+1)]
+                    classpatch += ["-%s" % line2.rstrip()]
+                    classpatch += ["+%s" % heu_line]
+                
                 
             npos = len(linelist)
             if dtype == "class_declaration":
@@ -93,7 +132,7 @@ def qsclass_reader(iface, file_name, file_lines):
                     iface.error(u"Hay dos bloques 'class_declaration' para la clase %s (file: %s) ... asumiendo 'class_definiton'" % (cname,file_name))
                     dtype = "class_definition"
                 else:
-                    classdecl = extract_class_decl_info(iface, file_lines[n:n+12])
+                    classdecl = extract_class_decl_info(iface, class_lines)
                     if cname not in classdecl:
                         iface.error(u"Bloque 'class_declaration' con nombre erroneo clase %s no existe en el bloque (file: %s)" % (cname,file_name))
                         possible_cnames = difflib.get_close_matches(cname, classdecl, 1)
@@ -147,6 +186,7 @@ def qsclass_reader(iface, file_name, file_lines):
         "classes" : classes,
         "delclasses" : delclasses,
         "list" : linelist,
+        "patch" : classpatch,
         "iface" : iface_n
         }
     return classlist
@@ -1145,6 +1185,18 @@ def check_qs_classes(iface, base):
         iface.info(u"Abortando comprobación por error al abrir los ficheros")
         return
     clbase = qsclass_reader(iface, base, flbase)
+    cpatch = clbase["patch"]
+    if iface.patch_dest and cpatch:
+        iface.info(u"Guardando parche en %r" % iface.patch_dest)
+        fpatch = open(iface.patch_dest,"a")
+        fpatch.write("--- a/" + base)
+        fpatch.write("\n")
+        fpatch.write("+++ b/" + base)
+        fpatch.write("\n")
+        fpatch.write("\n".join(cpatch))
+        fpatch.write("\n")
+        fpatch.close()
+        
     classdict = extract_class_decl_info(iface, flbase)
     
     if not clbase['iface']:
@@ -1206,7 +1258,8 @@ def check_qs_classes(iface, base):
 
     # De las clases sobrantes, ninguna puede heredar de alguna que hayamos usado
     for clname in not_used_classes:
-        parent = classdict[clname]['extends']        
+        try: parent = classdict[clname]['extends']        
+        except KeyError: continue # Este error generalmente se avisa antes
         if parent in iface_class_hierarchy:
             iface.error(u"La clase %s no la heredó iface, y sin embargo,"
                         u" hereda de la clase %s que sí la heredó." % (clname, parent))
