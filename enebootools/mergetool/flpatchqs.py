@@ -112,7 +112,9 @@ def qsclass_reader(iface, file_name, file_lines):
                         heu_cname = m.group("cname")
                         if heu_cname not in heu_cnames: heu_cnames.append(heu_cname)
                 if len(heu_cnames) > 1:
-                    iface.warn(u"En la clase %s existen funciones para diferentes clases (file: %s)" % (cname,file_name))
+                    iface.error(u"En la clase %s existen funciones para diferentes clases (file: %s)" % (cname,file_name))
+                    if cname in heu_cnames: heu_cname = cname
+                    
                 if heu_cname:
                     heu_dtype = "class_definition"
             
