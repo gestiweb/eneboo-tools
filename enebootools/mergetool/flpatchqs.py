@@ -118,7 +118,8 @@ def qsclass_reader(iface, file_name, file_lines):
             
             if heu_dtype:
                 heu_line = "/** @%s %s */" % (heu_dtype, heu_cname)
-                if heu_line != line2.strip():
+                myline = "/** @%s %s */" % (dtype, cname)
+                if heu_line != myline:
                     iface.error(u"La definición de bloque %r no corresponde con el contenido (file: %s:%d) ... asumiendo '%s'" % (line2.strip(),file_name,n, heu_line))
                     dtype, cname = heu_dtype, heu_cname
                     classpatch += ["@@ -%d,1 +%d,1 @@" % (n+1,n+1)]
@@ -438,7 +439,12 @@ def join_qs(iface, dstfolder):
                 
     f1r = openr(dstfolder,"patch_series")
     classlist = [ cname.strip() for cname in f1r if len(cname.strip()) ]
+    if not classlist:
+        iface.error(u"Lista de clases disponibles para unir vacía (operación abortada)" )
+        iface.error(u"Contenido fichero: %r" % openr(dstfolder,"patch_series").read() )
+        return
     f1r.close()
+        
     
     patch = {}
     parent_class = None
@@ -447,9 +453,9 @@ def join_qs(iface, dstfolder):
         patch[cname] = PatchReader(iface,dstfolder,cname,parent_class,classlist[-1])
         parent_class = cname
         
-
     p0 = patch[classlist[0]]
     p0.write_head(f1)
+
     
     for cname in classlist:
         p = patch[cname]
@@ -867,13 +873,13 @@ def patch_class_advanced(orig,patch, filename="unknown"):
                 if last_seen_a >=0  and last_seen_b>=0 and abs(last_seen_b - last_seen_a) < min_space:
                     min_space = abs(last_seen_b - last_seen_a)
                 
-            if min_space < 4:
+            if min_space < 6:
                 open("/tmp/base.tmp","w").write("\n".join(orig_block))
                 open("/tmp/remote.tmp","w").write("\n".join(new_block))
-                open("/tmp/local.tmp","w").write("\n".join(orig_[minb:maxb]))
+                open("/tmp/local.tmp","w").write("\n".join(orig_[minb-1:maxb]))
                 subprocess.check_output(["kdiff3","/tmp/base.tmp","/tmp/remote.tmp","/tmp/local.tmp","-o","/tmp/merged.tmp","--auto"])
                 new_lines = [ ln1.rstrip() for ln1 in open("/tmp/merged.tmp")]
-                orig_[minb:maxb] = new_lines
+                orig_[minb-1:maxb] = new_lines
                 continue
                 
                 
