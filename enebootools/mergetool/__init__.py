@@ -66,6 +66,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.patch_qs_style_name = "legacy"
         self.diff_xml_search_move = False
         self.patch_name = None
+        self.patch_dest = None
         if setup_parser: self.setup_parser()
         
     def setup_parser(self):
@@ -83,6 +84,13 @@ class MergeToolInterface(EnebooToolsInterface):
             level = "action",
             variable = "NAME", 
             call_function = self.set_patch_name
+            )
+        self.parser.declare_option(
+            name = "patch-dest",
+            description = u"Donde guardar un fichero de parche",
+            level = "action",
+            variable = "FILENAME", 
+            call_function = self.set_patch_dest
             )
         self.parser.declare_option(
             name = "enable-diff-xml-search-move",
@@ -173,11 +181,11 @@ class MergeToolInterface(EnebooToolsInterface):
             name = "file-check",
             args = ["check","filename"],
             description = u"Analiza un fichero $filename en busca de errores usando el algoritmo de comprobación $check",
-            options = [],
+            options = ['patch-dest'],
             call_function = self.do_file_check,
             )
         self.file_check_action.set_help_arg(
-            ext = "Tipo de análisis a realizar: qs-classes / ...",
+            check = "Tipo de análisis a realizar: qs-classes / ...",
             filename = "Fichero a analizar",
             )
         self.qs_extract_action = self.parser.declare_action(
@@ -217,6 +225,10 @@ class MergeToolInterface(EnebooToolsInterface):
     def set_patch_name(self, name):
         if name == "": name = None
         self.patch_name = name
+        
+    def set_patch_dest(self, filename):
+        if filename == "": filename = None
+        self.patch_dest = filename
         
     def set_patch_xml_style(self, name):
         self.patch_xml_style_name = name

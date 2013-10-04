@@ -1,29 +1,360 @@
-<h1 id="proyecto-eneboo-tools-gu&#237;a-superrapida">Proyecto Eneboo-tools (Guía superrapida)</h1>
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.10: http://docutils.sourceforge.net/" />
+<title>Proyecto Eneboo-tools (Guía superrapida)</title>
+<style type="text/css">
+
+/*
+:Author: David Goodger (goodger@python.org)
+:Id: $Id: html4css1.css 7514 2012-09-14 14:27:12Z milde $
+:Copyright: This stylesheet has been placed in the public domain.
+
+Default cascading style sheet for the HTML output of Docutils.
+
+See http://docutils.sf.net/docs/howto/html-stylesheets.html for how to
+customize this style sheet.
+*/
+
+/* used to remove borders from tables and images */
+.borderless, table.borderless td, table.borderless th {
+  border: 0 }
+
+table.borderless td, table.borderless th {
+  /* Override padding for "table.docutils td" with "! important".
+     The right padding separates the table cells. */
+  padding: 0 0.5em 0 0 ! important }
+
+.first {
+  /* Override more specific margin styles with "! important". */
+  margin-top: 0 ! important }
+
+.last, .with-subtitle {
+  margin-bottom: 0 ! important }
+
+.hidden {
+  display: none }
+
+a.toc-backref {
+  text-decoration: none ;
+  color: black }
+
+blockquote.epigraph {
+  margin: 2em 5em ; }
+
+dl.docutils dd {
+  margin-bottom: 0.5em }
+
+object[type="image/svg+xml"], object[type="application/x-shockwave-flash"] {
+  overflow: hidden;
+}
+
+/* Uncomment (and remove this text!) to get bold-faced definition list terms
+dl.docutils dt {
+  font-weight: bold }
+*/
+
+div.abstract {
+  margin: 2em 5em }
+
+div.abstract p.topic-title {
+  font-weight: bold ;
+  text-align: center }
+
+div.admonition, div.attention, div.caution, div.danger, div.error,
+div.hint, div.important, div.note, div.tip, div.warning {
+  margin: 2em ;
+  border: medium outset ;
+  padding: 1em }
+
+div.admonition p.admonition-title, div.hint p.admonition-title,
+div.important p.admonition-title, div.note p.admonition-title,
+div.tip p.admonition-title {
+  font-weight: bold ;
+  font-family: sans-serif }
+
+div.attention p.admonition-title, div.caution p.admonition-title,
+div.danger p.admonition-title, div.error p.admonition-title,
+div.warning p.admonition-title, .code .error {
+  color: red ;
+  font-weight: bold ;
+  font-family: sans-serif }
+
+/* Uncomment (and remove this text!) to get reduced vertical space in
+   compound paragraphs.
+div.compound .compound-first, div.compound .compound-middle {
+  margin-bottom: 0.5em }
+
+div.compound .compound-last, div.compound .compound-middle {
+  margin-top: 0.5em }
+*/
+
+div.dedication {
+  margin: 2em 5em ;
+  text-align: center ;
+  font-style: italic }
+
+div.dedication p.topic-title {
+  font-weight: bold ;
+  font-style: normal }
+
+div.figure {
+  margin-left: 2em ;
+  margin-right: 2em }
+
+div.footer, div.header {
+  clear: both;
+  font-size: smaller }
+
+div.line-block {
+  display: block ;
+  margin-top: 1em ;
+  margin-bottom: 1em }
+
+div.line-block div.line-block {
+  margin-top: 0 ;
+  margin-bottom: 0 ;
+  margin-left: 1.5em }
+
+div.sidebar {
+  margin: 0 0 0.5em 1em ;
+  border: medium outset ;
+  padding: 1em ;
+  background-color: #ffffee ;
+  width: 40% ;
+  float: right ;
+  clear: right }
+
+div.sidebar p.rubric {
+  font-family: sans-serif ;
+  font-size: medium }
+
+div.system-messages {
+  margin: 5em }
+
+div.system-messages h1 {
+  color: red }
+
+div.system-message {
+  border: medium outset ;
+  padding: 1em }
+
+div.system-message p.system-message-title {
+  color: red ;
+  font-weight: bold }
+
+div.topic {
+  margin: 2em }
+
+h1.section-subtitle, h2.section-subtitle, h3.section-subtitle,
+h4.section-subtitle, h5.section-subtitle, h6.section-subtitle {
+  margin-top: 0.4em }
+
+h1.title {
+  text-align: center }
+
+h2.subtitle {
+  text-align: center }
+
+hr.docutils {
+  width: 75% }
+
+img.align-left, .figure.align-left, object.align-left {
+  clear: left ;
+  float: left ;
+  margin-right: 1em }
+
+img.align-right, .figure.align-right, object.align-right {
+  clear: right ;
+  float: right ;
+  margin-left: 1em }
+
+img.align-center, .figure.align-center, object.align-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.align-left {
+  text-align: left }
+
+.align-center {
+  clear: both ;
+  text-align: center }
+
+.align-right {
+  text-align: right }
+
+/* reset inner alignment in figures */
+div.align-right {
+  text-align: inherit }
+
+/* div.align-center * { */
+/*   text-align: left } */
+
+ol.simple, ul.simple {
+  margin-bottom: 1em }
+
+ol.arabic {
+  list-style: decimal }
+
+ol.loweralpha {
+  list-style: lower-alpha }
+
+ol.upperalpha {
+  list-style: upper-alpha }
+
+ol.lowerroman {
+  list-style: lower-roman }
+
+ol.upperroman {
+  list-style: upper-roman }
+
+p.attribution {
+  text-align: right ;
+  margin-left: 50% }
+
+p.caption {
+  font-style: italic }
+
+p.credits {
+  font-style: italic ;
+  font-size: smaller }
+
+p.label {
+  white-space: nowrap }
+
+p.rubric {
+  font-weight: bold ;
+  font-size: larger ;
+  color: maroon ;
+  text-align: center }
+
+p.sidebar-title {
+  font-family: sans-serif ;
+  font-weight: bold ;
+  font-size: larger }
+
+p.sidebar-subtitle {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+p.topic-title {
+  font-weight: bold }
+
+pre.address {
+  margin-bottom: 0 ;
+  margin-top: 0 ;
+  font: inherit }
+
+pre.literal-block, pre.doctest-block, pre.math, pre.code {
+  margin-left: 2em ;
+  margin-right: 2em }
+
+pre.code .ln { color: grey; } /* line numbers */
+pre.code, code { background-color: #eeeeee }
+pre.code .comment, code .comment { color: #5C6576 }
+pre.code .keyword, code .keyword { color: #3B0D06; font-weight: bold }
+pre.code .literal.string, code .literal.string { color: #0C5404 }
+pre.code .name.builtin, code .name.builtin { color: #352B84 }
+pre.code .deleted, code .deleted { background-color: #DEB0A1}
+pre.code .inserted, code .inserted { background-color: #A3D289}
+
+span.classifier {
+  font-family: sans-serif ;
+  font-style: oblique }
+
+span.classifier-delimiter {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+span.interpreted {
+  font-family: sans-serif }
+
+span.option {
+  white-space: nowrap }
+
+span.pre {
+  white-space: pre }
+
+span.problematic {
+  color: red }
+
+span.section-subtitle {
+  /* font-size relative to parent (h1..h6 element) */
+  font-size: 80% }
+
+table.citation {
+  border-left: solid 1px gray;
+  margin-left: 1px }
+
+table.docinfo {
+  margin: 2em 4em }
+
+table.docutils {
+  margin-top: 0.5em ;
+  margin-bottom: 0.5em }
+
+table.footnote {
+  border-left: solid 1px black;
+  margin-left: 1px }
+
+table.docutils td, table.docutils th,
+table.docinfo td, table.docinfo th {
+  padding-left: 0.5em ;
+  padding-right: 0.5em ;
+  vertical-align: top }
+
+table.docutils th.field-name, table.docinfo th.docinfo-name {
+  font-weight: bold ;
+  text-align: left ;
+  white-space: nowrap ;
+  padding-left: 0 }
+
+h1 tt.docutils, h2 tt.docutils, h3 tt.docutils,
+h4 tt.docutils, h5 tt.docutils, h6 tt.docutils {
+  font-size: 100% }
+
+ul.auto-toc {
+  list-style-type: none }
+
+</style>
+</head>
+<body>
+<div class="document" id="proyecto-eneboo-tools-guia-superrapida">
+<h1 class="title">Proyecto Eneboo-tools (Guía superrapida)</h1>
+
 <p>Actualmente solo se proveen los comandos eneboo-mergetool y eneboo-assembler.</p>
-<p>Otros comandos que no están listados aquí pueden ser pruebas de concepto o estar en desarrollo.</p>
-<h2 id="dependencias">Dependencias</h2>
-<dl>
+<p>Otros comandos que no están listados aquí pueden ser pruebas de concepto o estar
+en desarrollo.</p>
+<div class="section" id="dependencias">
+<h1>Dependencias</h1>
+<dl class="docutils">
 <dt>Como mínimo, se necesita:</dt>
-<dd><ul>
-<li><dl>
+<dd><ul class="first last">
+<li><dl class="first docutils">
 <dt>python 2.5</dt>
-<dd><ul>
+<dd><ul class="first last simple">
 <li>sqlite3</li>
 </ul>
 </dd>
-</dl></li>
-<li><dl>
+</dl>
+</li>
+<li><dl class="first docutils">
 <dt>lxml (python-lxml)</dt>
-<dd><ul>
+<dd><ul class="first last simple">
 <li>libxml2</li>
 <li>libxslt</li>
 </ul>
 </dd>
-</dl></li>
+</dl>
+</li>
 </ul>
 </dd>
 <dt>Para tener el programa funcionando, se recomienda:</dt>
-<dd><ul>
+<dd><ul class="first last simple">
 <li>python 2.6 o superior. (no es compatible con Python 3.X)</li>
 <li>lxml (python-lxml) (Parser de XML)</li>
 <li>psycopg (python-psycopg) (Driver de base de datos PostgreSQL)</li>
@@ -31,92 +362,169 @@
 </ul>
 </dd>
 </dl>
-<h2 id="instalaci&#243;n">Instalación</h2>
+</div>
+<div class="section" id="instalacion">
+<h1>Instalación</h1>
 <p>La instalación recomendada es enlazar los comandos en /usr/local/bin</p>
 <p>Hemos creado un Makefile que lo hace automáticamente al lanzar el comando:</p>
-<pre><code>$ sudo make install
-</code></pre>
+<pre class="literal-block">
+$ sudo make install
+</pre>
 <p>Si se quiere realizar manualmente, se puede hacer del siguiente modo:</p>
-<pre><code>$ sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
-</code></pre>
-<h2 id="assembler-introducci&#243;n">Assembler: Introducción</h2>
-<p>eneboo-assembler es una herramienta de &quot;collage&quot; de código fuente. Toma como base unos módulos y les aplica una serie de parches en un orden determinado para conseguir un proyecto modificado de cierta forma, que cumpla ciertas especificaciones.</p>
-<p>Es una buena forma para mantener centenares de versiones distintas del mismo programa al día, gestionando correctamente los cambios propios que tiene cada versión.</p>
-<h2 id="assembler-uso">Assembler: Uso</h2>
+<pre class="literal-block">
+$ sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
+</pre>
+</div>
+<div class="section" id="assembler-introduccion">
+<h1>Assembler: Introducción</h1>
+<p>eneboo-assembler es una herramienta de &quot;collage&quot; de código fuente. Toma como base
+unos módulos y les aplica una serie de parches en un orden determinado para
+conseguir un proyecto modificado de cierta forma, que cumpla ciertas especificaciones.</p>
+<p>Es una buena forma para mantener centenares de versiones distintas del mismo programa
+al día, gestionando correctamente los cambios propios que tiene cada versión.</p>
+</div>
+<div class="section" id="assembler-uso">
+<h1>Assembler: Uso</h1>
 <p>Para empezar, necesitaremos 2 repositorios adicionales:</p>
 <blockquote>
-<ul>
+<ul class="simple">
 <li>Módulos Oficiales</li>
 <li>Extensiones</li>
 </ul>
 </blockquote>
-<p>El procedimiento estándar para clonar los dos repositorios es el siguiente:</p>
-<pre><code>$ cd ~/git
+<p>Si tenemos cuenta en github, el procedimiento estándar para clonar los dos repositorios es el siguiente:</p>
+<pre class="literal-block">
+$ cd ~/git
 $ ssh-add
-$ git clone git@github.com:gestiweb/eneboo-modules
-$ git clone git@github.com:gestiweb/eneboo-features
-</code></pre>
-<p>Para instalar los comandos que tenemos en eneboo-tools es suficiente con ejecutar &quot;sudo make install&quot; desde la carpeta del proyecto.</p>
-<p>El comando &quot;eneboo-assembler&quot; es el que usaremos normalmente para realizar las mezclas desde consola. Es muy sencillo y práctico.</p>
-<p>Este comando tiene unas configuraciones y una base de datos de caché. Para que genere los primeros ficheros es conveniente lanzar la acción &quot;dbupdate&quot;:</p>
-<pre><code>$ eneboo-assembler dbupdate
-</code></pre>
-<p>Cabe destacar que eneboo-assembler no depende de en qué carpeta lo ejecutes. Todas sus acciones leen los directorios de las configuraciones. Para que esto funcione como debe, es necesario revisar la configuración que nos crea en $HOME/.eneboo-tools/assembler-config.ini</p>
-<p>En ese fichero, que es muy sencillo de editar a mano, debemos incluir las rutas donde hemos puesto los módulos y las funcionalidades (extensiones). Se deben modificar las rutas si no son las mismas en nuestro caso, o si tenemos repositorios privados, se pueden agregar también. Hay que tener en cuenta que las líneas de abajo toman preferencia sobre las de arriba. Se recomienda poner al final siempre los repositorios públicos para que tomen preferencia.</p>
+$ git clone git&#64;github.com:gestiweb/eneboo-modules
+$ git clone git&#64;github.com:gestiweb/eneboo-features
+</pre>
+<p>Si no tenemos cuenta en github, el procedimiento es:</p>
+<pre class="literal-block">
+$ cd ~/git
+$ git clone git://github.com/gestiweb/eneboo-tools.git
+</pre>
+<p>Para instalar los comandos que tenemos en eneboo-tools es suficiente con
+ejecutar &quot;sudo make install&quot; desde la carpeta del proyecto.</p>
+<p>El comando &quot;eneboo-assembler&quot; es el que usaremos normalmente para realizar las
+mezclas desde consola. Es muy sencillo y práctico.</p>
+<p>Este comando tiene unas configuraciones y una base de datos de caché. Para que
+genere los primeros ficheros es conveniente lanzar la acción &quot;dbupdate&quot;:</p>
+<pre class="literal-block">
+$ eneboo-assembler dbupdate
+</pre>
+<p>Cabe destacar que eneboo-assembler no depende de en qué carpeta lo ejecutes.
+Todas sus acciones leen los directorios de las configuraciones. Para que esto
+funcione como debe, es necesario revisar la configuración que nos
+crea en $HOME/.eneboo-tools/assembler-config.ini</p>
+<p>En ese fichero, que es muy sencillo de editar a mano, debemos incluir las
+rutas donde hemos puesto los módulos y las funcionalidades (extensiones). Se
+deben modificar las rutas si no son las mismas en nuestro caso, o si tenemos
+repositorios privados, se pueden agregar también. Hay que tener en cuenta que
+las líneas de abajo toman preferencia sobre las de arriba. Se recomienda poner
+al final siempre los repositorios públicos para que tomen preferencia.</p>
 <p>Este sería un ejemplo de configuración:</p>
-<pre><code>[module]
-modulefolders = 
+<pre class="literal-block">
+[module]
+modulefolders =
         ~/git/eneboo-modules
-featurefolders = 
+featurefolders =
         ~/git/eneboo-features
 buildcache = ~/.eneboo-tools/buildcache
-</code></pre>
-<p>Siempre que modificamos la ruta de una extensión, o ponemos o quitamos alguna, es necesario ejecutar &quot;dbupdate&quot;, que almacenará en caché dónde están los módulos y extensiones. Si no lo hacéis luego os dará errores de que no encuentra las extensiones nuevas:</p>
-<pre><code>$ eneboo-assembler dbupdate -v
-</code></pre>
-<p>Las extensiones si os fijáis son carpetas con ficheros de configuración y con los parches para aplicar dentro. Hay un proyecto de ejemplo creado que une cuatro extensiones muy básicas.</p>
-<p>Para crear un proyecto (lo que llamamos &quot;compilar&quot;) se lanza la acción &quot;build&quot; seguida del proyecto y del target. El &quot;target&quot; es qué es lo que se quiere crear, la idea es muy similar al make.</p>
-<p>Los targets son:</p>
+</pre>
+<p>Siempre que modificamos la ruta de una extensión, o ponemos o quitamos
+alguna, es necesario ejecutar &quot;dbupdate&quot;, que almacenará en caché dónde
+están los módulos y extensiones. Si no lo hacéis luego os dará errores
+de que no encuentra las extensiones nuevas:</p>
+<pre class="literal-block">
+$ eneboo-assembler dbupdate -v
+</pre>
+<p>Las extensiones si os fijáis son carpetas con ficheros de configuración y con
+los parches para aplicar dentro. Hay un proyecto de ejemplo creado que une
+cuatro extensiones muy básicas.</p>
+<p>Para crear un proyecto (lo que llamamos &quot;compilar&quot;) se lanza la acción
+&quot;build&quot; seguida del proyecto y del target. El &quot;target&quot; es qué es lo que se
+quiere crear, la idea es muy similar al make. El modo de empleo es:</p>
+<pre class="literal-block">
+$ eneboo-assembler build [FEATURE] [TARGET]
+</pre>
+<p><em>[FEATURE]</em> es el nombre corto (quitando la numeración) de la funcionalidad,
+es decir, para el proyecto <em>prj0002-standard</em> habría que poner <em>standard</em>.</p>
+<p><em>[TARGET]</em> puede tomar los valores:</p>
 <blockquote>
 <ul>
-<li><dl>
+<li><dl class="first docutils">
 <dt><strong>base:</strong></dt>
-<dd><p>compila las dependencias del proyecto (todo lo que necesitamos para poder aplicar los parches luego)</p>
+<dd><p class="first last">compila las dependencias del proyecto (todo lo que
+necesitamos para poder aplicar los parches luego)</p>
 </dd>
-</dl></li>
-<li><dl>
+</dl>
+</li>
+<li><dl class="first docutils">
 <dt><strong>final:</strong></dt>
-<dd><p>todo lo que lleva base, mas los parches que existen para este proyecto. (esto es lo que se envía al cliente)</p>
+<dd><p class="first last">todo lo que lleva base, mas los parches que existen
+para este proyecto. (esto es lo que se envía al cliente)</p>
 </dd>
-</dl></li>
-<li><dl>
+</dl>
+</li>
+<li><dl class="first docutils">
 <dt><strong>src:</strong></dt>
-<dd><p>una copia del target final, donde realizar los cambios a la extensión</p>
+<dd><p class="first last">una copia del target final, donde realizar los cambios
+a la extensión</p>
 </dd>
-</dl></li>
-<li><dl>
+</dl>
+</li>
+<li><dl class="first docutils">
 <dt><strong>patch:</strong></dt>
-<dd><p>calcula el parche de las diferencias entre src y final.</p>
+<dd><p class="first last">calcula el parche de las diferencias entre src y final. (incremental)</p>
 </dd>
-</dl></li>
-<li><dl>
-<dt><strong>test:</strong></dt>
-<dd><p>el resultado de aplicar el parche &quot;patch&quot; sobre &quot;final&quot;, sirve para realizar las pruebas convenientes antes de guardar el nuevo parche.</p>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>test-patch:</strong></dt>
+<dd><p class="first last">el resultado de aplicar el parche &quot;patch&quot; sobre
+&quot;final&quot;, sirve para realizar las pruebas convenientes antes de
+guardar el nuevo parche.</p>
 </dd>
-</dl></li>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>fullpatch:</strong></dt>
+<dd><p class="first last">calcula el parche de las diferencias entre src y base. (completo)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>revfullpatch:</strong></dt>
+<dd><p class="first last">calcula el parche de las diferencias entre base y src. (completo)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>test-fullpatch:</strong></dt>
+<dd><p class="first last">el resultado de aplicar el parche &quot;fullpatch&quot; sobre
+&quot;base&quot;, sirve para realizar las pruebas convenientes antes de
+guardar el nuevo parche.</p>
+</dd>
+</dl>
+</li>
 </ul>
 </blockquote>
-<p>Cuando compilamos algo, nos deja dentro de la carpeta build/ en la carpeta de la extensión que habíamos compilado.</p>
+<p>Novedad: Podemos usar &quot;revfullpatch&quot; para que nos calcule un parche inverso, lo
+cual desaplicaría una extensión a un proyecto dado.</p>
+<p>Cuando compilamos algo, nos lo deja dentro de la carpeta build/ en la
+carpeta de la extensión que habíamos compilado.</p>
 <p>Por ejemplo:</p>
-<pre><code>deavid:~$ eneboo-assembler build basic base
-Borrando carpeta /home/deavid/git/eneboo-features/prj001-basic/build/base . . . 
-Copiando facturacion/principal . . . 
-Copiando facturacion/facturacion . . . 
-Copiando contabilidad/informes . . . 
-Copiando contabilidad/principal . . . 
-Copiando facturacion/informes . . . 
-Copiando facturacion/tesoreria . . . 
-Copiando facturacion/almacen . . . 
+<pre class="literal-block">
+deavid:~$ eneboo-assembler build basic base
+Borrando carpeta /home/deavid/git/eneboo-features/prj001-basic/build/base . . .
+Copiando facturacion/principal . . .
+Copiando facturacion/facturacion . . .
+Copiando contabilidad/informes . . .
+Copiando contabilidad/principal . . .
+Copiando facturacion/informes . . .
+Copiando facturacion/tesoreria . . .
+Copiando facturacion/almacen . . .
 Aplicando parche (...)oo-features/ext0224-pgc2008/patches/pgc2008 . . .
 Aplicando parche (...)res/ext0014-recibosprov/patches/recibosprov . . .
 WARN: No hemos encontrado el bloque de código para las definiciones de la clase ifaceCtx, pondremos las nuevas al final del fichero.
@@ -128,7 +536,7 @@ deavid:~$ cd /home/deavid/git/eneboo-features/prj001-basic/build/
 deavid:~/git/eneboo-features/prj001-basic/build$ ls
 base  base.build.xml
 
-deavid:~/git/eneboo-features/prj001-basic/build$ cat base.build.xml 
+deavid:~/git/eneboo-features/prj001-basic/build$ cat base.build.xml
 &lt;BuildInstructions feature=&quot;prj001-basic&quot; target=&quot;base&quot; path=&quot;/home/deavid/git/eneboo-features/prj001-basic&quot; dstfolder=&quot;build/base&quot;&gt;
   &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/facturacion/principal&quot; dst=&quot;facturacion/principal&quot; create_dst=&quot;yes&quot;/&gt;
   &lt;CopyFolderAction src=&quot;/home/deavid/git/eneboo-modules/facturacion/facturacion&quot; dst=&quot;facturacion/facturacion&quot; create_dst=&quot;yes&quot;/&gt;
@@ -153,75 +561,228 @@ base/facturacion/almacen
 base/contabilidad
 base/contabilidad/informes
 base/contabilidad/principal
-</code></pre>
-<p>Si os fijáis, la idea es &quot;apilar&quot; parches, es decir, que cuando modificamos una extensión creamos otro parche <strong>distinto</strong>, que tiene que ser aplicado <strong>después</strong> del original. Esto ayudará a que si dos personas trabajan a la vez sobre el mismo parche, sea mucho más fácil mezclarlo.</p>
+</pre>
+<p>Si os fijáis, la idea es en el futuro, &quot;apilar&quot; parches, es decir, que cuando modificamos una
+extensión creamos otro parche <strong>distinto</strong>, que tiene que ser aplicado <strong>después</strong>
+del original. Esto ayudará a que si dos personas trabajan a la vez sobre el
+mismo parche, sea mucho más fácil mezclarlo.</p>
+<p>De momento, no hay soporte para parche incremental, pues casi todos los diff y
+patch contextuales son incapaces de realizar un patch incremental (la única
+excepción es el de XML). Así que de momento sólo se pueden guardar cambios
+reemplazando todos los anteriores (con fullpatch).</p>
+<p>Para guardar un cambio, después de haberlo probado con test-fullpatch y habiendo
+comprobado que no hemos perdido nada, se usa la acción &quot;save-fullpatch&quot; del siguiente
+modo:</p>
+<pre class="literal-block">
+$ eneboo-assembler save-fullpatch prj001-basic
+</pre>
+<p>Eso sí, la operación <strong>ES DESTRUCTIVA</strong> y reemplazará lo que había antes sin que
+se pueda recuperar. No recomiento usar esto si no tenemos la carpeta bajo control
+de versiones (GIT, SVN, etc), porque en un descuido nos podemos quedar sin parche.</p>
 <p>Aún faltan cosas básicas por desarrollar, como por ejemplo:</p>
 <blockquote>
-<ul>
-<li>Comando &quot;save-patch&quot; para guardar los cambios realizados en un parche adicional con un nombre dado</li>
+<ul class="simple">
+<li>Comando &quot;save-patch&quot; para guardar los cambios realizados en un parche incremental</li>
 <li>Comando &quot;blend-patches&quot; para unir todos los parches en uno solo. (excepto los N últimos)</li>
 <li>Comando &quot;export&quot; para generar un tar.gz de los módulos (del target final)</li>
 </ul>
 </blockquote>
-<h2 id="mergetool-introducci&#243;n">MergeTool: Introducción</h2>
-<p>eneboo-mergetool es una herramienta orientada a calcular diferencias entre ficheros y a aplicarlas en diferentes contextos. Generalmente siempre se le proveerá de la ruta exacta a los ficheros y carpetas. Esta herramienta se usa internamente por eneboo-assembler, aunque puede ser conveniente usarla en determinados casos donde el assembler no cubre el uso exacto que queremos darle.</p>
-<h2 id="mergetool-uso">MergeTool: Uso</h2>
+</div>
+<div class="section" id="assembler-creando-extensiones-nuevas">
+<h1>Assembler: Creando extensiones nuevas</h1>
+<p>Hasta hace poco para crear las extensiones nuevas que el assembler pueda leer
+había que crear los ficheros y carpetas a mano. Como son unas cuantas, esto era
+un tanto costoso.</p>
+<p>Para facilitar las cosas hemos creado una acción &quot;new&quot; que contiene un asistente
+que realizará las preguntas necesarias y luego escribirá en disco la extensión.</p>
+<p>Si se ejecuta sin argumentos, preguntará los datos mínimos para crear la plantilla:</p>
+<pre class="literal-block">
+$ eneboo-assembler new
+
+Qué tipo de funcionalidad va a crear?
+    ext) extensión
+    prj) proyecto
+    set) conjunto de extensiones
+Seleccione una opción: ext
+
+Código para la nueva funcionalidad: A002
+
+Nombre corto de funcionalidad: mifun02
+
+Descripción de la funcionalidad: Funcionalidad 02
+</pre>
+<p>Si se le pasa el nombre de la carpeta y la descripción, omite los pasos
+iniciales y pasa directamente al menú:</p>
+<pre class="literal-block">
+$ eneboo-assembler new extA003-mifun03 &quot;Funcionalidad 03&quot;
+</pre>
+<p>Aparecerá el menú principal como se muestra a continuación:</p>
+<pre class="literal-block">
+**** Asistente de creación de nueva funcionalidad ****
+
+ : Carpeta destino : /home/david/git/eneboo-features/extA003-mifun03
+ : Nombre          : extensión - A003 - mifun03
+ : Descripción     : Funcionalidad 03
+
+ : Dependencias    : 0 módulos, 0 funcionalidades
+ : Importar Parche : None
+
+--  Menú de opciones generales --
+    c) Cambiar datos básicos
+    d) Dependencias
+    i) Importar parche
+    e) Eliminar parche
+    a) Aceptar y crear
+    q) Cancelar y Salir
+Seleccione una opción:
+</pre>
+<p>La opción <em>d) Dependencias</em> sirve para añadir módulos y funcionalidades. Una vez dentro del menú de dependencias, para facilitar la tarea de agregado podemos utilizar caracteres comodín. Por ejemplo, si introducimos &quot;flfact*&quot; y pulsamos tabulador, pondrá todos los módulos que empiecen por &quot;flfact&quot;.</p>
+<p>En el caso de las rutas, también existe autocompletado con el sistema de ficheros, que se activa con la tecla de tabulador.</p>
+<p>Por defecto las extensiones se crean en la primera carpeta de extensiones que
+haya en la configuración, se puede cambiar la carpeta de destino en una opción del
+menú.</p>
+</div>
+<div class="section" id="mergetool-introduccion">
+<h1>MergeTool: Introducción</h1>
+<p>eneboo-mergetool es una herramienta orientada a calcular diferencias entre ficheros
+y a aplicarlas en diferentes contextos. Generalmente siempre se le proveerá de
+la ruta exacta a los ficheros y carpetas. Esta herramienta se usa internamente por
+eneboo-assembler, aunque puede ser conveniente usarla en determinados casos donde
+el assembler no cubre el uso exacto que queremos darle.</p>
+</div>
+<div class="section" id="mergetool-uso">
+<h1>MergeTool: Uso</h1>
 <p>Para sacar una ayuda y listado de acciones:</p>
-<pre><code>$ eneboo-mergetool --help
-</code></pre>
+<pre class="literal-block">
+$ eneboo-mergetool --help
+</pre>
 <p>Para sacar más ayuda de una acción:</p>
-<pre><code>$ eneboo-mergetool --help nombre-accion
-</code></pre>
-<h2 id="mergetool-acciones-disponibles">MergeTool: Acciones disponibles</h2>
+<pre class="literal-block">
+$ eneboo-mergetool --help nombre-accion
+</pre>
+</div>
+<div class="section" id="mergetool-acciones-disponibles">
+<h1>MergeTool: Acciones disponibles</h1>
 <p><strong>Utilidades para carpetas:</strong></p>
-<p><em>folder-diff</em> lee dos carpetas recursivamente y obtiene una diferencia. A partir de esta diferencia, genera una colección de parches en una tercera carpeta.</p>
-<p><em>folder-patch</em> lee una carpeta de parches (flpatch) y una carpeta de ficheros originales. Aplica los parches en a estos ficheros y el resultado se guarda en una tercera carpeta.</p>
+<p><em>folder-diff</em> lee dos carpetas recursivamente y obtiene una diferencia. A partir
+de esta diferencia, genera una colección de parches en una tercera carpeta.</p>
+<p><em>folder-patch</em> lee una carpeta de parches (flpatch) y una carpeta de ficheros
+originales. Aplica los parches en a estos ficheros y el resultado se guarda en
+una tercera carpeta.</p>
 <p><strong>Utilidades para ficheros individuales:</strong></p>
-<p><em>file-diff</em> muestra la diferencia entre dos ficheros por la salida estándar o a un fichero especificado por --output-file. Tiene un argumento de modo que condiciona el tipo de algoritmo que será lanzado para comparar los ficheros. Están soportados <em>qs</em> y <em>xml</em>.</p>
-<p><em>file-patch</em> muestra el resultado de aplicar un parche a un fichero por la salida estándar o guarda el resultado en el fichero indicado por --output-file. Tiene un argumento de modo que condiciona el algoritmo que se lanza para aplicar el parche. Están soportados <em>qs</em> y <em>xml</em>.</p>
-<p><em>file-check</em> realiza comprobaciones rutinarias sobre el fichero dado. Actualmente sólo está soportado el modo <em>qs-classes</em>, que comprobará la correcta herencia de éstas.</p>
-<p><em>qs-extract</em> es una utilidad para extraer clases que se especifiquen de un fichero qs directamente, sin necesidad de comparar con otro fichero.</p>
-<h2 id="mergetool-folder-diff">MergeTool: FOLDER DIFF</h2>
-<p>Extrae las modificaciones realizadas en un proyecto y guarda una carpeta de parche.</p>
-<p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una contendrá un backup del proyecto antes de realizar los cambios y la otra será donde hayamos realizado nuestras modificaciones. Llamamos <em>basedir</em> a la carpeta de backup y <em>finaldir</em> a la carpeta donde están los cambios realizados.</p>
-<p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro todas las diferencias encontradas, así como las instrucciones de aplicación.</p>
+<p><em>file-diff</em> muestra la diferencia entre dos ficheros por la salida estándar o a
+un fichero especificado por --output-file. Tiene un argumento de modo que
+condiciona el tipo de algoritmo que será lanzado para comparar los ficheros.
+Están soportados <em>qs</em> y <em>xml</em>.</p>
+<p><em>file-patch</em> muestra el resultado de aplicar un parche a un fichero por la salida
+estándar o guarda el resultado en el fichero indicado por --output-file. Tiene
+un argumento de modo que condiciona el algoritmo que se lanza para aplicar el
+parche. Están soportados <em>qs</em> y <em>xml</em>.</p>
+<p><em>file-check</em> realiza comprobaciones rutinarias sobre el fichero dado. Actualmente
+sólo está soportado el modo <em>qs-classes</em>, que comprobará la correcta herencia de
+éstas.</p>
+<p><em>qs-extract</em> es una utilidad para extraer clases que se especifiquen de un
+fichero qs directamente, sin necesidad de comparar con otro fichero.</p>
+</div>
+<div class="section" id="mergetool-folder-diff">
+<h1>MergeTool: FOLDER DIFF</h1>
+<p>Extrae las modificaciones realizadas en un proyecto y guarda una carpeta
+de parche.</p>
+<p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una
+contendrá un backup del proyecto antes de realizar los cambios y la otra será
+donde hayamos realizado nuestras modificaciones. Llamamos <em>basedir</em> a la carpeta
+de backup y <em>finaldir</em> a la carpeta donde están los cambios realizados.</p>
+<p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro
+todas las diferencias encontradas, así como las instrucciones de aplicación.</p>
 <p>Veamos un ejemplo:</p>
-<pre><code>$ eneboo-mergetool folder-diff parches/mi_parche \
+<pre class="literal-block">
+$ eneboo-mergetool folder-diff parches/mi_parche \
     proyecto1_original/ proyecto1_modificado/
-</code></pre>
-<p>Esto crearía la carpeta <em>parches/mi_parche</em> y contendría las instrucciones para generar <em>proyecto1_modificado</em> a partir del <em>proyecto1_original</em>.</p>
-<h2 id="mergetool-folder-patch">MergeTool: FOLDER PATCH</h2>
-<p>Lee una carpeta de parche y aplica las modificaciones en el proyecto generando una carpeta nueva.</p>
-<p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una contendrá proyecto a aplicar los cambios y la otra será donde hayamos guardado el parche. Llamamos <em>basedir</em> a la carpeta del proyecto original y <em>patchdir</em> a la carpeta donde están guardados los parches.</p>
-<p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro el nuevo proyecto que será el resultado de la aplicación de los parches.</p>
+</pre>
+<p>Esto crearía la carpeta <em>parches/mi_parche</em> y contendría las instrucciones para
+generar <em>proyecto1_modificado</em> a partir del <em>proyecto1_original</em>.</p>
+</div>
+<div class="section" id="mergetool-folder-patch">
+<h1>MergeTool: FOLDER PATCH</h1>
+<p>Lee una carpeta de parche y aplica las modificaciones en el proyecto generando
+una carpeta nueva.</p>
+<p>Para trabajar con esta herramienta, debemos contar con dos carpetas. Una
+contendrá proyecto a aplicar los cambios y la otra será donde hayamos guardado
+el parche. Llamamos <em>basedir</em> a la carpeta del proyecto original y <em>patchdir</em>
+a la carpeta donde están guardados los parches.</p>
+<p>Esta herramienta creará una carpeta (que no debe existir antes) y dejará dentro
+el nuevo proyecto que será el resultado de la aplicación de los parches.</p>
 <p>Veamos un ejemplo:</p>
-<pre><code>$ eneboo-mergetool folder-patch parches/mi_parche \
+<pre class="literal-block">
+$ eneboo-mergetool folder-patch parches/mi_parche \
     proyecto1_original/ proyecto1_parcheado/
-</code></pre>
-<p>Esto crearía la carpeta <em>proyecto1_parcheado/</em> y contendría <em>proyecto1_original/</em> pero con los parches aplicados.</p>
-<p>MergeTool: DIFF QS ---------------</p>
+</pre>
+<p>Esto crearía la carpeta <em>proyecto1_parcheado/</em> y contendría <em>proyecto1_original/</em>
+pero con los parches aplicados. El fichero XML del parche debe encontrarse en la
+carpeta <em>mi_parche</em>.</p>
+</div>
+<div class="section" id="mergetool-diff-qs">
+<h1>MergeTool: DIFF QS</h1>
 <p>Obtener diff de un fichero QS:</p>
-<pre><code>$ eneboo-mergetool file-diff qs \
+<pre class="literal-block">
+$ eneboo-mergetool file-diff qs \
     antiguo/facturacion/facturacion/scripts/flfactalma.qs \
     nuevo/facturacion/facturacion/scripts/flfactalma.qs \
     --output-file patches/flfactalma.qs
-</code></pre>
+</pre>
 <p>Aplicar un diff de fichero QS:</p>
-<pre><code>$ eneboo-mergetool file-patch qs \
+<pre class="literal-block">
+$ eneboo-mergetool file-patch qs \
     antiguo/facturacion/facturacion/scripts/flfactalma.qs \
     patches/flfactalma.qs \
     --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.qs
-</code></pre>
-<h2 id="mergetool-diff-xml">MergeTool: DIFF XML</h2>
+</pre>
+</div>
+<div class="section" id="mergetool-diff-xml">
+<h1>MergeTool: DIFF XML</h1>
 <p>Obtener diff de un fichero XML:</p>
-<pre><code>$ eneboo-mergetool file-diff xml \
+<pre class="literal-block">
+$ eneboo-mergetool file-diff xml \
     antiguo/facturacion/facturacion/forms/flfactalma.ui \
     nuevo/facturacion/facturacion/forms/flfactalma.ui \
     --output-file patches/flfactalma.ui
-</code></pre>
+</pre>
 <p>Aplicar un diff de fichero XML:</p>
-<pre><code>$ eneboo-mergetool file-patch qs \
+<pre class="literal-block">
+$ eneboo-mergetool file-patch qs \
     antiguo/facturacion/facturacion/forms/flfactalma.ui \
     patches/flfactalma.ui \
     --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.ui
-</code></pre>
+</pre>
+</div>
+<div class="section" id="mergetool-file-check">
+<h1>MergeTool: FILE CHECK</h1>
+<p>Es posible comprobar los ficheros con eneboo-mergetool. Esta comprobación se limita
+(hasta ahora) a los ficheros QS y a una comprobación sobre los bloques y las clases.</p>
+<p>Además es posible generar un fichero de &quot;parche&quot; para corregir los fallos típicos en
+la creación de bloques class_declaration y definition:</p>
+<pre class="literal-block">
+$ for i in $(find . -iname '*.qs'); do eneboo-mergetool file-check qs-classes $i --patch-dest mypatch -v; done
+$ patch -p1 &lt; mypatch
+</pre>
+</div>
+<div class="section" id="packager">
+<h1>Packager</h1>
+<p>Esta herramienta permite empaquetar código eneboo en un sólo fichero .eneboopkg. Este tipo de ficheros presentan varias ventajas frente al código tradicional ordenado en carpetas de módulos, a saber:</p>
+<ul class="simple">
+<li>Se pueden importar de forma cómoda desde la opción <em>Sistema &gt; Administración &gt; Cargar Paquete de Módulos</em> de eneboo.</li>
+<li>Ocupan menos, ya que el código está comprimido.</li>
+<li>Son más fáciles de trasladar y descargar.</li>
+</ul>
+<p>Para empaquetar un directorio que contenga código eneboo podemos usar:</p>
+<pre class="literal-block">
+$ eneboo-packager create ruta_directorio_codigo -v
+</pre>
+<p>Para conocer todas las opciones de la herramienta:</p>
+<pre class="literal-block">
+$ eneboo-packager --help
+</pre>
+</div>
+</div>
+</body>
+</html>

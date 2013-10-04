@@ -390,7 +390,7 @@ carpeta *mi_parche*.
 
 
 MergeTool: DIFF QS
----------------
+----------------------
 
 Obtener diff de un fichero QS::
 
@@ -426,6 +426,19 @@ Aplicar un diff de fichero XML::
         patches/flfactalma.ui \
         --output-file antiguo/facturacion/facturacion/scripts/flfactalma.patched.ui
 
+
+MergeTool: FILE CHECK
+-----------------------
+
+Es posible comprobar los ficheros con eneboo-mergetool. Esta comprobación se limita 
+(hasta ahora) a los ficheros QS y a una comprobación sobre los bloques y las clases.
+
+Además es posible generar un fichero de "parche" para corregir los fallos típicos en
+la creación de bloques class_declaration y definition::
+
+    $ for i in $(find . -iname '*.qs'); do eneboo-mergetool file-check qs-classes $i --patch-dest mypatch -v; done
+    $ patch -p1 < mypatch
+    
 
 Packager
 -----------------------------
