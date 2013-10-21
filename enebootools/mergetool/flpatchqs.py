@@ -116,7 +116,7 @@ def qsclass_reader(iface, file_name, file_lines):
                 if heu_cname:
                     heu_dtype = "class_definition"
             
-            if heu_dtype:
+            if heu_dtype and dtype!="delete_class":
                 heu_line = "/** @%s %s */" % (heu_dtype, heu_cname)
                 myline = "/** @%s %s */" % (dtype, cname)
                 if heu_line != myline:
