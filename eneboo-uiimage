@@ -404,26 +404,43 @@ def searchFile(theme, rutaProyecto, metodo):
         print "____________________________________________________________________________________________________________________"
 
 
-action = sys.argv[1]
-if action == "download":
-    download_images(sys.argv[2])
-elif action == "check":
-    check_images(sys.argv[2])
-elif action == "upload":
-    upload_images(sys.argv[2])
-elif action == "fixdatalen":
-    fix_datalen(sys.argv[2])
-elif action == "theme":
-    if sys.argv[2] == "--help":
-        print " "
-        print "     COMANDO"
-        print "     eneboo-uiimage theme [archivo theme] [ruta proyecto] [metodo]"
-        print " "
-        print "     METODOS"
-        print "         overwrite: sobreescribe el/los archivos"
-        print "         modify: crea un nuevo archivo adjuntando el sufijo -modify"
-        print " "
+if len(sys.argv) > 1:
+    action = sys.argv[1]
+    if action == "download":
+        download_images(sys.argv[2])
+    elif action == "check":
+        check_images(sys.argv[2])
+    elif action == "upload":
+        upload_images(sys.argv[2])
+    elif action == "fixdatalen":
+        fix_datalen(sys.argv[2])
+    elif action == "theme":
+        if sys.argv[2] == "--help":
+            print " "
+            print "     COMANDO"
+            print "     eneboo-uiimage theme [archivo theme] [ruta proyecto] [metodo]"
+            print " "
+            print "     METODOS"
+            print "         overwrite: sobreescribe el/los archivos"
+            print "         modify: crea un nuevo archivo adjuntando el sufijo -modify"
+            print " "
+        else:
+            searchFile(sys.argv[2], sys.argv[3], sys.argv[4])
     else:
-        searchFile(sys.argv[2], sys.argv[3], sys.argv[4])
+        print "No se conoce la accion %s " % action
 else:
-    print "Unknown action %s " % action
+    print ""
+    print " No se ha especificado la accion a ejecutar. Las acciones disponibles son:"
+    print "   eneboo-uiimage download"
+    print "   eneboo-uiimage check"
+    print "   eneboo-uiimage upload"
+    print "   eneboo-uiimage fixdatalen"
+    print "   eneboo-uiimage theme"
+    print ""
+    print " En la accion theme, puede usar --help para mas instrucciones."
+    print "   eneboo-uiimage theme --help"
+    print ""
+    print ""
+
+
+
