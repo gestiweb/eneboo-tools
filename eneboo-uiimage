@@ -333,6 +333,8 @@ def checkFile(ficheroEntrada, ficheroSalida, fileTheme, files):
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonZoom" in cstring:
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                if "toolButtonBrowse" in cstring:
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonCopy" in cstring:
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "tbnDuplicar" in cstring:
