@@ -148,6 +148,78 @@ def readImageData(image_name, fileTheme):
             return data_format, data_length, data_text
 
 
+# Configurar el QFrame barraBotones
+def fixBarraBotones(tree, ficheroSalida):
+    if debug == "--debug":
+        print "------------------------------------------------------------------"
+        print "fixBarraBotones():: Configurar Spacing y Margin del hbox barraBotones"
+        print "------------------------------------------------------------------"
+    root = tree.getroot()
+    barraExist = "0"
+    for widget in root.iter('widget'):
+        cstring = widget.find('property/cstring').text
+        if cstring == "barraBotones":
+            barraExist = "1"
+            # Buscamos las propiedades spacing y margin
+            layoutSpacing = widget.find("hbox/property[@name='spacing']")
+            layoutMargin = widget.find("hbox/property[@name='margin']")
+            if layoutSpacing is None:
+                print "     No se encuentra la propiedad spacing"
+            else: 
+                print "     actualizando layoutSpacing"
+                layoutSpacing.find("number").text = "2"
+
+            if layoutMargin is None:
+                print "     No se encuentra la propiedad margin"
+            else: 
+                print "     actualizando layoutMargin"
+                layoutMargin.find("number").text = "4"
+    if barraExist == "0":
+        print "     No existe barraBotones en el archivo"
+    if barraExist == "1":
+        print "     Se graba el archivo"
+        grabarFichero(tree, ficheroSalida)
+
+
+def changeButtonSize(tree, widget):
+    if debug == "--debug":
+        print "------------------------------------------------------------------"
+        print "changeButtonSize():: Configurar propiedades minimumSize y maximumSize a 32"
+        print "------------------------------------------------------------------"
+    minimumSize = "0"
+    maximumSize = "0"
+    widgetProp = widget.find('property')
+    for widgetProp in widget.iter('property'):
+        nameProp = widgetProp.get('name')
+        if nameProp == "minimumSize" or nameProp == "maximumSize":
+            print "     La propiedad %s coincide, se configura a 32 de alto y ancho" % nameProp
+            widgetProp.find('size/width').text = "32"
+            widgetProp.find('size/height').text = "32"
+            if nameProp == "minimumSize":
+                minimumSize = "1"
+            if nameProp == "maximumSize":
+                maximumSize = "1"
+        else:
+            print "     NO es la propiedad que se busca"
+    if minimumSize == "0":
+        print "     minimumSize no existia, se crea"
+        propGen = "minimumSize"
+        genSizeElem(tree, widget, propGen)
+    if maximumSize == "0":
+        print "     maximumSize no existia, se crea"
+        propGen = "maximumSize"
+        genSizeElem(tree, widget, propGen)
+        
+
+def genSizeElem(tree, widget, propGen):
+    newProp = etree.SubElement(widget, "property", name = propGen)
+    sizeProp = etree.SubElement(newProp, "size")
+    widthProp = etree.SubElement(sizeProp, "width")
+    heightProp = etree.SubElement(sizeProp, "height")
+    widthProp.text = "32"
+    heightProp.text = "32"
+
+
 def changeImageName(widget, clase, image_name):
     icono = widget.find('property/iconset')
     if icono is None:
@@ -158,67 +230,98 @@ def changeImageName(widget, clase, image_name):
             return imageLast
         else:
             imageLast = icono.text
-            icono.text = str(image_name)       
+            icono.text = str(image_name)
             return imageLast
 
 
 def changeImageData(tree, imageLast, image_name, data_format, data_length, data_text):
-    for image in tree.xpath("//image[@name='%s']" % imageLast):
-        data = image.find('data')
-        image.attrib['name'] = image_name
-        data.attrib['format'] = data_format
-        data.attrib['length'] = data_length
-        data.text = data_text
+    # Comprobamos que la imagen no exista en el archivo
+    imageExist = tree.find("//image[@name='%s']" % image_name)
+    if imageExist is not None:
+        # Si la imagen ya existe en vez de reemplar los atributos,
+        # se elimina el widget image correspondiente a la imagen cambiada
+        print "     La imagen %s ya existe en el archivo" % image_name
+        for image in tree.xpath("//image[@name='%s']" % imageLast):
+            # Si el archivo es un parche, se sube un nivel
+            # y se elimina todo el widget xupdate con la imagen
+            if "xupdate" in image.getparent().tag:
+                widget_xupdate = image.getparent()
+                widget_xupdate.getparent().remove(widget_xupdate)
+            else:
+                #Si no es parche solo se elimina el widget image
+                image.getparent().remove(image)
+    else:
+        # Si no existe la imagen, se actualizan los atributos
+        # de la imagen existente por los atributos de la imagen del theme
+        for image in tree.xpath("//image[@name='%s']" % imageLast):
+            data = image.find('data')
+            image.attrib['name'] = image_name
+            data.attrib['format'] = data_format
+            data.attrib['length'] = data_length
+            data.text = data_text
+
+
+def grabarFichero(tree, ficheroSalida):
+    tree.write(ficheroSalida, encoding='utf-8')
 
 
 def applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files):
+    print "------------------------------------------------------------------"
+    print "applyActions()::Acciones para el Boton %s" % (cstring)
+    print "------------------------------------------------------------------"
+    ### Se lee las propiedades de la imagen del theme para poder aplicarlas
     image_name_theme = readImageName(cstring, fileTheme)
     data_format_theme = readImageData(image_name_theme, fileTheme)[0]
     data_length_theme = readImageData(image_name_theme, fileTheme)[1]
     data_text_theme = readImageData(image_name_theme, fileTheme)[2]
+    ### Se guarda en la variable el nombre de la imagen que sustituimos
     imageLast = changeImageName(widget, clase, image_name_theme)
     if debug == "--debug":
-        print "--------------------------------------------------------------------------------------------------------------------"
-        print "applyActions():: Acciones a ejecutar en el fichero"
-        print "-----------------------------------------------"
-        print "     Leer propiedades de la imagen en el archivo theme"
+        print "     Leer propiedad de la imagen en el archivo theme"
         print "     Leer nombre: %s" % (image_name_theme)
         print "     Leer formato: %s" % (data_format_theme)
         print "     Leer lenght: %s" % (data_length_theme)
         # print "     Leer data: %s" % (data_text_theme)
-        print "     Sustitucion de las propiedades para la imagen: %s" % (imageLast)
-        print "____________________________________________________________________________________________________________________"
-    print "Boton %s" % (cstring)
+        print " ____________________________________________________________________________________________________________________"
+    #### Se ejecuta el cambio de size
+    changeButtonSize(tree, widget)
+    ### Si la imagen ya existe se ignora, sino se ejecuta el cambio de propiedades
     if imageLast == "Ignore":
-        print "SE IGNORA: Imagen %s ya cambiada" % (image_name_theme)
+        print "El cambio de imagen SE IGNORA: Imagen %s ya cambiada" % (image_name_theme)
     else:
         changeImageData(tree, imageLast, image_name_theme, data_format_theme, data_length_theme, data_text_theme)
+        #
         #eliminarImageElem(image, images, imageLast)
         #eliminarMaximumSize(widget)
         #genImageElem(images, image_name_theme, data_format_theme, data_length_theme, data_text_theme)
-        tree.write(ficheroSalida, encoding='utf-8')
-        print "     Imagen %s sustituida por %s " % (imageLast, image_name_theme)
+        #
+        ### Grabamos el fichero una vez ejecutadas las funciones
+    grabarFichero(tree, ficheroSalida)
+    print "     Imagen %s sustituida por %s " % (imageLast, image_name_theme)
     print "-----------------------------------------------"
 
 
-def applyFile(ficheroEntrada, ficheroSalida, fileTheme, files):
+def checkFile(ficheroEntrada, ficheroSalida, fileTheme, files):
     parser = etree.XMLParser(ns_clean=True, recover=True, remove_blank_text=False)
     tree = etree.parse(ficheroEntrada,  parser)
     root = tree.getroot()
     if root is not None:
         # images = root.find("images")
         print "------------------------------------------------------------------"
-        print "applyFile():: Comprobando Archivo: %s" % (ficheroEntrada)
+        print "checkFile():: Comprobando Archivo: %s" % (ficheroEntrada)
         print "------------------------------------------------------------------"
         # print "     ficheroEntrada: %s" % (ficheroEntrada)
         # print "     ficheroSalida: %s" % (ficheroSalida)
         # print "     Theme: %s" % (fileTheme)
         # print "     Archivo: %s" % (files)
         # print "     root: %s" % (root)
+        #
+        # Se ejecuta funcion para acomodar barraBotones
+        fixBarraBotones(tree, ficheroSalida)
+        # Se procesa el cambio de botones
         for widget in root.iter('widget'):
             clase = widget.get('class')
             cstring = widget.find('property/cstring').text
-
             if cstring is not None:
                 if "toolButtonInsert" in cstring:
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
@@ -230,88 +333,114 @@ def applyFile(ficheroEntrada, ficheroSalida, fileTheme, files):
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonZoom" in cstring:
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                if "toolButtonBrowse" in cstring:
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonCopy" in cstring:
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                if "tbnDuplicar" in cstring:
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
                 if "toolButtonPrint" in cstring:
+                    applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
+                if "tbnEnviarMail" in cstring:
                     applyActions(tree, widget, clase, cstring, fileTheme, ficheroSalida, files)
     else:
         print "ATENCION: El fichero %s no tiene un formato valido" % (files)
     print "____________________________________________________________________________________________________________________"
     print " "
 
-def applyChange(theme, rutaProyecto, metodo):
+
+def searchFile(theme, rutaProyecto, metodo):
     rutaProyectoNorm = os.path.normpath(rutaProyecto)
     fileTheme = os.path.normpath(theme)
     if debug == "--debug":
         print "--------------------------------------------------------------------------------------------------------------------"
-        print "applyChange :: Busqueda de ficheros .ui para la modificacion"
+        print "searchFile :: Busqueda de ficheros .ui para la modificacion"
         print "-----------------------------------------------"
         print "     Ruta del proyecto: %s" % (rutaProyectoNorm)
         print "     Archivo Theme: %s" % (fileTheme)
     # si es solo un archivo
     if rutaProyectoNorm.endswith(".ui"):
-        fileName,  fileExtension = os.path.splitext(rutaProyectoNorm)
-        ficheroSalida = fileName + "-modificado" + fileExtension
-        files = rutaProyectoNorm
-        applyFile(rutaProyecto, ficheroSalida, fileTheme, files)
         if debug == "--debug":
-            print "    -------------------------------------------"
-            print "     :: Trabajamos con un unico archivo"
-            print "    -------------------------------------------"
-            print "     Archivo a modificar: %s" % (files)
+            print "     Trabajamos con un unico archivo"
+        fileName,  fileExtension = os.path.splitext(rutaProyectoNorm)
+        if metodo == "overwrite":
+            ficheroSalida = fileName + fileExtension
+        if metodo == "modify":
+            ficheroSalida = fileName + "-modificado" + fileExtension
+        files = rutaProyectoNorm
+        ### Ejecutamos funcion para comprobar si existen botones a cambiar
+        checkFile(rutaProyecto, ficheroSalida, fileTheme, files)
     # Si es un directorio
-    for r, d, f in os.walk(rutaProyectoNorm):
-        for files in f:
-            if files.endswith(".ui"):
-                ficheroEntrada = os.path.join(r, files)
-                rutaModulo = os.path.dirname(ficheroEntrada)
-                if metodo == "overwrite":
-                    rutaSalida = rutaModulo
-                    ficheroSalida = ficheroEntrada
-                if metodo == "modify":
-                    rutaSalida = rutaModulo + "/forms-modificados/"
-                    ficheroSalida = rutaModulo + "/forms-modificados/" + files
-                if not os.path.exists(rutaSalida):
-                    os.makedirs(rutaSalida)
-                if debug == "--debug":
-                    print "    -------------------------------------------"
-                    print "     :: Trabajamos con un directorio"
-                    print "    -------------------------------------------"
-                    print "     Archivo a modificar: %s" % (ficheroEntrada)
-                    print "     Ruta del parche o modulo: %s" % (rutaModulo)
-                    print "     Ruta donde guardar el nuevo archivo: %s" % (rutaSalida)
-                    print "     Fichero de salida: %s" % (ficheroSalida)
-                applyFile(ficheroEntrada, ficheroSalida, fileTheme, files)
-                # if debug == "--debug":
-                #     print "--------------------------------------------------------------------------------------------------------------------"
-                #     print "applyChange:: Rutas Proyecto"
-                #     print "-----------------------------------------------"
-                #     print "Ruta del proyecto: %s" % (rutaProyectoNorm)
-                #     print "Archivo Theme: %s" % (fileTheme)
+    else:
+        for r, d, f in os.walk(rutaProyectoNorm):
+            for files in f:
+                if files.endswith(".ui"):
+                    ficheroEntrada = os.path.join(r, files)
+                    rutaModulo = os.path.dirname(ficheroEntrada)
+                    if metodo == "overwrite":
+                        rutaSalida = rutaModulo
+                        ficheroSalida = ficheroEntrada
+                    if metodo == "modify":
+                        rutaSalida = rutaModulo + "/forms-modificados/"
+                        ficheroSalida = rutaModulo + "/forms-modificados/" + files
+                    if not os.path.exists(rutaSalida):
+                        os.makedirs(rutaSalida)
+                    if debug == "--debug":
+                        print "    -------------------------------------------"
+                        print "     :: Trabajamos con un directorio"
+                        print "    -------------------------------------------"
+                        print "     Archivo a modificar: %s" % (ficheroEntrada)
+                        print "     Ruta del parche o modulo: %s" % (rutaModulo)
+                        print "     Ruta donde guardar el nuevo archivo: %s" % (rutaSalida)
+                        print "     Fichero de salida: %s" % (ficheroSalida)
+                    checkFile(ficheroEntrada, ficheroSalida, fileTheme, files)
+                    # if debug == "--debug":
+                    #     print "--------------------------------------------------------------------------------------------------------------------"
+                    #     print "searchFile:: Rutas Proyecto"
+                    #     print "-----------------------------------------------"
+                    #     print "Ruta del proyecto: %s" % (rutaProyectoNorm)
+                    #     print "Archivo Theme: %s" % (fileTheme)
     if debug == "--debug":
         print "____________________________________________________________________________________________________________________"
 
 
-action = sys.argv[1]
-if action == "download":
-    download_images(sys.argv[2])
-elif action == "check":
-    check_images(sys.argv[2])
-elif action == "upload":
-    upload_images(sys.argv[2])
-elif action == "fixdatalen":
-    fix_datalen(sys.argv[2])
-elif action == "theme":
-    if sys.argv[2] == "--help":
-        print " "
-        print "     COMANDO"
-        print "     eneboo-uiimage theme [archivo theme] [ruta proyecto] [metodo]"
-        print " "
-        print "     METODOS"
-        print "         overwrite: sobreescribe el/los archivos"
-        print "         modify: crea un nuevo archivo adjuntando el sufijo -modify"
-        print " "
+if len(sys.argv) > 1:
+    action = sys.argv[1]
+    if action == "download":
+        download_images(sys.argv[2])
+    elif action == "check":
+        check_images(sys.argv[2])
+    elif action == "upload":
+        upload_images(sys.argv[2])
+    elif action == "fixdatalen":
+        fix_datalen(sys.argv[2])
+    elif action == "theme":
+        if sys.argv[2] == "--help":
+            print " "
+            print "     COMANDO"
+            print "     eneboo-uiimage theme [archivo theme] [ruta proyecto] [metodo]"
+            print " "
+            print "     METODOS"
+            print "         overwrite: sobreescribe el/los archivos"
+            print "         modify: crea un nuevo archivo adjuntando el sufijo -modify"
+            print " "
+        else:
+            searchFile(sys.argv[2], sys.argv[3], sys.argv[4])
     else:
-        applyChange(sys.argv[2], sys.argv[3], sys.argv[4])
+        print "No se conoce la accion %s " % action
 else:
-    print "Unknown action %s " % action
+    print ""
+    print " No se ha especificado la accion a ejecutar. Las acciones disponibles son:"
+    print "   eneboo-uiimage download"
+    print "   eneboo-uiimage check"
+    print "   eneboo-uiimage upload"
+    print "   eneboo-uiimage fixdatalen"
+    print "   eneboo-uiimage theme"
+    print ""
+    print " En la accion theme, puede usar --help para mas instrucciones."
+    print "   eneboo-uiimage theme --help"
+    print ""
+    print ""
+
+
+
