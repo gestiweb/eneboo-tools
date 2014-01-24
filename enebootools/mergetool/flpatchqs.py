@@ -770,26 +770,39 @@ def patch_class_advanced(orig,patch, filename="unknown"):
         sm1 = difflib.SequenceMatcher()
         sm1.set_seqs(orig_block1, orig1)
         same_lines = []
+        lenbtotal = 0
         for a,b,sz in sm1.get_matching_blocks():
             a_stream = "\n".join(orig_block1[a:a+sz])
             b_stream = "\n".join(orig1[b:b+sz])
             #print "A::", a_stream[:128]
             #print "B::", b_stream[:128]
-            if min([len(a_stream),len(b_stream)]) < 16: continue
-            same_lines.append(b)
-            same_lines.append(b+sz-1)
+            lena = len(re.sub("[^A-Za-z]","",a_stream).strip())
+            lenb = len(re.sub("[^A-Za-z]","",b_stream).strip())
+            lenbtotal += lenb
+            if min([lena,lenb]) < 16: continue
+            same_lines += list(range(b,b+sz))
         common_lines = len(same_lines)
         if common_lines == 0: 
             continue
         minb = min(same_lines)
         maxb = max(same_lines) + 1
-        if False:
+        relok = int(len(same_lines) * 100.0 / float(maxb-minb))
+        print "RelOk:", relok, "lenlines:", len(same_lines), "lenbytes:", lenbtotal
+        c_block = orig_[minb:maxb]
+        if relok < 30:
+            print "Clin:" , same_lines
+            print
             print " ::: BASE"
             print "\n".join(orig_block)
             print " ::: REMOTE"
             print "\n".join(new_block)
             print " ::: LOCAL"
-            print "\n".join(orig_[minb:maxb])
+            for n, line in enumerate(orig_):
+                ch = " "
+                if n < minb: ch = "<"
+                if n >= maxb: ch = ">"
+                
+                print "%04d" % n, ch, line
             print " ----"
         
         # Reanalizar el parche::
@@ -876,7 +889,7 @@ def patch_class_advanced(orig,patch, filename="unknown"):
             if min_space < 6:
                 open("/tmp/base.tmp","w").write("\n".join(orig_block))
                 open("/tmp/remote.tmp","w").write("\n".join(new_block))
-                open("/tmp/local.tmp","w").write("\n".join(orig_[minb-1:maxb]))
+                open("/tmp/local.tmp","w").write("\n".join(c_block))
                 subprocess.check_output(["kdiff3","/tmp/base.tmp","/tmp/remote.tmp","/tmp/local.tmp","-o","/tmp/merged.tmp","--auto"])
                 new_lines = [ ln1.rstrip() for ln1 in open("/tmp/merged.tmp")]
                 orig_[minb-1:maxb] = new_lines
@@ -1053,7 +1066,13 @@ def diff_qs_dir(iface, base, final):
                     for j in reversed(prev_lines):
                         if re.search("^\s*(function|class) ",diff[j]): break
                     omitted = len(prev_lines[:prev_lines.index(j)])
-                    if omitted > 5: iface.output.write("== %d lines ==\n" % omitted)
+                    if omitted > 20: 
+                        omlines = prev_lines[:prev_lines.index(j)]
+                        omlines_A = omlines[:10]
+                        omlines_B = omlines[-10:]
+                        for k in omlines_A: iface.output.write(diff[k])
+                        iface.output.write("== %d lines ==\n" % (omitted-20))
+                        for k in omlines_B: iface.output.write(diff[k])
                     else:
                         for k in prev_lines[:prev_lines.index(j)]:
                             iface.output.write(diff[k])
