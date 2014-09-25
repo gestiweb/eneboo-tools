@@ -165,8 +165,11 @@ class FolderApplyPatch(object):
         dst_parent = os.path.dirname(dst)
         
         if os.path.exists(dst_parent):
-            self.iface.info("Borrando %s . . ." % filename)
-            os.unlink(dst)
+            if os.path.exists(dst):
+                self.iface.info("Borrando %s . . ." % filename)
+                os.unlink(dst)
+            else:
+                self.iface.warn("Se iba a borrar %s, pero no existe." % filename)
             
     
     def replace_file(self, replacefile, folder):            

@@ -112,6 +112,10 @@ if [ "$EXT" == "qry" ]; then
     MODE="kdiff3"
 fi
 
+if [ "$EXT" == "sql" ]; then
+    MODE="kdiff3"
+fi
+
 if [ "$MODE" == "error" ]; then
     echo "Se desconoce como mezclar la extension '.$EXT'"
     exit 3;

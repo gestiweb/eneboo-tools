@@ -121,7 +121,9 @@ def qsclass_reader(iface, file_name, file_lines):
             if heu_dtype and dtype!="delete_class":
                 heu_line = "/** @%s %s */" % (heu_dtype, heu_cname)
                 myline = "/** @%s %s */" % (dtype, cname)
-                if heu_line != myline:
+                if '_' in cname:
+                    iface.info(u"La autodetección de contenido de bloques no funciona con clases que contengan el carácter de guión bajo como %r" % cname)
+                elif heu_line != myline:
                     iface.error(u"La definición de bloque %r no corresponde con el contenido (file: %s:%d) ... asumiendo '%s'" % (line2.strip(),file_name,n, heu_line))
                     dtype, cname = heu_dtype, heu_cname
                     classpatch += ["@@ -%d,1 +%d,1 @@" % (n+1,n+1)]
@@ -790,7 +792,7 @@ def patch_class_advanced(orig,patch, filename="unknown"):
         maxb = max(same_lines) + 1
         relok = int(len(same_lines) * 100.0 / float(maxb-minb))
         print "RelOk:", relok, "lenlines:", len(same_lines), "lenbytes:", lenbtotal
-        c_block = orig_[minb:maxb]
+        c_block = orig_[minb-1:maxb]
         if relok < 30:
             print "Clin:" , same_lines
             print

@@ -118,8 +118,9 @@ class BaseObject(object):
                     if n in self.required_features: continue
                     self.iface.warn("Proyecto %s, se agrega funcionalidad %s solicitada por %s" % (self.formal_name(),n,featname))
             req += new_reqs
-            myreq.append(obj.formal_name())
-        req += [ featurename for featurename in myreq if featurename not in req ]
+            #req += new_reqs
+            if obj.formal_name() not in req: req.append(obj.formal_name())
+        #req += [ featurename for featurename in myreq if featurename not in req ]
         self.all_required_features = req
         return req
         
