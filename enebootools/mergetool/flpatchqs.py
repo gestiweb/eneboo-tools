@@ -106,14 +106,21 @@ def qsclass_reader(iface, file_name, file_lines):
                     heu_dtype = "class_declaration"
             if heu_dtype is None:
                 heu_cnames = []
+                other_functions = []
                 for l in class_lines:
-                    m = re.search("function\s+(?P<cname>[a-zA-Z0-9]+)_\w+",l)
+                    m = re.search("^function\s+(?P<cname>[a-zA-Z0-9]+)_\w+",l)
                     if m: 
                         heu_cname = m.group("cname")
-                        if heu_cname not in heu_cnames: heu_cnames.append(heu_cname)
+                        if heu_cname not in heu_cnames: 
+                            heu_cnames.append(heu_cname)
+                        if heu_cname != cname: other_functions.append(l)
                 if len(heu_cnames) > 1:
                     iface.error(u"En la clase %s existen funciones para diferentes clases (file: %s)" % (cname,file_name))
+                    for l in other_functions:
+                        iface.error(u">>>" + l)
+                    
                     if cname in heu_cnames: heu_cname = cname
+                    
                     
                 if heu_cname:
                     heu_dtype = "class_definition"
@@ -566,6 +573,7 @@ def patch_qs_dir(iface, base, patch):
                 continue
             group1 = group1.split(",")
             group2 = group2.split(",")
+            cl_from = "???"
             for cl in group1:
                 try: idx = patch_series.index(cl)
                 except ValueError: 
