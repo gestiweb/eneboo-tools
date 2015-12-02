@@ -899,6 +899,10 @@ def patch_class_advanced(orig,patch, filename="unknown"):
                     min_space = abs(last_seen_b - last_seen_a)
                 
             if min_space < 6:
+                basefile = "/tmp/%s.base.tmp" % filename
+                remotefile = "/tmp/%s.base.tmp" % filename
+                localfile = "/tmp/%s.base.tmp" % filename
+                print repr(basefile), repr(remotefile)
                 open("/tmp/base.tmp","w").write("\n".join(orig_block))
                 open("/tmp/remote.tmp","w").write("\n".join(new_block))
                 open("/tmp/local.tmp","w").write("\n".join(c_block))
@@ -1060,6 +1064,9 @@ def diff_qs_dir(iface, base, final):
 
     
     clases_comunes = [ c for c in classlist2 if c in classlist1 ]
+    if iface.clean_patch:
+        clases_comunes = []
+        clases_agregadas = []
     
     for cls in clases_comunes:
         file1 = list(openr(base,cls + ".qs"))
@@ -1122,7 +1129,7 @@ def diff_qs_dir(iface, base, final):
         for line in file1:
             iface.output.write("  %s" % line)        
         iface.output.write("..\n")
-            
+                
     for cls in clases_agregadas:
         file1 = openr(final,cls + ".qs")
         iface.output.write("@@added-class %s\n" % cls)        

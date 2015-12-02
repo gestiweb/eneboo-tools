@@ -80,27 +80,28 @@ fi
 EXT=${MERGED##*.}
 MODE="error"
 
-if [ "$EXT" == "qs" ]; then
+if [ "$EXT" = "qs" ]; then
     MODE="qsdir"
+    MODE="qs-split"
 fi
 
-if [ "$EXT" == "ui" ]; then
+if [ "$EXT" = "ui" ]; then
     MODE="xml"
 fi
 
-if [ "$EXT" == "mtd" ]; then
+if [ "$EXT" = "mtd" ]; then
     MODE="xml"
 fi
 
-if [ "$EXT" == "xml" ]; then
+if [ "$EXT" = "xml" ]; then
     MODE="xml"
 fi
 
-if [ "$EXT" == "ts" ]; then
+if [ "$EXT" = "ts" ]; then
     MODE="xml"
 fi
 
-if [ "$EXT" == "kut" ]; then
+if [ "$EXT" = "kut" ]; then
     MODE="xml"
 fi
 
@@ -108,15 +109,15 @@ if [ ! -e $BASE ]; then
     exec kdiff3 $LOCAL $REMOTE -o $MERGED --auto
 fi
 
-if [ "$EXT" == "qry" ]; then
+if [ "$EXT" = "qry" ]; then
     MODE="kdiff3"
 fi
 
-if [ "$EXT" == "sql" ]; then
+if [ "$EXT" = "sql" ]; then
     MODE="kdiff3"
 fi
 
-if [ "$MODE" == "error" ]; then
+if [ "$MODE" = "error" ]; then
     echo "Se desconoce como mezclar la extension '.$EXT'"
     exit 3;
 fi
@@ -125,18 +126,65 @@ test -e $BASE || { echo "fichero BASE '$BASE' no existe"; exit 2; };
 test -e $LOCAL || { echo "fichero LOCAL '$LOCAL' no existe"; exit 2; };
 test -e $REMOTE || { echo "fichero REMOTE '$REMOTE' no existe"; exit 2; };
 
-if [ "$MODE" == "kdiff3" ]; then
+if [ "$MODE" = "kdiff3" ]; then
     exec kdiff3 $BASE $LOCAL $REMOTE -o $MERGED --auto
     exit 3;
 fi
- 
-eneboo-mergetool file-diff $MODE $BASE $REMOTE \
-    --output $MERGED.patch || exit 1
+
+if [ "$MODE" = "xml" -o "$MODE" = "qsdir" ]; then
+    filename=$(basename "$MERGED")
+    extension="${filename##*.}"
     
-eneboo-mergetool file-patch $MODE $MERGED.patch $LOCAL \
-    --output $MERGED -v || exit 1
+    eneboo-mergetool file-diff $MODE $BASE $REMOTE \
+        --output $MERGED.patch_br || exit 1
 
-unlink $MERGED.patch
-test -s $MERGED || exit 5 
+    eneboo-mergetool file-diff $MODE $BASE $LOCAL \
+        --output $MERGED.patch_bl || exit 1
+    
+    if [ $(wc -c < $MERGED.patch_br) -ge $(wc -c < $MERGED.patch_bl) ]; then
+        PMODE="blr" # (Base - Local) + Remote
+        eneboo-mergetool file-diff $MODE $LOCAL  $BASE --output $MERGED.patch_bl_uninst -q --clean-patch || exit 1
+        
+        eneboo-mergetool file-patch $MODE $MERGED.patch_bl_uninst $REMOTE    --output $MERGED.uninst.$extension -q || exit 1
+        eneboo-mergetool file-patch $MODE $MERGED.patch_bl $MERGED.uninst.$extension   --output $MERGED -v || exit 1
+    else
+        PMODE="brl" # (Base - Remote) + Local
+        eneboo-mergetool file-diff $MODE $REMOTE  $BASE --output $MERGED.patch_br_uninst -q --clean-patch || exit 1
+        
+        eneboo-mergetool file-patch $MODE $MERGED.patch_br_uninst $LOCAL    --output $MERGED.uninst.$extension -q || exit 1
+        eneboo-mergetool file-patch $MODE $MERGED.patch_br $MERGED.uninst.$extension   --output $MERGED -v || exit 1
+    fi
+    
+    #exit 8
+    
+    test -f $MERGED.patch_br_uninst  && unlink $MERGED.patch_br_uninst 
+    test -f $MERGED.patch_bl_uninst  && unlink $MERGED.patch_bl_uninst  
+    unlink $MERGED.patch_br
+    unlink $MERGED.patch_bl
+    unlink $MERGED.uninst.$extension
+    test -s $MERGED || exit 5 
+    exit 0
+fi
 
-exit 0
+if [ "$MODE" = "qs-split" ]; then
+    eneboo-mergetool qs-split $BASE -v
+    eneboo-mergetool qs-split $REMOTE -v
+    eneboo-mergetool qs-split $LOCAL -v
+    test -d "${MERGED%.qs}-splitted" && rm -Rf "${MERGED%.qs}-splitted"
+    mkdir "${MERGED%.qs}-splitted"
+    kdiff3 "${BASE%.qs}-splitted" "${LOCAL%.qs}-splitted" "${REMOTE%.qs}-splitted" -o "${MERGED%.qs}-splitted" -m
+    eneboo-mergetool qs-join "${MERGED%.qs}-splitted" -v
+    if test -s "${MERGED%.qs}.joined.qs" ; then
+        cp "${MERGED%.qs}.joined.qs" "$MERGED"
+        rm "${MERGED%.qs}.joined.qs" "${BASE%.qs}-splitted" "${LOCAL%.qs}-splitted" "${REMOTE%.qs}-splitted" "${MERGED%.qs}-splitted" -Rf
+        exit 0;
+    else
+        rm "${MERGED%.qs}.joined.qs" "${BASE%.qs}-splitted" "${LOCAL%.qs}-splitted" "${REMOTE%.qs}-splitted" "${MERGED%.qs}-splitted" -Rf
+        exit 5;
+    fi
+fi
+
+
+echo "Se desconoce el modo de mezla '$MODE'"
+exit 3;
+

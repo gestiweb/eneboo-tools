@@ -419,6 +419,7 @@ class XMLDiffer(object):
         self.format = format
         self.style = style
         self.time_resolve_select = 0
+        self.clean_patch = False
         if file_patch: rbt = False # Remove Blank Text 
         else: rbt = True
         self.xbase = XMLFormatParser(self.iface, self.format, self.style, file_base, rbt, recover = recover)
@@ -451,6 +452,10 @@ class XMLDiffer(object):
         else:            
             self.patch = None
             self.patch_tree = None
+    
+    def set_clean_patch(self, clean_patch):
+        self.clean_patch = clean_patch
+        
     def patch_output(self):
         if self.patch is not None: 
             doc = self.apply_pre_save_patch(self.patch)
@@ -622,6 +627,8 @@ class XMLDiffer(object):
         else:
             patchelem = None
         for action, a1, a2 , b1, b2 in opcodes:
+            if self.clean_patch:
+                if action != "delete": continue
             if action == "equal": 
                 if a2-a1-b2+b1 != 0:
                     self.iface.debug2r(_=self.shpath(base_elem), equal=final_elem[b1:b2], zdelta = b1 - a1, zsize = a2-a1, zdisc = a2-a1-b2+b1  )
@@ -931,7 +938,7 @@ def diff_lxml(iface, base, final):
             return False
     except ValueError:
         return False
-
+    xmldiff.set_clean_patch(iface.clean_patch)
     patch = xmldiff.compare()
     if len(patch) == 0: return -1
     #xbase.clean()

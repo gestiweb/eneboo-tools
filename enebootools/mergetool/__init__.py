@@ -67,6 +67,7 @@ class MergeToolInterface(EnebooToolsInterface):
         self.diff_xml_search_move = False
         self.patch_name = None
         self.patch_dest = None
+        self.clean_patch = False
         if setup_parser: self.setup_parser()
         
     def setup_parser(self):
@@ -112,6 +113,13 @@ class MergeToolInterface(EnebooToolsInterface):
             level = "action",
             call_function = self.set_patch_qs_style
             )
+        self.parser.declare_option(
+            name = "clean-patch",
+            description = u"provoca que el parche generado sea de tipo limpieza",
+            level = "action", # ( action | parser )
+            variable = None, 
+            call_function = self.set_clean_patch
+            )
             
         self.build_project_action = self.parser.declare_action(
             name = "build-project",
@@ -154,7 +162,7 @@ class MergeToolInterface(EnebooToolsInterface):
             name = "file-diff",
             args = ["ext","base","final"],
             description = u"Genera un parche de fichero $ext de la diferencia entre el fichero $base y $final",
-            options = ['output-file'],
+            options = ['output-file','clean-patch'],
             call_function = self.do_file_diff,
             min_file_list = 0, # por defecto es 0
             max_file_list = 0, # por defecto es 0, -1 indica sin límite.
@@ -225,7 +233,7 @@ class MergeToolInterface(EnebooToolsInterface):
     def set_patch_name(self, name):
         if name == "": name = None
         self.patch_name = name
-        
+
     def set_patch_dest(self, filename):
         if filename == "": filename = None
         self.patch_dest = filename
@@ -242,6 +250,10 @@ class MergeToolInterface(EnebooToolsInterface):
 
     def enable_diff_xml_search_move(self):
         self.diff_xml_search_move = True
+
+    def set_clean_patch(self):
+        self.clean_patch = True
+        
     
     # :::: ACTIONS ::::
     def do_build_project(self, buildxml):
