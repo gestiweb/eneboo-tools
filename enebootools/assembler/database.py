@@ -5,6 +5,7 @@ import sqlite3
 import re, sys
 import readline, fnmatch
 import shutil
+import platform
 
 from lxml import etree
 
@@ -76,8 +77,12 @@ def update_database(iface):
             dmtime = datetime.fromtimestamp(mtime)
             obj = KnownObjects()
             obj.objtype = "module"
-            obj.abspath = path
-            obj.relpath = os.path.dirname(module)
+            if platform.system() == "Windows":
+                obj.abspath = path.replace("\\","/")
+                obj.relpath = os.path.dirname(module).replace("\\","/")
+            else :
+                obj.abspath = path
+                obj.relpath = os.path.dirname(module)
             obj.filename = os.path.basename(module)
             obj.timestamp = int(mtime)
             obj.extradata = ""
@@ -103,8 +108,12 @@ def update_database(iface):
             # print dmtime.strftime("%a %d %B %Y @ %H:%M:%S %z")
             obj = KnownObjects()
             obj.objtype = "feature"
-            obj.abspath = path
-            obj.relpath = os.path.dirname(feature)
+            if platform.system() == "Windows":
+                obj.abspath = path.replace("\\","/")
+                obj.relpath = os.path.dirname(feature).replace("\\","/")
+            else :
+                obj.abspath = path
+                obj.relpath = os.path.dirname(feature)
             obj.filename = os.path.basename(feature)
             obj.timestamp = int(mtime)
             obj.extradata = ""
