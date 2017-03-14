@@ -134,25 +134,33 @@ fi
 if [ "$MODE" = "xml" -o "$MODE" = "qsdir" ]; then
     filename=$(basename "$MERGED")
     extension="${filename##*.}"
-    
+
     eneboo-mergetool file-diff $MODE $BASE $REMOTE \
-        --output $MERGED.patch_br || exit 1
+        --output $MERGED.patch_br || echo "Error al generar el parche BR"
 
     eneboo-mergetool file-diff $MODE $BASE $LOCAL \
-        --output $MERGED.patch_bl || exit 1
+        --output $MERGED.patch_bl || echo "Error al generar el parche BL"
     
     if [ $(wc -c < $MERGED.patch_br) -ge $(wc -c < $MERGED.patch_bl) ]; then
         PMODE="blr" # (Base - Local) + Remote
-        eneboo-mergetool file-diff $MODE $LOCAL  $BASE --output $MERGED.patch_bl_uninst -q --clean-patch || exit 1
+        eneboo-mergetool file-diff $MODE $LOCAL  $BASE --output $MERGED.patch_bl_uninst -q --clean-patch \
+            || echo "Error al generar desintalación base-local"
         
-        eneboo-mergetool file-patch $MODE $MERGED.patch_bl_uninst $REMOTE    --output $MERGED.uninst.$extension -q || exit 1
-        eneboo-mergetool file-patch $MODE $MERGED.patch_bl $MERGED.uninst.$extension   --output $MERGED -v || exit 1
+        eneboo-mergetool file-patch $MODE $MERGED.patch_bl_uninst $REMOTE    --output $MERGED.uninst.$extension -q \
+            || echo "Error al aplicar desintalación base-local"
+        test -s $MERGED.uninst.$extension || cp $REMOTE $MERGED.uninst.$extension
+        eneboo-mergetool file-patch $MODE $MERGED.patch_bl $MERGED.uninst.$extension   --output $MERGED -v \
+            || echo "Error al aplicar parche $PMODE"
     else
         PMODE="brl" # (Base - Remote) + Local
-        eneboo-mergetool file-diff $MODE $REMOTE  $BASE --output $MERGED.patch_br_uninst -q --clean-patch || exit 1
+        eneboo-mergetool file-diff $MODE $REMOTE  $BASE --output $MERGED.patch_br_uninst -q --clean-patch \
+            || echo "Error al generar desintalación base-remote"
         
-        eneboo-mergetool file-patch $MODE $MERGED.patch_br_uninst $LOCAL    --output $MERGED.uninst.$extension -q || exit 1
-        eneboo-mergetool file-patch $MODE $MERGED.patch_br $MERGED.uninst.$extension   --output $MERGED -v || exit 1
+        eneboo-mergetool file-patch $MODE $MERGED.patch_br_uninst $LOCAL    --output $MERGED.uninst.$extension -q \
+            || echo "Error al aplicar desintalación base-remote"
+        test -s $MERGED.uninst.$extension || cp $LOCAL $MERGED.uninst.$extension
+        eneboo-mergetool file-patch $MODE $MERGED.patch_br $MERGED.uninst.$extension   --output $MERGED -v \
+            || echo "Error al aplicar parche $PMODE"
     fi
     
     #exit 8

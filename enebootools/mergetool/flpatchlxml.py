@@ -982,6 +982,16 @@ def patch_lxml(iface, patch, base):
         return
     if len(styles) > 1:
         iface.warn(u"Había más de un estilo con el nombre %s y hemos cargado el primero." % (repr(style_name)))
+
+    file_base_sz = os.path.getsize(base)
+    file_patch_sz = os.path.getsize(patch)
+    
+    if (file_base_sz < 32):
+        iface.error(u"Fichero BASE sólo tiene %d bytes (%r)" % (file_base_sz,base))
+        return
+    if (file_patch_sz < 32):
+        iface.error(u"Fichero BASE sólo tiene %d bytes (%r)" % (file_patch_sz,patch))
+        return
     
     style= styles[0]
     
