@@ -2,6 +2,11 @@
 from enebootools import EnebooToolsInterface
 
 from enebootools.crypto import main
+import sys  
+
+reload(sys)  
+sys.setdefaultencoding('utf8')
+
 
 class CryptoInterface(EnebooToolsInterface):
     module_description = u"Herramientas de criptografía"
