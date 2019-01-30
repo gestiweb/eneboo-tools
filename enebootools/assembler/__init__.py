@@ -1,4 +1,12 @@
 # encoding: UTF-8
+
+
+import sys  
+
+reload(sys)  
+sys.setdefaultencoding('utf8')
+
+
 from enebootools import EnebooToolsInterface
 
 from enebootools.assembler import database as asmdb

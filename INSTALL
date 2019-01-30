@@ -5,4 +5,8 @@ La instalación típica es crear manualmente un enlace simbólico de
 cada utilidad a /usr/local/bin
 
 sudo ln -s $HOME/git/eneboo-tools/eneboo-mergetool /usr/local/bin/eneboo-mergetool
-
+sudo ln -s $HOME/git/eneboo-tools/eneboo-assembler /usr/local/bin/eneboo-assembler
+sudo ln -s $HOME/git/eneboo-tools/eneboo-crypto /usr/local/bin/eneboo-crypto
+sudo ln -s $HOME/git/eneboo-tools/eneboo-project /usr/local/bin/eneboo-project
+sudo ln -s $HOME/git/eneboo-tools/eneboo-packager /usr/local/bin/eneboo-packager
+sudo ln -s $HOME/git/eneboo-tools/eneboo-uiimage /usr/local/bin/eneboo-uiimage
