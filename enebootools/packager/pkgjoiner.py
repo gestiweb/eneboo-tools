@@ -112,7 +112,7 @@ def createpkg(iface, modulefolder):
     filelines = []
     shasum = ""
     ignored_ext = set([])
-    load_ext = set(['.qs', '.mtd', '.ts', '.ar', '.kut', '.qry', '.ui', '.xml', '.xpm'])
+    load_ext = set(['.qs', '.mtd', '.ts', '.ar', '.kut', '.qry', '.ui', '.xml', '.xpm', '.py'])
     for folder, module in zip(file_folders,modnames):
         fpath = os.path.join(modulefolder,folder)
         files = find_files(fpath)

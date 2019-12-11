@@ -15,6 +15,7 @@ def extpath(name):
         '.pgsql': 'pgsql',
         '.qry': 'queries',
         '.qs': 'scripts',
+        '.py': 'scripts',
         '.qso': 'binscripts',
         '.sql': 'pgsql',
         '.ts': 'translations',
